@@ -19,4 +19,6 @@ dist
 .claude
 chat-history
 .env.local
-data
+
+data/*
+!data/.gitkeep
