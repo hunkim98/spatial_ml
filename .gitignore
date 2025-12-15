@@ -19,3 +19,4 @@ dist
 .claude
 chat-history
 .env.local
+data
