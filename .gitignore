@@ -21,4 +21,4 @@ chat-history
 .env.local
 
 data/*
-!data/.gitkeep
+/data

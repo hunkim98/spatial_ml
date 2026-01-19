@@ -1,0 +1,4 @@
+[core]
+    remote = zoning_data
+['remote "zoning_data"']
+    url = gs://zoning_data
