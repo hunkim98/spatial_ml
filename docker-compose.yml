@@ -1,5 +1,22 @@
 # yaml-language-server: $schema=https://json.schemastore.org/docker-compose.json
 services:
+  collector:
+    platform: linux/amd64
+    build:
+      context: ./collector
+      dockerfile: Dockerfile
+    container_name: spatially_collector
+    stdin_open: true # Keep stdin open (docker run -i)
+    tty: true # Allocate a pseudo-TTY (docker run -t)
+    env_file:
+      - ./secrets/teamspatially-project.env
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /secrets/teamspatially-storage-accessor-keys.json
+      PYTHONPATH: /app:/
+    volumes:
+      - ./secrets:/secrets:ro # This will mount our ./secrets as /secrets in the container
+      - ./collector:/app # This will mount our ./data/collector as /app in the container
+      - ./data:/data:ro # This will mount our ./data as /data in the container (This is where the data is stored)
   processor:
     platform: linux/amd64
     build:

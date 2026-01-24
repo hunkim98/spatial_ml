@@ -1,4 +1,3 @@
-from utils.db_accessor import DBAccessor
 from utils.gcp_storage import GCPStorage
 from template import BaseCollector
 from abc import ABC, abstractmethod
@@ -22,10 +21,6 @@ class ZoningOrdinanceBaseCollector(BaseCollector, ABC):
         self.gcp_storage = None
         self.bucket_name = os.environ.get("GCS_BUCKET_NAME")
         self.gcp_project = os.environ.get("GCP_PROJECT")
-        self.db_name = os.environ.get(
-            "APP_DB_NAME"
-        )  # We will store the census tracts in the app database
-        self.db = DBAccessor(db_name=self.db_name)
 
         if self.bucket_name and self.gcp_project:
             try:
