@@ -9,7 +9,8 @@ Usage:
     collector.collect()
 """
 
-from .base import ZoningOrdinanceBaseCollector
+from utils.smart_arg_parser import SmartArgItem, SmartArgParser
+from base import ZoningOrdinanceBaseCollector
 from utils.scrapers.municode_scraper import MunicodeScraper
 from utils.scrapers.municode_discovery import MunicodeDiscovery
 import time
@@ -40,16 +41,12 @@ class MunicodeZoningOrdinanceCollector(ZoningOrdinanceBaseCollector):
         os.makedirs(self.download_directory(), exist_ok=True)
 
         self.scraper = MunicodeScraper(
-            url=self._resource_url,
-            download_dir=self.download_directory()
+            url=self._resource_url, download_dir=self.download_directory()
         )
 
     @classmethod
     def from_state_and_municipality(
-        cls,
-        state_abbrev: str,
-        municipality: str,
-        headless: bool = True
+        cls, state_abbrev: str, municipality: str, headless: bool = True
     ) -> Optional["MunicodeZoningOrdinanceCollector"]:
         """
         Create a collector by automatically discovering the codes URL.
@@ -65,16 +62,18 @@ class MunicodeZoningOrdinanceCollector(ZoningOrdinanceBaseCollector):
         discovery = MunicodeDiscovery(headless=headless)
         municipality_slug = municipality.lower().replace(" ", "-")
 
-        codes_url = discovery.get_municipality_codes_url(state_abbrev, municipality_slug)
+        codes_url = discovery.get_municipality_codes_url(
+            state_abbrev, municipality_slug
+        )
 
         if not codes_url:
-            print(f"Could not find codes URL for {municipality}, {state_abbrev.upper()}")
+            print(
+                f"Could not find codes URL for {municipality}, {state_abbrev.upper()}"
+            )
             return None
 
         return cls(
-            state_abbrev=state_abbrev,
-            municipality=municipality,
-            resource_url=codes_url
+            state_abbrev=state_abbrev, municipality=municipality, resource_url=codes_url
         )
 
     def city(self) -> str:
@@ -97,7 +96,7 @@ class MunicodeZoningOrdinanceCollector(ZoningOrdinanceBaseCollector):
                 try:
                     self.gcp_storage.upload_file(
                         file_path=str(file_path),
-                        destination_path=f"{self.gcp_storage_parent_directory()}/{file_path.name}"
+                        destination_path=f"{self.gcp_storage_parent_directory()}/{file_path.name}",
                     )
                     self.logger.info(f"Uploaded {file_path.name} to GCS")
                     break
@@ -133,7 +132,7 @@ class MunicodeZoningOrdinanceCollector(ZoningOrdinanceBaseCollector):
 
         self.gcp_storage.upload_file(
             file_path=metadata_path,
-            destination_path=f"{self.gcp_storage_parent_directory()}/metadata.json"
+            destination_path=f"{self.gcp_storage_parent_directory()}/metadata.json",
         )
         self.logger.info("Uploaded metadata to GCS")
 
@@ -155,3 +154,35 @@ class MunicodeZoningOrdinanceCollector(ZoningOrdinanceBaseCollector):
         self.upload_metadata()
 
         return downloaded_files
+
+
+if __name__ == "__main__":
+    schema = {
+        "state_abbrev": SmartArgItem(
+            flags=["--state_abbrev"],
+            prompt="Which state abbreviation?",
+            arg_type=str,
+            required=True,
+        ),
+        "municipality": SmartArgItem(
+            flags=["--municipality"],
+            prompt="Which municipality?",
+            arg_type=str,
+            required=True,
+        ),
+        "resource_url": SmartArgItem(
+            flags=["--resource_url"],
+            prompt="Which resource URL?",
+            arg_type=str,
+            required=True,
+        ),
+    }
+    parser = SmartArgParser(schema)
+    args = parser.parse()
+
+    collector = MunicodeZoningOrdinanceCollector(
+        state_abbrev=args["state_abbrev"],
+        municipality=args["municipality"],
+        resource_url=args["resource_url"],
+    )
+    collector.collect()
