@@ -1,0 +1,68 @@
+{
+  "root": true,
+  "extends": [
+    "next",
+    "next/core-web-vitals",
+    "prettier",
+    "plugin:@typescript-eslint/recommended",
+    "eslint:recommended",
+    "plugin:react/recommended"
+  ],
+  "plugins": [
+    "@tanstack/query",
+    "@typescript-eslint",
+    "prettier",
+    "react",
+    "react-hooks"
+  ],
+  "overrides": [
+    {
+      "files": ["*.ts", "*.tsx", "*.js", "*.jsx", "*.mdx"]
+    }
+  ],
+  "rules": {
+    "no-undef": "off", // 정의되지 않은 변수 경고
+    "no-unused-vars": "off", // TypeScript 사용 시, @typescript-eslint/no-unused-vars 사용
+    "no-redeclare": "off",
+    "no-duplicate-imports": "error", // 중복 import 금지
+    "import/no-anonymous-default-export": "off", // 익명 default export 허용
+    "@next/next/no-html-link-for-pages": "error", // 페이지 이동 시 <a> 태그 대신 Link 컴포넌트 사용 권장
+    "@next/next/no-page-custom-font": "off", // 페이지 레벨 커스텀 폰트 허용. 페이지별 폰트 적용 유연성. 성능 저하 및 번들 크기 증가 우려.
+    "@tanstack/query/stable-query-client": "error", // stable-query-client 규칙 적용
+    "prettier/prettier": "error", // prettier 에러 발생시 에러 표시
+    "react/react-in-jsx-scope": "off", // Next.js 에서는 불필요한 규칙
+    "react/prop-types": "off", // TypeScript 사용시 불필요한 규칙
+    "react/no-unescaped-entities": "off", // 이스케이프되지 않은 엔티티(예: <, >, & 등) 허용. JSX 내 특수문자 사용 편의성. XSS 취약점 위험 있음.
+    "react/no-unknown-property": "off", // JSX 내 미지정 속성 허용. JSX 내 미지정 속성 사용 편의성. 오타 등의 오류 가능성 있음.
+    "react-hooks/rules-of-hooks": "off", // Hooks 규칙 비활성화. Hooks 사용 편의성. 잘못된 Hooks 사용으로 인한 버그 가능성.
+    "react-hooks/exhaustive-deps": "off", // Hooks 의존성 배열 검사 비활성화. 불필요한 의존성 명시 피할 수 있음. 잘못된 의존성으로 인한 버그 가능성.
+    "@typescript-eslint/ban-ts-comment": "off", // @ts-ignore 사용 허용
+    "@typescript-eslint/no-unused-vars": "warn", // 사용하지 않는 변수 경고
+    "@typescript-eslint/no-var-requires": 0, // require 사용 허용
+    "padding-line-between-statements": [
+      // 블록 사이에 빈 줄 추가
+      "error",
+      { "blankLine": "always", "prev": ["const", "let", "var"], "next": "*" }, // 변수 선언 뒤에 빈 줄 추가
+      {
+        "blankLine": "any",
+        "prev": ["const", "let", "var"],
+        "next": ["const", "let", "var"]
+      }, //
+      { "blankLine": "always", "prev": ["case", "default"], "next": "*" } // case 문 뒤에 빈 줄 추가
+    ]
+  },
+  "env": {
+    "browser": true,
+    "node": true,
+    "jest": true,
+    "es2021": true
+  },
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaFeatures": {
+      "jsx": true
+    },
+    "ecmaVersion": 2021,
+    "sourceType": "module"
+  }
+}
