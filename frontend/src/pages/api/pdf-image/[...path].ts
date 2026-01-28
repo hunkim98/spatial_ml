@@ -1,7 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import fs from "fs";
-import path from "path";
-import { getFileStream } from "@/lib/gcs";
+import { findHashByPath } from "@/lib/manifest";
 
 /**
  * PDF Image endpoint - returns PDF info for client-side rendering.
@@ -12,31 +10,6 @@ import { getFileStream } from "@/lib/gcs";
  * Query params:
  * - page: Page number (default: 1)
  */
-
-interface DvcEntry {
-  md5: string;
-  relpath: string;
-}
-
-let manifest: DvcEntry[] | null = null;
-
-function getManifest(): DvcEntry[] {
-  if (!manifest) {
-    const manifestPath = path.resolve(
-      process.cwd(),
-      process.env.DVC_MANIFEST ||
-        "../.dvc/cache/files/md5/ac/a543f303438b3df1f6e174c47af627.dir"
-    );
-    manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
-  }
-  return manifest!;
-}
-
-function findHashByPath(pdfPath: string): string | null {
-  const fullPath = `maps/${pdfPath}`;
-  const entry = getManifest().find((e) => e.relpath === fullPath);
-  return entry?.md5 || null;
-}
 
 export default async function handler(
   req: NextApiRequest,
@@ -53,7 +26,7 @@ export default async function handler(
     return res.status(400).json({ error: "Invalid file type" });
   }
 
-  const hash = findHashByPath(pdfPath);
+  const hash = await findHashByPath(pdfPath);
   if (!hash) {
     return res.status(404).json({ error: "PDF not found" });
   }

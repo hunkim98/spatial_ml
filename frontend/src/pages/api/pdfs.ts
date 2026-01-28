@@ -1,37 +1,23 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import fs from "fs";
-import path from "path";
 import { PdfFile } from "@/types/pdf";
+import { getManifest } from "@/lib/manifest";
 
 /**
- * PDFs API - reads from DVC manifest instead of scanning filesystem.
+ * PDFs API - reads from DVC manifest fetched from GCS.
  *
  * DVC stores a .dir file containing all file paths and their MD5 hashes.
  * This approach:
- * - Works in production (no filesystem access to data dir needed)
+ * - Works in production (fetches manifest from GCS)
  * - Uses pre-computed hashes (fast, no heavy I/O)
  * - Stays in sync with DVC-tracked data
  */
 
-interface DvcEntry {
-  md5: string;
-  relpath: string;
-}
-
 let cachedPdfs: PdfFile[] | null = null;
 
-function loadPdfsFromManifest(): PdfFile[] {
+async function loadPdfsFromManifest(): Promise<PdfFile[]> {
   if (cachedPdfs) return cachedPdfs;
 
-  const manifestPath = path.resolve(
-    process.cwd(),
-    process.env.DVC_MANIFEST ||
-      "../.dvc/cache/files/md5/ac/a543f303438b3df1f6e174c47af627.dir"
-  );
-
-  const manifest: DvcEntry[] = JSON.parse(
-    fs.readFileSync(manifestPath, "utf-8")
-  );
+  const manifest = await getManifest();
 
   cachedPdfs = manifest
     .filter(
@@ -53,12 +39,12 @@ function loadPdfsFromManifest(): PdfFile[] {
   return cachedPdfs;
 }
 
-export default function handler(
+export default async function handler(
   _req: NextApiRequest,
   res: NextApiResponse<PdfFile[] | { error: string }>
 ) {
   try {
-    const pdfs = loadPdfsFromManifest();
+    const pdfs = await loadPdfsFromManifest();
     res.status(200).json(pdfs);
   } catch (error) {
     console.error("Failed to load PDF manifest:", error);
