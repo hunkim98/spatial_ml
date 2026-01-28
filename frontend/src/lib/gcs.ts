@@ -14,12 +14,19 @@ let storage: Storage | null = null;
 
 function getStorage(): Storage {
   if (!storage) {
-    const credPath = path.resolve(
-      process.cwd(),
-      process.env.GOOGLE_APPLICATION_CREDENTIALS ||
-        "../secrets/teamspatially-storage-accessor-keys.json"
-    );
-    storage = new Storage({ keyFilename: credPath });
+    if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
+      // Use JSON content from env var (works on both local and Vercel)
+      const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
+      storage = new Storage({ credentials });
+    } else {
+      // Fallback to file path for legacy support
+      const credPath = path.resolve(
+        process.cwd(),
+        process.env.GOOGLE_APPLICATION_CREDENTIALS ||
+          "../secrets/teamspatially-storage-accessor-keys.json"
+      );
+      storage = new Storage({ keyFilename: credPath });
+    }
   }
   return storage;
 }
