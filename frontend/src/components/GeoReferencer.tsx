@@ -8,6 +8,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import { Loader } from "@mantine/core";
 import { Corner } from "@/types/db";
 import { MapManager } from "@/map";
 import { Editor } from "@/canvas/editor";
@@ -26,6 +27,9 @@ interface GeoReferencerProps {
   pdfUrl: string | null;
   pageNumber?: number;
   initialCenter?: Corner;
+  initialZoom?: number;
+  initialCorners?: GeoCorners;
+  readOnly?: boolean;
 }
 
 export const GeoReferencer = forwardRef<GeoReferencerHandle, GeoReferencerProps>(
@@ -34,6 +38,9 @@ export const GeoReferencer = forwardRef<GeoReferencerHandle, GeoReferencerProps>
       pdfUrl,
       pageNumber = 1,
       initialCenter = { lng: -96.0, lat: 37.0 },
+      initialZoom = 4,
+      initialCorners,
+      readOnly = false,
     },
     ref
   ) {
@@ -47,6 +54,7 @@ export const GeoReferencer = forwardRef<GeoReferencerHandle, GeoReferencerProps>
     const mapManagerRef = useRef<MapManager | null>(null);
     const editorRef = useRef<Editor | null>(null);
     const initialCenterRef = useRef(initialCenter);
+    const initialZoomRef = useRef(initialZoom);
 
     // ========== State ==========
     const [isMapReady, setIsMapReady] = useState(false);
@@ -240,7 +248,7 @@ export const GeoReferencer = forwardRef<GeoReferencerHandle, GeoReferencerProps>
 
       mapManager.initialize(mapContainerRef.current, {
         center: initialCenterRef.current,
-        zoom: 4,
+        zoom: initialZoomRef.current,
       }).then(() => {
         setIsMapReady(true);
       });
@@ -310,6 +318,23 @@ export const GeoReferencer = forwardRef<GeoReferencerHandle, GeoReferencerProps>
         editor.removeEventListener(CanvasEvent.MODE_CHANGED, handleModeChanged);
       };
     }, [isEditorReady, handleBoundsCreated, handleTransformChanged, handleModeChanged]);
+
+    // Apply initial corners when both map and editor are ready
+    useEffect(() => {
+      const editor = editorRef.current;
+      const mapManager = mapManagerRef.current;
+      if (!editor || !mapManager || !isMapReady || !isEditorReady || !initialCorners) return;
+
+      // Project to screen coordinates
+      const screenCorners = mapManager.projection.projectCorners(initialCorners);
+
+      // Initialize editor with pre-set corners
+      editor.initializeWithCorners(screenCorners, initialCorners);
+      setEditorMode(EditorMode.EDIT);
+
+      // Show on map
+      showImageOnMapLibre();
+    }, [isMapReady, isEditorReady, initialCorners, showImageOnMapLibre]);
 
     // Sync screen corners when map moves (when not interacting)
     useEffect(() => {
@@ -397,14 +422,17 @@ export const GeoReferencer = forwardRef<GeoReferencerHandle, GeoReferencerProps>
     // ========== Render ==========
 
     const isInitialized = editorRef.current?.isInitialized ?? false;
+    const isPdfLoading = pdfUrl !== null && !isEditorReady;
 
     // Pointer events logic:
+    // - readOnly: never capture (view only)
     // - CREATE mode: always capture (need to draw bounds)
     // - Interacting: always capture (dragging)
     // - Initialized + mouse over overlay: capture (to allow clicking to edit)
     // - Otherwise: none (allow map panning)
-    const canvasPointerEvents =
-      editorMode === EditorMode.CREATE || isInteracting || isOverOverlay
+    const canvasPointerEvents = readOnly
+      ? "none"
+      : editorMode === EditorMode.CREATE || isInteracting || isOverOverlay
         ? "auto"
         : "none";
 
@@ -415,6 +443,13 @@ export const GeoReferencer = forwardRef<GeoReferencerHandle, GeoReferencerProps>
       >
         {/* MapLibre container */}
         <div ref={mapContainerRef} style={{ position: "absolute", inset: 0 }} />
+
+        {/* Loading overlay - dims map while PDF is loading */}
+        {isPdfLoading && (
+          <div style={loadingOverlayStyle}>
+            <Loader size="lg" color="white" />
+          </div>
+        )}
 
         {/* Canvas overlay for Editor */}
         {pdfUrl && (
@@ -453,10 +488,17 @@ export const GeoReferencer = forwardRef<GeoReferencerHandle, GeoReferencerProps>
           </div>
         )}
 
-        {/* Instructions when not interacting */}
-        {pdfUrl && isInitialized && !isInteracting && (
+        {/* Instructions when not interacting (hide in readOnly mode) */}
+        {pdfUrl && isInitialized && !isInteracting && !readOnly && (
           <div style={instructionStyle}>
             Click on overlay to edit | Scroll to zoom
+          </div>
+        )}
+
+        {/* Preview notice for readOnly demo */}
+        {readOnly && isInitialized && (
+          <div style={previewNoticeStyle}>
+            Preview — Tool in development
           </div>
         )}
       </div>
@@ -474,6 +516,29 @@ const instructionStyle: React.CSSProperties = {
   padding: "8px 16px",
   borderRadius: 8,
   fontSize: 14,
+  zIndex: 20,
+  pointerEvents: "none",
+};
+
+const loadingOverlayStyle: React.CSSProperties = {
+  position: "absolute",
+  inset: 0,
+  background: "rgba(0,0,0,0.5)",
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  zIndex: 30,
+};
+
+const previewNoticeStyle: React.CSSProperties = {
+  position: "absolute",
+  top: 12,
+  left: 12,
+  background: "rgba(0,0,0,0.7)",
+  color: "#aaa",
+  padding: "6px 12px",
+  borderRadius: 6,
+  fontSize: 12,
   zIndex: 20,
   pointerEvents: "none",
 };

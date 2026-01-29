@@ -401,6 +401,20 @@ export class Editor {
     this.models.transformModel.geoCorners = geoCorners;
   }
 
+  /**
+   * Initialize the editor with pre-set corners (for embedding with known positions).
+   * Sets the editor to EDIT mode and marks as initialized.
+   */
+  initializeWithCorners(
+    screenCorners: typeof this.models.transformModel.corners,
+    geoCorners: typeof this.models.transformModel.geoCorners
+  ) {
+    this.models.transformModel.corners = screenCorners;
+    this.models.transformModel.geoCorners = geoCorners;
+    this.models.editorStateModel.isInitialized = true;
+    this.controllers.modeController.execute(EditorMode.EDIT);
+  }
+
   getImageDataUrl(): string | null {
     const buffer = this.models.imageBufferModel.buffer;
     if (!buffer) return null;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Box, Loader } from "@mantine/core";
 import {
   GeoReferencer,
@@ -12,6 +12,7 @@ import { usePdfs } from "@/hooks/usePdfs";
 import { useLabels } from "@/hooks/useLabels";
 import { PdfFile } from "@/types/pdf";
 import { EditorProvider } from "@/canvas/context";
+import { GeoCorners } from "@/canvas/types";
 
 export default function Labeller() {
   // ========== Hooks ==========
@@ -25,10 +26,29 @@ export default function Labeller() {
   const [selectedPdf, setSelectedPdf] = useState<PdfFile | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [saving, setSaving] = useState(false);
+  const [geoCorners, setGeoCorners] = useState<GeoCorners | null>(null);
 
   // ========== Derived Values ==========
   const pdfUrl = selectedPdf ? `/api/pdf/${selectedPdf.path}` : null;
   const loading = pdfsLoading || labelsLoading;
+
+  // ========== Effects ==========
+  // Poll for corner updates when a PDF is selected
+  useEffect(() => {
+    if (!selectedPdf) {
+      setGeoCorners(null);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const corners = geoReferencerRef.current?.getCorners();
+      if (corners) {
+        setGeoCorners(corners);
+      }
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [selectedPdf]);
 
   // ========== Callbacks ==========
 
@@ -100,6 +120,7 @@ export default function Labeller() {
       saving={saving}
       pageNumber={pageNumber}
       numPages={1}
+      geoCorners={geoCorners}
       onPdfSelect={handlePdfSelect}
       onPageChange={handlePageChange}
       onSave={handleSave}

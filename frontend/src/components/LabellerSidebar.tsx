@@ -16,11 +16,13 @@ import {
   IconSearch,
   IconTrash,
   IconDeviceFloppy,
+  IconCopy,
 } from "@tabler/icons-react";
 import { useDebouncedCallback } from "@mantine/hooks";
 import { PdfFile } from "@/types/pdf";
 import { GeoLabel } from "@/types/db";
 import { useLocationSearch } from "@/hooks/useLocationSearch";
+import { GeoCorners } from "@/canvas/types";
 
 interface LabellerSidebarProps {
   pdfs: PdfFile[];
@@ -29,6 +31,7 @@ interface LabellerSidebarProps {
   saving: boolean;
   pageNumber: number;
   numPages: number;
+  geoCorners: GeoCorners | null;
   onPdfSelect: (hash: string | null) => void;
   onPageChange: (page: number) => void;
   onSave: () => void;
@@ -43,6 +46,7 @@ export function LabellerSidebar({
   saving,
   pageNumber,
   numPages,
+  geoCorners,
   onPdfSelect,
   onPageChange,
   onSave,
@@ -181,6 +185,64 @@ export function LabellerSidebar({
             Draw bounds on the map by clicking and dragging. Then drag to
             position and resize using corner handles. Click Save when done.
           </Text>
+
+          {/* Geo Coordinates Display */}
+          {geoCorners && (
+            <>
+              <Divider label="Coordinates" labelPosition="left" />
+              <Paper withBorder p="xs" bg="dark.7">
+                <Stack gap={4}>
+                  <Group justify="space-between">
+                    <Text size="xs" fw={500} c="dimmed">
+                      GeoCorners (for embedding)
+                    </Text>
+                    <Button
+                      size="compact-xs"
+                      variant="subtle"
+                      leftSection={<IconCopy size={12} />}
+                      onClick={() => {
+                        const json = JSON.stringify(
+                          {
+                            topLeft: {
+                              lng: Number(geoCorners.topLeft.lng.toFixed(6)),
+                              lat: Number(geoCorners.topLeft.lat.toFixed(6)),
+                            },
+                            topRight: {
+                              lng: Number(geoCorners.topRight.lng.toFixed(6)),
+                              lat: Number(geoCorners.topRight.lat.toFixed(6)),
+                            },
+                            bottomRight: {
+                              lng: Number(geoCorners.bottomRight.lng.toFixed(6)),
+                              lat: Number(geoCorners.bottomRight.lat.toFixed(6)),
+                            },
+                            bottomLeft: {
+                              lng: Number(geoCorners.bottomLeft.lng.toFixed(6)),
+                              lat: Number(geoCorners.bottomLeft.lat.toFixed(6)),
+                            },
+                          },
+                          null,
+                          2
+                        );
+                        navigator.clipboard.writeText(json);
+                      }}
+                    >
+                      Copy
+                    </Button>
+                  </Group>
+                  <Text
+                    size="xs"
+                    ff="monospace"
+                    style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}
+                  >
+                    TL: {geoCorners.topLeft.lng.toFixed(6)}, {geoCorners.topLeft.lat.toFixed(6)}
+                    {"\n"}TR: {geoCorners.topRight.lng.toFixed(6)}, {geoCorners.topRight.lat.toFixed(6)}
+                    {"\n"}BR: {geoCorners.bottomRight.lng.toFixed(6)}, {geoCorners.bottomRight.lat.toFixed(6)}
+                    {"\n"}BL: {geoCorners.bottomLeft.lng.toFixed(6)}, {geoCorners.bottomLeft.lat.toFixed(6)}
+                  </Text>
+                </Stack>
+              </Paper>
+            </>
+          )}
         </>
       )}
     </Stack>

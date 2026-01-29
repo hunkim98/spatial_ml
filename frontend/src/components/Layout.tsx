@@ -8,23 +8,27 @@ import {
   Button,
   Divider,
 } from "@mantine/core";
-import { IconMap } from "@tabler/icons-react";
+import { IconMapPin } from "@tabler/icons-react";
 
 interface LayoutProps {
   children: ReactNode;
   sidebar?: ReactNode;
+  hideHeader?: boolean;
 }
 
 const NAV_ITEMS = [
   { href: "/", label: "Home" },
-  { href: "/labeller", label: "Labeller" },
-  // Future pages
-  // { href: "/datasets", label: "Datasets" },
-  // { href: "/settings", label: "Settings" },
+  { href: "/labeller", label: "Editor" },
+  { href: "/demo", label: "Demo" },
 ];
 
-export function Layout({ children, sidebar }: LayoutProps) {
+export function Layout({ children, sidebar, hideHeader }: LayoutProps) {
   const router = useRouter();
+
+  // For landing page, render without AppShell header
+  if (hideHeader) {
+    return <>{children}</>;
+  }
 
   return (
     <AppShell
@@ -39,11 +43,11 @@ export function Layout({ children, sidebar }: LayoutProps) {
             <ThemeIcon
               size="md"
               variant="gradient"
-              gradient={{ from: "blue", to: "cyan" }}
+              gradient={{ from: "cyan", to: "teal" }}
             >
-              <IconMap size={16} />
+              <IconMapPin size={16} />
             </ThemeIcon>
-            <Title order={5}>Spatial ML</Title>
+            <Title order={5}>Spatially</Title>
             <Divider orientation="vertical" mx="xs" />
             <Group gap={4}>
               {NAV_ITEMS.map((item) => (
