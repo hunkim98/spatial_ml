@@ -13,7 +13,6 @@ import {
   Box,
   Badge,
   Anchor,
-  Divider,
   Modal,
   Image,
 } from "@mantine/core";
@@ -585,10 +584,6 @@ function Home() {
               </Anchor>
             </Group>
           </Group>
-          <Divider my="lg" color="dark.6" />
-          <Text size="xs" c="dimmed" ta="center">
-            Harvard President&apos;s Innovation Challenge 2026
-          </Text>
         </Container>
       </Box>
     </Box>
