@@ -3,13 +3,10 @@
 import { useState, useRef, useEffect } from "react";
 import { Box, Stack, Text, Button, Paper, Group, Title } from "@mantine/core";
 import { IconCopy, IconCheck } from "@tabler/icons-react";
-import {
-  GeoReferencer,
-  GeoReferencerHandle,
-} from "@/components/GeoReferencer";
+import { GeoReferencer, GeoReferencerHandle } from "@/components/GeoReferencer";
 import { Layout } from "@/components/Layout";
-import { EditorProvider } from "@/canvas/context";
-import { GeoCorners } from "@/canvas/types";
+import { EditorProvider } from "@/canvas/overlay/context";
+import { GeoCorners } from "@/canvas/overlay/types";
 
 export default function TestPosition() {
   const geoReferencerRef = useRef<GeoReferencerHandle>(null);
@@ -83,21 +80,23 @@ export default function TestPosition() {
                   size="compact-sm"
                   variant={copied ? "filled" : "light"}
                   color={copied ? "green" : "blue"}
-                  leftSection={copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                  leftSection={
+                    copied ? <IconCheck size={14} /> : <IconCopy size={14} />
+                  }
                   onClick={handleCopy}
                 >
                   {copied ? "Copied!" : "Copy JSON"}
                 </Button>
               </Group>
-              <Text
-                size="xs"
-                ff="monospace"
-                style={{ whiteSpace: "pre-wrap" }}
-              >
-                TL: {geoCorners.topLeft.lng.toFixed(6)}, {geoCorners.topLeft.lat.toFixed(6)}
-                {"\n"}TR: {geoCorners.topRight.lng.toFixed(6)}, {geoCorners.topRight.lat.toFixed(6)}
-                {"\n"}BR: {geoCorners.bottomRight.lng.toFixed(6)}, {geoCorners.bottomRight.lat.toFixed(6)}
-                {"\n"}BL: {geoCorners.bottomLeft.lng.toFixed(6)}, {geoCorners.bottomLeft.lat.toFixed(6)}
+              <Text size="xs" ff="monospace" style={{ whiteSpace: "pre-wrap" }}>
+                TL: {geoCorners.topLeft.lng.toFixed(6)},{" "}
+                {geoCorners.topLeft.lat.toFixed(6)}
+                {"\n"}TR: {geoCorners.topRight.lng.toFixed(6)},{" "}
+                {geoCorners.topRight.lat.toFixed(6)}
+                {"\n"}BR: {geoCorners.bottomRight.lng.toFixed(6)},{" "}
+                {geoCorners.bottomRight.lat.toFixed(6)}
+                {"\n"}BL: {geoCorners.bottomLeft.lng.toFixed(6)},{" "}
+                {geoCorners.bottomLeft.lat.toFixed(6)}
               </Text>
             </Stack>
           </Paper>

@@ -1,5 +1,5 @@
 import { Map, ImageSource } from "maplibre-gl";
-import { GeoCorners } from "@/canvas/types";
+import { GeoCorners } from "@/canvas/overlay/types";
 import {
   IMAGE_SOURCE_ID,
   IMAGE_LAYER_ID,
@@ -13,7 +13,11 @@ export class ImageSourceController {
     this.map = map;
   }
 
-  add(imageUrl: string, corners: GeoCorners, opacity: number = DEFAULT_IMAGE_OPACITY): void {
+  add(
+    imageUrl: string,
+    corners: GeoCorners,
+    opacity: number = DEFAULT_IMAGE_OPACITY
+  ): void {
     if (!this.map) return;
 
     this.remove();

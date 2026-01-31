@@ -67,7 +67,14 @@ export function Layout({ children, sidebar, hideHeader }: LayoutProps) {
 
       {/* Left Sidebar (optional, for tools) */}
       {sidebar && (
-        <AppShell.Navbar p="sm" style={{ overflow: "auto" }}>
+        <AppShell.Navbar
+          p="sm"
+          style={{
+            display: "flex",
+            flexDirection: "column" as const,
+            overflow: "hidden",
+          }}
+        >
           {sidebar}
         </AppShell.Navbar>
       )}
@@ -75,6 +82,7 @@ export function Layout({ children, sidebar, hideHeader }: LayoutProps) {
       <AppShell.Main style={{ height: "calc(100vh - 50px)" }}>
         {children}
       </AppShell.Main>
+      {/* <AppShell.Main style={{}}>hi there</AppShell.Main> */}
     </AppShell>
   );
 }

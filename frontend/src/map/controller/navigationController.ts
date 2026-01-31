@@ -1,5 +1,5 @@
 import { Map } from "maplibre-gl";
-import { Location } from "@/canvas/types";
+import { Location } from "@/canvas/overlay/types";
 import { FLY_TO_DURATION, FIT_BOUNDS_PADDING } from "../config";
 
 export class NavigationController {
@@ -17,7 +17,10 @@ export class NavigationController {
     });
   }
 
-  fitBounds(bounds: [number, number, number, number], padding: number = FIT_BOUNDS_PADDING): void {
+  fitBounds(
+    bounds: [number, number, number, number],
+    padding: number = FIT_BOUNDS_PADDING
+  ): void {
     if (!this.map) return;
 
     // bounds: [south, north, west, east]

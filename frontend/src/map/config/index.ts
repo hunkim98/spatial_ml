@@ -1,5 +1,5 @@
 import { StyleSpecification } from "maplibre-gl";
-import { Location } from "@/canvas/types";
+import { Location } from "@/canvas/overlay/types";
 
 export const SATELLITE_STYLE: StyleSpecification = {
   version: 8,

@@ -1,7 +1,7 @@
 "use client";
 
 import { Slider, Text, Group, Paper } from "@mantine/core";
-import { useEditorContext } from "@/canvas/context";
+import { useEditorContext } from "@/canvas/overlay/context";
 
 export function OpacitySlider() {
   const { opacity, setOpacity } = useEditorContext();

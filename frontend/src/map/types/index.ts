@@ -1,4 +1,4 @@
-import { Location } from "@/canvas/types";
+import { Location } from "@/canvas/overlay/types";
 
 export interface MapConfig {
   center?: Location;

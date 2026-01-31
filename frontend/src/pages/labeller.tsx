@@ -2,22 +2,24 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Box, Loader } from "@mantine/core";
-import {
-  GeoReferencer,
-  GeoReferencerHandle,
-} from "@/components/GeoReferencer";
+import { GeoReferencer, GeoReferencerHandle } from "@/components/GeoReferencer";
 import { LabellerSidebar } from "@/components/LabellerSidebar";
 import { Layout } from "@/components/Layout";
 import { usePdfs } from "@/hooks/usePdfs";
 import { useLabels } from "@/hooks/useLabels";
 import { PdfFile } from "@/types/pdf";
-import { EditorProvider } from "@/canvas/context";
-import { GeoCorners } from "@/canvas/types";
+import { EditorProvider } from "@/canvas/overlay/context";
+import { GeoCorners } from "@/canvas/overlay/types";
 
 export default function Labeller() {
   // ========== Hooks ==========
   const { pdfs, loading: pdfsLoading } = usePdfs();
-  const { labels, loading: labelsLoading, saveLabel, deleteLabel } = useLabels();
+  const {
+    labels,
+    loading: labelsLoading,
+    saveLabel,
+    deleteLabel,
+  } = useLabels();
 
   // ========== Refs ==========
   const geoReferencerRef = useRef<GeoReferencerHandle>(null);
@@ -33,22 +35,27 @@ export default function Labeller() {
   const loading = pdfsLoading || labelsLoading;
 
   // ========== Effects ==========
-  // Poll for corner updates when a PDF is selected
+  // Clear corners when PDF is deselected
   useEffect(() => {
     if (!selectedPdf) {
       setGeoCorners(null);
-      return;
     }
-
-    const interval = setInterval(() => {
-      const corners = geoReferencerRef.current?.getCorners();
-      if (corners) {
-        setGeoCorners(corners);
-      }
-    }, 500);
-
-    return () => clearInterval(interval);
   }, [selectedPdf]);
+
+  // Subscribe to corners change events
+  useEffect(() => {
+    const ref = geoReferencerRef.current;
+    if (!ref) return;
+
+    const handleCornersChange = (corners: GeoCorners) => {
+      setGeoCorners(corners);
+    };
+
+    ref.addCornersChangeListener(handleCornersChange);
+    return () => {
+      ref.removeCornersChangeListener(handleCornersChange);
+    };
+  }, [selectedPdf]); // Re-subscribe when PDF changes
 
   // ========== Callbacks ==========
 

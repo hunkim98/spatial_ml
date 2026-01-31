@@ -28,8 +28,8 @@ import {
 } from "@tabler/icons-react";
 import type { ReactElement } from "react";
 import dynamic from "next/dynamic";
-import { EditorProvider } from "@/canvas/context";
-import { GeoCorners } from "@/canvas/types";
+import { EditorProvider } from "@/canvas/overlay/context";
+import { GeoCorners } from "@/canvas/overlay/types";
 
 // Dynamic import to avoid SSR issues with MapLibre
 const GeoReferencer = dynamic(
@@ -100,11 +100,17 @@ function Home() {
           name="description"
           content="Free web-based tool that converts zoning map PDFs into GIS data. Built for municipalities without GIS capacity. Transform paper maps into interactive digital maps."
         />
-        <meta name="keywords" content="zoning maps, GIS, georeference, PDF to GIS, urban planning, municipality, digital maps, geospatial" />
+        <meta
+          name="keywords"
+          content="zoning maps, GIS, georeference, PDF to GIS, urban planning, municipality, digital maps, geospatial"
+        />
 
         {/* Open Graph / Facebook */}
         <meta property="og:type" content="website" />
-        <meta property="og:title" content="Spatially - Convert Zoning PDFs to Digital GIS Maps" />
+        <meta
+          property="og:title"
+          content="Spatially - Convert Zoning PDFs to Digital GIS Maps"
+        />
         <meta
           property="og:description"
           content="Free web-based tool that converts zoning map PDFs into GIS data. Built for municipalities without GIS capacity."
@@ -113,7 +119,10 @@ function Home() {
 
         {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Spatially - Convert Zoning PDFs to Digital GIS Maps" />
+        <meta
+          name="twitter:title"
+          content="Spatially - Convert Zoning PDFs to Digital GIS Maps"
+        />
         <meta
           name="twitter:description"
           content="Free web-based tool that converts zoning map PDFs into GIS data. Built for municipalities without GIS capacity."
@@ -136,12 +145,16 @@ function Home() {
       >
         <Stack gap="md">
           <Text>
-            Our georeference editor is currently in development. We are focused on
-            collecting training data to build accurate PDF-to-GIS conversion models.
+            Our georeference editor is currently in development. We are focused
+            on collecting training data to build accurate PDF-to-GIS conversion
+            models.
           </Text>
           <Text c="dimmed" size="sm">
-            Want early access or to participate in our pilot program? Reach out to us
-            at <Anchor href="mailto:donghun_kim@mde.harvard.edu">donghun_kim@mde.harvard.edu</Anchor>
+            Want early access or to participate in our pilot program? Reach out
+            to us at{" "}
+            <Anchor href="mailto:donghun_kim@mde.harvard.edu">
+              donghun_kim@mde.harvard.edu
+            </Anchor>
           </Text>
           <Button
             variant="gradient"
@@ -156,7 +169,8 @@ function Home() {
       {/* Hero Section */}
       <Box
         style={{
-          background: "linear-gradient(135deg, #1a1b1e 0%, #25262b 50%, #1a1b1e 100%)",
+          background:
+            "linear-gradient(135deg, #1a1b1e 0%, #25262b 50%, #1a1b1e 100%)",
           borderBottom: "1px solid #373A40",
         }}
       >
@@ -185,9 +199,9 @@ function Home() {
             </Text>
 
             <Text size="md" c="gray.4" ta="center" maw={700} lh={1.7} px="md">
-              We build tools that turn zoning PDFs and hand-drawn maps into usable
-              digital maps, creating an on-ramp to everyday GIS use for planning
-              boards with limited capacity.
+              We build tools that turn zoning PDFs and hand-drawn maps into
+              usable digital maps, creating an on-ramp to everyday GIS use for
+              planning boards with limited capacity.
             </Text>
 
             <Group mt="md">
@@ -217,9 +231,17 @@ function Home() {
             </Title>
 
             {/* Stats integrated into problem section */}
-            <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="lg" w="100%" maw={800}>
+            <SimpleGrid
+              cols={{ base: 1, sm: 3 }}
+              spacing="lg"
+              w="100%"
+              maw={800}
+            >
               <Box ta="center">
-                <Text style={{ fontSize: 36, fontWeight: 700, lineHeight: 1.1 }} c="red.4">
+                <Text
+                  style={{ fontSize: 36, fontWeight: 700, lineHeight: 1.1 }}
+                  c="red.4"
+                >
                   ~40%
                 </Text>
                 <Text size="sm" c="dimmed" mt={4}>
@@ -227,7 +249,10 @@ function Home() {
                 </Text>
               </Box>
               <Box ta="center">
-                <Text style={{ fontSize: 36, fontWeight: 700, lineHeight: 1.1 }} c="orange.4">
+                <Text
+                  style={{ fontSize: 36, fontWeight: 700, lineHeight: 1.1 }}
+                  c="orange.4"
+                >
                   19,000+
                 </Text>
                 <Text size="sm" c="dimmed" mt={4}>
@@ -235,7 +260,10 @@ function Home() {
                 </Text>
               </Box>
               <Box ta="center">
-                <Text style={{ fontSize: 36, fontWeight: 700, lineHeight: 1.1 }} c="yellow.4">
+                <Text
+                  style={{ fontSize: 36, fontWeight: 700, lineHeight: 1.1 }}
+                  c="yellow.4"
+                >
                   $700+
                 </Text>
                 <Text size="sm" c="dimmed" mt={4}>
@@ -255,8 +283,10 @@ function Home() {
             mb={60}
             style={{
               overflow: "hidden",
-              maskImage: "linear-gradient(to right, transparent, black 10%, black 90%, transparent)",
-              WebkitMaskImage: "linear-gradient(to right, transparent, black 10%, black 90%, transparent)",
+              maskImage:
+                "linear-gradient(to right, transparent, black 10%, black 90%, transparent)",
+              WebkitMaskImage:
+                "linear-gradient(to right, transparent, black 10%, black 90%, transparent)",
             }}
           >
             <Box
@@ -268,25 +298,27 @@ function Home() {
               }}
             >
               {/* Duplicate images for seamless loop */}
-              {[...PROBLEM_IMAGES, ...PROBLEM_IMAGES, ...PROBLEM_IMAGES].map((image, index) => (
-                <Box
-                  key={index}
-                  style={{
-                    flexShrink: 0,
-                    borderRadius: 12,
-                    overflow: "hidden",
-                    border: "1px solid #373A40",
-                  }}
-                >
-                  <Image
-                    src={image}
-                    alt="Zoning map example"
-                    h={200}
-                    w={300}
-                    fit="cover"
-                  />
-                </Box>
-              ))}
+              {[...PROBLEM_IMAGES, ...PROBLEM_IMAGES, ...PROBLEM_IMAGES].map(
+                (image, index) => (
+                  <Box
+                    key={index}
+                    style={{
+                      flexShrink: 0,
+                      borderRadius: 12,
+                      overflow: "hidden",
+                      border: "1px solid #373A40",
+                    }}
+                  >
+                    <Image
+                      src={image}
+                      alt="Zoning map example"
+                      h={200}
+                      w={300}
+                      fit="cover"
+                    />
+                  </Box>
+                )
+              )}
             </Box>
             <style>{`
               @keyframes scroll {
@@ -303,7 +335,12 @@ function Home() {
           <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="lg">
             <Card bg="dark.6" p="lg" radius="md">
               <Group wrap="nowrap" align="flex-start">
-                <ThemeIcon color="red" variant="light" size="lg" style={{ flexShrink: 0 }}>
+                <ThemeIcon
+                  color="red"
+                  variant="light"
+                  size="lg"
+                  style={{ flexShrink: 0 }}
+                >
                   <IconBuildingCommunity size={20} />
                 </ThemeIcon>
                 <Box>
@@ -318,7 +355,12 @@ function Home() {
             </Card>
             <Card bg="dark.6" p="lg" radius="md">
               <Group wrap="nowrap" align="flex-start">
-                <ThemeIcon color="orange" variant="light" size="lg" style={{ flexShrink: 0 }}>
+                <ThemeIcon
+                  color="orange"
+                  variant="light"
+                  size="lg"
+                  style={{ flexShrink: 0 }}
+                >
                   <IconMap size={20} />
                 </ThemeIcon>
                 <Box>
@@ -333,7 +375,12 @@ function Home() {
             </Card>
             <Card bg="dark.6" p="lg" radius="md">
               <Group wrap="nowrap" align="flex-start">
-                <ThemeIcon color="yellow" variant="light" size="lg" style={{ flexShrink: 0 }}>
+                <ThemeIcon
+                  color="yellow"
+                  variant="light"
+                  size="lg"
+                  style={{ flexShrink: 0 }}
+                >
                   <IconFileTypePdf size={20} />
                 </ThemeIcon>
                 <Box>
@@ -576,7 +623,11 @@ function Home() {
               </Text>
             </Group>
             <Group gap="md">
-              <Anchor href="mailto:donghun_kim@mde.harvard.edu" c="dimmed" size="sm">
+              <Anchor
+                href="mailto:donghun_kim@mde.harvard.edu"
+                c="dimmed"
+                size="sm"
+              >
                 <Group gap={4}>
                   <IconMail size={16} />
                   Contact

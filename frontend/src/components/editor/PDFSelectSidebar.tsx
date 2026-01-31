@@ -24,7 +24,7 @@ import { GeoLabel } from "@/types/db";
 import { useLocationSearch } from "@/hooks/useLocationSearch";
 import { GeoCorners } from "@/canvas/overlay/types";
 
-interface LabellerSidebarProps {
+interface PdfSelectSidebarProps {
   pdfs: PdfFile[];
   labels: Record<string, GeoLabel>;
   selectedPdf: PdfFile | null;
@@ -39,7 +39,7 @@ interface LabellerSidebarProps {
   onLocationSelect: (bounds: [number, number, number, number]) => void;
 }
 
-export function LabellerSidebar({
+export function PdfSelectSidebar({
   pdfs,
   labels,
   selectedPdf,
@@ -52,7 +52,7 @@ export function LabellerSidebar({
   onSave,
   onDelete,
   onLocationSelect,
-}: LabellerSidebarProps) {
+}: PdfSelectSidebarProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const {
     results,

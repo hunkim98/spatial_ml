@@ -1,5 +1,10 @@
 import { Map } from "maplibre-gl";
-import { Location, GeoCorners, ScreenCorners, Point } from "@/canvas/types";
+import {
+  Location,
+  GeoCorners,
+  ScreenCorners,
+  Point,
+} from "@/canvas/overlay/types";
 
 export class ProjectionController {
   private map: Map | null = null;
