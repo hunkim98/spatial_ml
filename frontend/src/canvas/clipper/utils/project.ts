@@ -1,4 +1,4 @@
-import { Point } from "../types/geometry";
+import { Point } from "../types";
 
 export const getWorldPointFromEvent = (
   event: React.MouseEvent | React.TouchEvent,
@@ -44,18 +44,11 @@ export const getEventRelativePositionToCanvas = (
     eventPoint.x = event.touches[0].clientX;
     eventPoint.y = event.touches[0].clientY;
   }
-
-  const rect = canvasElement.getBoundingClientRect();
-  eventPoint.x -= rect.left;
-  eventPoint.y -= rect.top;
-
-  // Account for canvas resolution vs CSS size (DPR)
-  const scaleX = canvasElement.width / rect.width;
-  const scaleY = canvasElement.height / rect.height;
-
+  eventPoint.x -= canvasElement.getBoundingClientRect().left;
+  eventPoint.y -= canvasElement.getBoundingClientRect().top;
   return {
-    x: eventPoint.x * scaleX,
-    y: eventPoint.y * scaleY,
+    x: eventPoint.x,
+    y: eventPoint.y,
   };
 };
 

@@ -5,27 +5,30 @@ export interface ImageModelType {
   image: HTMLImageElement | null;
   blob: Blob | null;
   blobUrl: string | null;
-  width: number;
-  height: number;
+  width: number | null;
+  height: number | null;
   leftTop: Point;
 }
 
-export class ImageModel extends IModel<ImageModelType> implements ImageModelType {
+export class ImageModel
+  extends IModel<ImageModelType>
+  implements ImageModelType
+{
   private _image: HTMLImageElement | null;
   private _blob: Blob | null;
   private _blobUrl: string | null;
-  private _width: number;
-  private _height: number;
+  private _width: number | null;
+  private _height: number | null;
   private _leftTop: Point;
 
-  constructor(props: Partial<ImageModelType> = {}) {
+  constructor(props: ImageModelType) {
     super();
-    this._image = props.image ?? null;
-    this._blob = props.blob ?? null;
-    this._blobUrl = props.blobUrl ?? null;
-    this._width = props.width ?? 0;
-    this._height = props.height ?? 0;
-    this._leftTop = props.leftTop ?? { x: 0, y: 0 };
+    this._image = props.image;
+    this._blob = props.blob;
+    this._blobUrl = props.blobUrl;
+    this._width = props.width;
+    this._height = props.height;
+    this._leftTop = props.leftTop;
   }
 
   get image(): HTMLImageElement | null {
@@ -56,19 +59,19 @@ export class ImageModel extends IModel<ImageModelType> implements ImageModelType
     this._blobUrl = url;
   }
 
-  get width(): number {
+  get width(): number | null {
     return this._width;
   }
 
-  set width(width: number) {
+  set width(width: number | null) {
     this._width = width;
   }
 
-  get height(): number {
+  get height(): number | null {
     return this._height;
   }
 
-  set height(height: number) {
+  set height(height: number | null) {
     this._height = height;
   }
 

@@ -6,7 +6,6 @@ export type NavigationModelType = {
   offset: Point;
   maxScale: number;
   minScale: number;
-  zoomSensitivity: number;
 };
 
 export class NavigationModel
@@ -17,7 +16,6 @@ export class NavigationModel
   private _offset: Point;
   private _maxScale: number;
   private _minScale: number;
-  private _zoomSensitivity: number;
 
   constructor(props: NavigationModelType) {
     super();
@@ -25,7 +23,6 @@ export class NavigationModel
     this._offset = props.offset;
     this._maxScale = props.maxScale;
     this._minScale = props.minScale;
-    this._zoomSensitivity = props.zoomSensitivity;
   }
 
   get scale(): number {
@@ -39,9 +36,6 @@ export class NavigationModel
   }
   get minScale(): number {
     return this._minScale;
-  }
-  get zoomSensitivity(): number {
-    return this._zoomSensitivity;
   }
 
   /**
@@ -66,15 +60,11 @@ export class NavigationModel
   set minScale(minScale: number) {
     this._minScale = minScale;
   }
-  set zoomSensitivity(zoomSensitivity: number) {
-    this._zoomSensitivity = zoomSensitivity;
-  }
 
   reset() {
     this._scale = 1;
     this._offset = { x: 0, y: 0 };
     this._maxScale = 10;
     this._minScale = 0.1;
-    this._zoomSensitivity = 1.2;
   }
 }

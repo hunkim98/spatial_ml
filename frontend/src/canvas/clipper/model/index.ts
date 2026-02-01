@@ -1,6 +1,5 @@
-import { BackgroundLayerModel } from "./layers/backgroundLayerModel";
 import { ClipRectToolModel } from "./tools/clipRectToolModel";
-import { FrameLayerModel } from "./layers/frameLayerModel";
+import { MaskLayerModel } from "./layers/frameLayerModel";
 import { PdfLayerModel } from "./layers/pdfLayerModel";
 import { EditorStatusModel } from "./editorStatusModel";
 import { HistoryModel } from "./historyModel";
@@ -9,8 +8,7 @@ import { MouseControlModel } from "./mouseControlModel";
 import { NavigationModel } from "./navigationModel";
 
 export type ClipperModel = {
-  backgroundLayerModel: BackgroundLayerModel;
-  frameLayerModel: FrameLayerModel;
+  maskLayerModel: MaskLayerModel;
   pdfLayerModel: PdfLayerModel;
   imageModel: ImageModel;
   clipRectToolModel: ClipRectToolModel;

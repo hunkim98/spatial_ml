@@ -1,17 +1,6 @@
 import { ClipperEditor } from "@/canvas/clipper/editor";
 import { RefObject, useCallback, useEffect, useState } from "react";
 
-const setCanvasResolution = (
-  canvas: HTMLCanvasElement,
-  container: HTMLDivElement
-) => {
-  const rect = container.getBoundingClientRect();
-  const dpr = window.devicePixelRatio || 1;
-
-  canvas.width = rect.width * dpr;
-  canvas.height = rect.height * dpr;
-};
-
 export function useClipperEditor(
   containerElementRef: RefObject<HTMLDivElement | null>,
   maskCanvasRef: RefObject<HTMLCanvasElement | null>,
@@ -27,14 +16,14 @@ export function useClipperEditor(
       maskCanvas: HTMLCanvasElement,
       pdfUrl: string
     ) => {
-      // Set canvas resolution before creating editor
-      setCanvasResolution(pdfCanvas, container);
-      setCanvasResolution(maskCanvas, container);
-
-      const newEditor = new ClipperEditor(pdfUrl, pdfCanvas, maskCanvas, 1);
-
-      // Load the PDF and render
-      await newEditor.load();
+      const rect = container.getBoundingClientRect();
+      const newEditor = new ClipperEditor(
+        pdfCanvas,
+        maskCanvas,
+        rect.width,
+        rect.height
+      );
+      newEditor.updatePdf(pdfUrl, 1);
 
       setEditor(newEditor);
     },
@@ -51,11 +40,15 @@ export function useClipperEditor(
       ) {
         return;
       }
+      const rect = containerElementRef.current.getBoundingClientRect();
+      editor.controllers.canvasSizeScaleController.execute({
+        width: rect.width,
+        height: rect.height,
+      });
 
-      setCanvasResolution(pdfCanvasRef.current, containerElementRef.current);
-      setCanvasResolution(maskCanvasRef.current, containerElementRef.current);
       editor.render();
     };
+    onResize();
 
     window.addEventListener("resize", onResize);
     return () => {

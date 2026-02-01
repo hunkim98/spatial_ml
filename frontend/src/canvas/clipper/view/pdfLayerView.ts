@@ -1,18 +1,26 @@
 import { ClipperModel } from "../model";
 import { Point } from "../types/geometry";
-import { getCanvasRelativePositionFromWorldPoint } from "../utils/event";
+import { getCanvasRelativePositionFromWorldPoint } from "../utils/project";
 import { IView } from "./base";
 
-type Models = Pick<ClipperModel, "pdfLayerModel" | "imageModel" | "navigationModel">;
+type Models = Pick<
+  ClipperModel,
+  "pdfLayerModel" | "imageModel" | "navigationModel"
+>;
 
 export class PdfLayerView extends IView<Models> {
   constructor(models: ClipperModel) {
     super(models);
   }
 
+  scale(dpr: number) {
+    this.models.pdfLayerModel.ctx.scale(dpr, dpr);
+  }
+
   render(): void {
     const { ctx } = this.models.pdfLayerModel;
     const { image, leftTop, width, height } = this.models.imageModel;
+    if (!width || !height) return;
     const { offset, scale } = this.models.navigationModel;
 
     if (!image) return;
@@ -22,11 +30,14 @@ export class PdfLayerView extends IView<Models> {
       x: leftTop.x,
       y: leftTop.y,
     };
-    const imageLeftTopCanvasPoint: Point = getCanvasRelativePositionFromWorldPoint(
-      imageLeftTopWorldPoint,
-      offset,
-      scale
-    );
+    // console.log("imageLeftTopWorldPoint", imageLeftTopWorldPoint);
+    // console.log("offset", offset);
+    const imageLeftTopCanvasPoint: Point =
+      getCanvasRelativePositionFromWorldPoint(
+        imageLeftTopWorldPoint,
+        offset,
+        scale
+      );
 
     ctx.save();
     ctx.drawImage(

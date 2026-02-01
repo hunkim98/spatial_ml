@@ -13,10 +13,10 @@ export class HistoryModel extends IModel<HistoryModel> {
   private _undoStack: Array<Action>;
   private _redoStack: Array<Action>;
 
-  constructor(props: HistoryModelType) {
+  constructor(props: Partial<HistoryModelType> = {}) {
     super();
-    this._undoStack = props.undoStack;
-    this._redoStack = props.redoStack;
+    this._undoStack = props.undoStack ?? [];
+    this._redoStack = props.redoStack ?? [];
   }
 
   get undoStack(): Array<Action> {

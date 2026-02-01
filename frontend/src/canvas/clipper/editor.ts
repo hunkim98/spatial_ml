@@ -4,11 +4,9 @@ import { ClipperView } from "./view";
 import { ClipperEvent, ClipperEventListeners } from "./events";
 import { HandleType, Point, ClipRect } from "./types";
 import { ActionType } from "./actions/base";
-import { getPdfPageAsBlob } from "@/lib/pdf";
 
 // Models
-import { BackgroundLayerModel } from "./model/layers/backgroundLayerModel";
-import { FrameLayerModel } from "./model/layers/frameLayerModel";
+import { MaskLayerModel } from "./model/layers/frameLayerModel";
 import { PdfLayerModel } from "./model/layers/pdfLayerModel";
 import { ClipRectToolModel } from "./model/tools/clipRectToolModel";
 import { EditorStatusModel } from "./model/editorStatusModel";
@@ -23,64 +21,69 @@ import { MaskLayerView } from "./view/maskLayerView";
 
 // Controllers
 import { HitTestController } from "./controller/hitTestController";
-import { ImageUpdateController } from "./controller/imageUpdateController";
-import { MoveController } from "./controller/moveController";
-import { PanZoomController } from "./controller/panZoomController";
+import { PdfUpdateController } from "./controller/pdfUpdateController";
+import { MouseInteractionController } from "./controller/mouseInteractionController";
 import { ResizeController } from "./controller/resizeController";
 import { UndoController } from "./controller/undoController";
 import { RedoController } from "./controller/redoController";
+import {
+  getCanvasRelativePositionFromWorldPoint,
+  getWorldPointFromEvent,
+} from "./utils/project";
+import { CanvasSizeScaleController } from "./controller/settings/CanvasSizeScaleController";
 
 export class ClipperEditor {
-  private _resourceUrl: string;
-  private _pageNumber: number;
   private _isPanning: boolean = false;
 
-  private models: ClipperModel;
-  private views: ClipperView;
-  private controllers: ClipperController;
+  private models: ClipperModel = {} as ClipperModel;
+  private views: ClipperView = {} as ClipperView;
+  public controllers: ClipperController = {} as ClipperController;
   private listeners: ClipperEventListeners;
 
   constructor(
-    resourceUrl: string,
     pdfCanvas: HTMLCanvasElement,
     frameCanvas: HTMLCanvasElement,
-    pageNumber: number = 1
+    canvasWidth: number,
+    canvasHeight: number
   ) {
-    this._resourceUrl = resourceUrl;
-    this._pageNumber = pageNumber;
-
     this.listeners = {};
-    this.models = this._createModels(pdfCanvas, frameCanvas);
+    this.models = this._createModels(
+      pdfCanvas,
+      frameCanvas,
+      canvasWidth,
+      canvasHeight
+    );
     this.views = this._createViews();
     this.controllers = this._createControllers();
   }
 
   private _createModels(
     pdfCanvas: HTMLCanvasElement,
-    frameCanvas: HTMLCanvasElement
+    frameCanvas: HTMLCanvasElement,
+    canvasWidth: number,
+    canvasHeight: number
   ): ClipperModel {
-    const dpr = window.devicePixelRatio || 1;
-
     return {
-      backgroundLayerModel: new BackgroundLayerModel({
-        width: pdfCanvas.width,
-        height: pdfCanvas.height,
-        dpr,
-        element: pdfCanvas,
-      }),
       pdfLayerModel: new PdfLayerModel({
-        width: pdfCanvas.width,
-        height: pdfCanvas.height,
-        dpr,
+        width: canvasWidth,
+        height: canvasHeight,
+        dpr: 1,
         element: pdfCanvas,
       }),
-      frameLayerModel: new FrameLayerModel({
-        width: frameCanvas.width,
-        height: frameCanvas.height,
-        dpr,
+      maskLayerModel: new MaskLayerModel({
+        width: canvasWidth,
+        height: canvasHeight,
+        dpr: 1,
         element: frameCanvas,
       }),
-      imageModel: new ImageModel(),
+      imageModel: new ImageModel({
+        image: null,
+        blob: null,
+        blobUrl: null,
+        width: null,
+        height: null,
+        leftTop: { x: 0, y: 0 }, // Image model will always be at the origin
+      }),
       clipRectToolModel: new ClipRectToolModel({}),
       editorStatusModel: new EditorStatusModel({}),
       historyModel: new HistoryModel({ undoStack: [], redoStack: [] }),
@@ -90,7 +93,6 @@ export class ClipperEditor {
         offset: { x: 0, y: 0 },
         maxScale: 10,
         minScale: 0.1,
-        zoomSensitivity: 20,
       }),
     };
   }
@@ -104,22 +106,23 @@ export class ClipperEditor {
 
   private _createControllers(): ClipperController {
     return {
+      canvasSizeScaleController: new CanvasSizeScaleController(
+        this.models,
+        this.views,
+        this.listeners
+      ),
       hitTestController: new HitTestController(
         this.models,
         this.views,
         this.listeners
       ),
-      imageUpdateController: new ImageUpdateController(
+      pdfUpdateController: new PdfUpdateController(
         this.models,
         this.views,
         this.listeners
       ),
-      moveController: new MoveController(
-        this.models,
-        this.views,
-        this.listeners
-      ),
-      panZoomController: new PanZoomController(
+
+      mouseInteractionController: new MouseInteractionController(
         this.models,
         this.views,
         this.listeners
@@ -142,109 +145,123 @@ export class ClipperEditor {
     };
   }
 
-  async load(): Promise<void> {
-    this.models.editorStatusModel.isLoading = true;
-
-    await this._loadPdf();
-
-    this.models.editorStatusModel.isLoading = false;
-    this.models.editorStatusModel.isLoaded = true;
-
-    // Center and fit image to canvas
-    this.controllers.imageUpdateController.execute({});
-  }
-
-  private async _loadPdf(): Promise<void> {
-    const { blob, url } = await getPdfPageAsBlob(
-      this._resourceUrl,
-      this._pageNumber
-    );
-
-    this.models.imageModel.blob = blob;
-    this.models.imageModel.blobUrl = url;
-
-    // Load the image from blobUrl
-    const image = await this._loadImage(url);
-    this.models.imageModel.image = image;
-
-    // Set image dimensions in world coordinates
-    this.models.imageModel.width = image.width;
-    this.models.imageModel.height = image.height;
-    this.models.imageModel.leftTop = { x: 0, y: 0 };
-  }
-
-  private _loadImage(url: string): Promise<HTMLImageElement> {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error("Failed to load image"));
-      img.src = url;
+  public updatePdf(resourceUrl: string, pageNumber: number): void {
+    this.controllers.pdfUpdateController.execute({
+      resourceUrl,
+      pageNumber,
+      canvasWidth: this.models.pdfLayerModel.width,
+      canvasHeight: this.models.pdfLayerModel.height,
     });
   }
 
-  onMouseDown(e: React.MouseEvent<HTMLCanvasElement>): boolean {
-    if (!this.models.editorStatusModel.isLoaded) {
-      return false;
-    }
+  onMouseDown(e: React.MouseEvent<HTMLCanvasElement>) {
+    const worldPos = getWorldPointFromEvent(
+      e,
+      this.models.pdfLayerModel.element,
+      this.models.navigationModel.offset,
+      this.models.navigationModel.scale
+    );
+    // console.log("worldPos", worldPos);
+    const screenPos = getCanvasRelativePositionFromWorldPoint(
+      worldPos,
+      this.models.navigationModel.offset,
+      this.models.navigationModel.scale
+    );
 
+    this.models.mouseControlModel.update({
+      mouseDownWorldPosition: worldPos,
+      mouseDownScreenPosition: screenPos,
+      mouseMoveWorldPosition: worldPos,
+      mouseMoveScreenPosition: screenPos,
+      mouseUpWorldPosition: null,
+      mouseUpScreenPosition: null,
+    });
+    this.controllers.mouseInteractionController.execute({ e });
     // If panning mode (space held), use panZoomController
-    if (this._isPanning) {
-      this.controllers.panZoomController.execute({ e });
-      return true;
-    }
+    // if (this._isPanning) {
+    //   this.controllers.panZoomController.execute({ e });
+    //   return true;
+    // }
 
-    const point = this._getPoint(e);
-    const tool = this.models.editorStatusModel.tool;
+    // const point = this._getPoint(e);
+    // const tool = this.models.editorStatusModel.tool;
 
-    if (tool === ActionType.NONE) {
-      // Start creating a clip rect
-      this.models.mouseControlModel.mouseDownPosition = point;
-      return true;
-    }
+    // if (tool === ActionType.NONE) {
+    //   // Start creating a clip rect
+    //   this.models.mouseControlModel.mouseDownPosition = point;
+    //   return true;
+    // }
 
-    // In edit mode, check for handle hit
-    const handle = this.controllers.hitTestController.execute(point);
-    if (handle === HandleType.NONE) {
-      return false;
-    }
+    // // In edit mode, check for handle hit
+    // const handle = this.controllers.hitTestController.execute(point);
+    // if (handle === HandleType.NONE) {
+    //   return false;
+    // }
 
-    this.models.mouseControlModel.mouseDownPosition = point;
-    this.models.clipRectToolModel.activeHandle = handle;
+    // this.models.mouseControlModel.mouseDownPosition = point;
+    // this.models.clipRectToolModel.activeHandle = handle;
 
-    if (handle === HandleType.BODY) {
-      this.controllers.moveController.execute({ e });
-    } else {
-      this.controllers.resizeController.execute({ e });
-    }
+    // if (handle === HandleType.BODY) {
+    //   this.controllers.moveController.execute({ e });
+    // } else {
+    //   this.controllers.resizeController.execute({ e });
+    // }
 
-    return true;
+    // return true;
   }
 
   onMouseMove(e: React.MouseEvent<HTMLCanvasElement>): void {
     // If panning mode, use panZoomController
-    if (this._isPanning && this.models.mouseControlModel.mouseDownPosition) {
-      this.controllers.panZoomController.execute({ e });
-      return;
-    }
+    if (!this.models.editorStatusModel.isLoaded) return;
+    const worldPos = getWorldPointFromEvent(
+      e,
+      this.models.pdfLayerModel.element,
+      this.models.navigationModel.offset,
+      this.models.navigationModel.scale
+    );
+    // console.log("worldPos", worldPos);
+    const screenPos = getCanvasRelativePositionFromWorldPoint(
+      worldPos,
+      this.models.navigationModel.offset,
+      this.models.navigationModel.scale
+    );
 
-    if (!this.models.mouseControlModel.mouseDownPosition) return;
-
-    const point = this._getPoint(e);
-    this.models.mouseControlModel.mouseMovePosition = point;
-
-    const handle = this.models.clipRectToolModel.activeHandle;
-    if (handle === HandleType.BODY) {
-      this.controllers.moveController.execute({ e });
-    } else if (handle !== HandleType.NONE) {
-      this.controllers.resizeController.execute({ e });
-    }
-
+    this.models.mouseControlModel.update({
+      mouseDownWorldPosition: worldPos,
+      mouseDownScreenPosition: screenPos,
+      mouseMoveWorldPosition: worldPos,
+      mouseMoveScreenPosition: screenPos,
+      mouseUpWorldPosition: null,
+      mouseUpScreenPosition: null,
+    });
+    this.controllers.mouseInteractionController.execute({ e });
     this.render();
   }
 
-  onMouseUp(): void {
-    if (!this.models.mouseControlModel.mouseDownPosition) return;
+  onMouseUp(_e: React.MouseEvent<HTMLCanvasElement>): void {
+    if (!this.models.editorStatusModel.isLoaded) return;
+    // const worldPos = getWorldPointFromEvent(
+    //   e,
+    //   this.models.pdfLayerModel.element,
+    //   this.models.navigationModel.offset,
+    //   this.models.navigationModel.scale
+    // );
+    // // console.log("worldPos", worldPos);
+    // const screenPos = getCanvasRelativePositionFromWorldPoint(
+    //   worldPos,
+    //   this.models.navigationModel.offset,
+    //   this.models.navigationModel.scale
+    // );
 
+    // this.models.mouseControlModel.update({
+    //   mouseDownWorldPosition: worldPos,
+    //   mouseDownScreenPosition: screenPos,
+    //   mouseMoveWorldPosition: worldPos,
+    //   mouseMoveScreenPosition: screenPos,
+    //   mouseUpWorldPosition: null,
+    //   mouseUpScreenPosition: null,
+    // });
+    // this.controllers.interactionController.execute({ e });
     this.models.mouseControlModel.reset();
   }
 
@@ -255,6 +272,7 @@ export class ClipperEditor {
   }
 
   onKeyUp(e: KeyboardEvent): void {
+    if (!this.models.editorStatusModel.isLoaded) return;
     if (e.code === "Space") {
       this._isPanning = false;
       this.models.mouseControlModel.reset();
@@ -262,17 +280,27 @@ export class ClipperEditor {
   }
 
   onWheel(e: React.WheelEvent<HTMLCanvasElement>): void {
+    if (!this.models.editorStatusModel.isLoaded) return;
     e.preventDefault();
-    this.controllers.panZoomController.execute({ e });
+    this.controllers.mouseInteractionController.execute({ e });
+  }
+
+  executeInteraction(e: React.MouseEvent<HTMLCanvasElement>): void {
+    if (!this.models.editorStatusModel.isLoaded) return;
+    if (!this.models.editorStatusModel.tool) {
+    }
+    this.controllers.mouseInteractionController.execute({ e });
   }
 
   render(): void {
+    if (!this.models.editorStatusModel.isLoaded) return;
     this.views.pdfLayerView.clear();
     this.views.pdfLayerView.render();
     this.views.maskLayerView.render();
   }
 
   private _getPoint(e: React.MouseEvent<HTMLCanvasElement>): Point {
+    if (!this.models.editorStatusModel.isLoaded) return { x: 0, y: 0 };
     const rect = this.models.pdfLayerModel.element.getBoundingClientRect();
 
     return {
@@ -283,8 +311,11 @@ export class ClipperEditor {
 
   getCursor(e: React.MouseEvent<HTMLCanvasElement>): string {
     // Panning cursor
+    if (!this.models.editorStatusModel.isLoaded) return "default";
     if (this._isPanning) {
-      return this.models.mouseControlModel.mouseDownPosition ? "grabbing" : "grab";
+      return this.models.mouseControlModel.mouseDownWorldPosition
+        ? "grabbing"
+        : "grab";
     }
 
     const tool = this.models.editorStatusModel.tool;
@@ -293,7 +324,7 @@ export class ClipperEditor {
       return "crosshair";
     }
 
-    if (this.models.mouseControlModel.mouseDownPosition) {
+    if (this.models.mouseControlModel.mouseDownWorldPosition) {
       return this._getCursorForHandle(
         this.models.clipRectToolModel.activeHandle
       );
@@ -360,10 +391,6 @@ export class ClipperEditor {
     return this.models.editorStatusModel.isLoaded;
   }
 
-  get isInitialized(): boolean {
-    return this.models.editorStatusModel.isInitialized;
-  }
-
   get tool(): ActionType {
     return this.models.editorStatusModel.tool;
   }
@@ -385,7 +412,6 @@ export class ClipperEditor {
   setClipRect(rect: ClipRect): void {
     this.models.clipRectToolModel.rect = rect;
     if (rect.width > 0 && rect.height > 0) {
-      this.models.editorStatusModel.isInitialized = true;
       this.models.editorStatusModel.tool = ActionType.MOVE;
     }
     this.render();
@@ -396,7 +422,6 @@ export class ClipperEditor {
    */
   resetSelection(): void {
     this.models.clipRectToolModel.reset();
-    this.models.editorStatusModel.isInitialized = false;
     this.models.editorStatusModel.tool = ActionType.NONE;
     this.render();
     this._dispatchEvent(ClipperEvent.MODE_CHANGED);

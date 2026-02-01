@@ -2,45 +2,83 @@ import { IModel } from "./base";
 import { Point } from "../types/geometry";
 
 export type MouseControlModelType = {
-  _mouseDownPosition: Point | null;
-  _mouseMovePosition: Point | null;
-  _mouseUpPosition: Point | null;
+  mouseDownWorldPosition: Point | null;
+  mouseDownScreenPosition: Point | null;
+  mouseMoveWorldPosition: Point | null;
+  mouseMoveScreenPosition: Point | null;
+  mouseUpWorldPosition: Point | null;
+  mouseUpScreenPosition: Point | null;
 };
 
-export class MouseControlModel extends IModel<MouseControlModelType> {
-  _mouseDownPosition: Point | null;
-  _mouseMovePosition: Point | null;
-  _mouseUpPosition: Point | null;
+export class MouseControlModel
+  extends IModel<MouseControlModelType>
+  implements MouseControlModelType
+{
+  private _mouseDownWorldPosition: Point | null;
+  private _mouseDownScreenPosition: Point | null;
+  private _mouseMoveWorldPosition: Point | null;
+  private _mouseMoveScreenPosition: Point | null;
+  private _mouseUpWorldPosition: Point | null;
+  private _mouseUpScreenPosition: Point | null;
 
   constructor() {
     super();
-    this._mouseDownPosition = null;
-    this._mouseMovePosition = null;
-    this._mouseUpPosition = null;
+    this._mouseDownWorldPosition = null;
+    this._mouseDownScreenPosition = null;
+    this._mouseMoveWorldPosition = null;
+    this._mouseMoveScreenPosition = null;
+    this._mouseUpWorldPosition = null;
+    this._mouseUpScreenPosition = null;
   }
 
-  get mouseDownPosition(): Point | null {
-    return this._mouseDownPosition;
+  get mouseDownWorldPosition(): Point | null {
+    return this._mouseDownWorldPosition;
   }
-  set mouseDownPosition(position: Point | null) {
-    this._mouseDownPosition = position;
+  set mouseDownWorldPosition(position: Point | null) {
+    this._mouseDownWorldPosition = position;
   }
-  get mouseMovePosition(): Point | null {
-    return this._mouseMovePosition;
+
+  get mouseDownScreenPosition(): Point | null {
+    return this._mouseDownScreenPosition;
   }
-  set mouseMovePosition(position: Point | null) {
-    this._mouseMovePosition = position;
+  set mouseDownScreenPosition(position: Point | null) {
+    this._mouseDownScreenPosition = position;
   }
-  get mouseUpPosition(): Point | null {
-    return this._mouseUpPosition;
+
+  get mouseMoveWorldPosition(): Point | null {
+    return this._mouseMoveWorldPosition;
   }
-  set mouseUpPosition(position: Point | null) {
-    this._mouseUpPosition = position;
+  set mouseMoveWorldPosition(position: Point | null) {
+    this._mouseMoveWorldPosition = position;
+  }
+
+  get mouseMoveScreenPosition(): Point | null {
+    return this._mouseMoveScreenPosition;
+  }
+  set mouseMoveScreenPosition(position: Point | null) {
+    this._mouseMoveScreenPosition = position;
+  }
+
+  get mouseUpWorldPosition(): Point | null {
+    return this._mouseUpWorldPosition;
+  }
+  set mouseUpWorldPosition(position: Point | null) {
+    this._mouseUpWorldPosition = position;
+  }
+
+  get mouseUpScreenPosition(): Point | null {
+    return this._mouseUpScreenPosition;
+  }
+  set mouseUpScreenPosition(position: Point | null) {
+    this._mouseUpScreenPosition = position;
   }
 
   reset() {
-    this._mouseDownPosition = null;
-    this._mouseMovePosition = null;
-    this._mouseUpPosition = null;
+    this._mouseDownWorldPosition = null;
+    this._mouseDownScreenPosition = null;
+    this._mouseMoveWorldPosition = null;
+    this._mouseMoveScreenPosition = null;
+    this._mouseUpWorldPosition = null;
+    this._mouseUpScreenPosition = null;
   }
 }

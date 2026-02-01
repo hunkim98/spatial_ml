@@ -1,17 +1,18 @@
 import { HitTestController } from "./hitTestController";
-import { ImageUpdateController } from "./imageUpdateController";
-import { MoveController } from "./moveController";
-import { PanZoomController } from "./panZoomController";
+
+import { MouseInteractionController } from "./mouseInteractionController";
 import { ResizeController } from "./resizeController";
 import { UndoController } from "./undoController";
 import { RedoController } from "./redoController";
+import { PdfUpdateController } from "./pdfUpdateController";
+import { CanvasSizeScaleController } from "./settings/CanvasSizeScaleController";
 
 export type ClipperController = {
+  mouseInteractionController: MouseInteractionController;
   hitTestController: HitTestController;
-  imageUpdateController: ImageUpdateController;
-  moveController: MoveController;
-  panZoomController: PanZoomController;
+  pdfUpdateController: PdfUpdateController;
   resizeController: ResizeController;
   undoController: UndoController;
   redoController: RedoController;
+  canvasSizeScaleController: CanvasSizeScaleController;
 };

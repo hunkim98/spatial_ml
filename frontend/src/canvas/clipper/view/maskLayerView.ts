@@ -6,11 +6,15 @@ const HANDLE_SIZE = 8;
 const STROKE_COLOR = "#6D96FF";
 const STROKE_WIDTH = 2;
 
-type Models = Pick<ClipperModel, "frameLayerModel" | "clipRectToolModel">;
+type Models = Pick<ClipperModel, "maskLayerModel" | "clipRectToolModel">;
 
 export class MaskLayerView extends IView<Models> {
   constructor(models: ClipperModel) {
     super(models);
+  }
+
+  scale(dpr: number) {
+    this.models.maskLayerModel.ctx.scale(dpr, dpr);
   }
 
   render(): void {
@@ -18,7 +22,7 @@ export class MaskLayerView extends IView<Models> {
 
     if (!rect) return;
 
-    const ctx = this.models.frameLayerModel.ctx;
+    const ctx = this.models.maskLayerModel.ctx;
 
     ctx.save();
 
@@ -34,7 +38,10 @@ export class MaskLayerView extends IView<Models> {
       x: rect.offset.x + rect.width,
       y: rect.offset.y + rect.height,
     };
-    const bottomLeft: Point = { x: rect.offset.x, y: rect.offset.y + rect.height };
+    const bottomLeft: Point = {
+      x: rect.offset.x,
+      y: rect.offset.y + rect.height,
+    };
 
     // Draw corner handles
     this.drawHandle(ctx, topLeft);
@@ -62,7 +69,7 @@ export class MaskLayerView extends IView<Models> {
   }
 
   clear(): void {
-    const { element, ctx } = this.models.frameLayerModel;
+    const { element, ctx } = this.models.maskLayerModel;
     if (!element || !ctx) return;
 
     ctx.save();

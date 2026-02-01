@@ -1,12 +1,12 @@
 import { ILayerModel, ILayerModelType } from "./base";
 
-export interface FrameLayerModelType {}
+export interface MaskLayerModelType {}
 
-export class FrameLayerModel
-  extends ILayerModel<FrameLayerModelType>
-  implements FrameLayerModelType
+export class MaskLayerModel
+  extends ILayerModel<MaskLayerModelType>
+  implements MaskLayerModelType
 {
-  constructor(props: ILayerModelType<FrameLayerModelType>) {
+  constructor(props: ILayerModelType<MaskLayerModelType>) {
     super(props);
   }
 }

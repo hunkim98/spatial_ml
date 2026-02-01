@@ -1,0 +1,104 @@
+import { getPdfPageAsBlob } from "@/lib/pdf";
+import { ClipperEventListeners } from "../events";
+import { ClipperModel } from "../model";
+import { ClipperView } from "../view";
+import { BaseController } from "./base";
+import {
+  getInitialOffsetForImage,
+  preprocessImageForCanvas,
+} from "../utils/image";
+
+type Models = Pick<
+  ClipperModel,
+  "pdfLayerModel" | "imageModel" | "navigationModel" | "editorStatusModel"
+>;
+type Views = Pick<ClipperView, "pdfLayerView" | "maskLayerView">;
+
+type ExecuteParams = {
+  padding?: number; // 0-1, percentage of canvas to use (default 0.9)
+  resourceUrl: string;
+  pageNumber: number;
+  canvasWidth: number;
+  canvasHeight: number;
+};
+
+export class PdfUpdateController extends BaseController<
+  Models,
+  Views,
+  ExecuteParams
+> {
+  constructor(
+    models: ClipperModel,
+    views: ClipperView,
+    listeners: ClipperEventListeners
+  ) {
+    super(models, views, listeners);
+  }
+
+  async execute(params: ExecuteParams): Promise<void> {
+    const { resourceUrl, pageNumber, canvasWidth, canvasHeight } = params;
+    this.models.editorStatusModel.isLoading = true;
+
+    const { blob, url } = await getPdfPageAsBlob(resourceUrl, pageNumber);
+    const image = await this._loadImage(url);
+    const { resizedImageWidth, resizedImageHeight, resizeRatio } =
+      preprocessImageForCanvas(
+        canvasWidth / 2,
+        canvasHeight / 2,
+        image.width,
+        image.height
+      );
+    const { x, y } = getInitialOffsetForImage(
+      resizedImageWidth,
+      resizedImageHeight,
+      canvasWidth,
+      canvasHeight,
+      1
+    );
+    this.models.imageModel.update({
+      image: image,
+      blob: blob,
+      blobUrl: url,
+      width: image.width,
+      height: image.height,
+      leftTop: { x: 0, y: 0 },
+    });
+    this.models.navigationModel.update({
+      scale: resizeRatio,
+      offset: { x: x, y: y },
+    });
+    this.models.editorStatusModel.isLoaded = true;
+    //   const { padding = 0.9 } = params;
+
+    //   const { width: imageWidth, height: imageHeight } = this.models.imageModel;
+    //   const { element } = this.models.pdfLayerModel;
+    //   const canvasWidth = element.width;
+    //   const canvasHeight = element.height;
+
+    //   if (imageWidth === 0 || imageHeight === 0) return;
+
+    //   // Calculate scale to fit image in canvas
+    //   const scaleX = (canvasWidth * padding) / imageWidth;
+    //   const scaleY = (canvasHeight * padding) / imageHeight;
+    //   const scale = Math.min(scaleX, scaleY);
+
+    //   // Calculate offset to center the image
+    //   const offsetX = (canvasWidth - imageWidth * scale) / 2;
+    //   const offsetY = (canvasHeight - imageHeight * scale) / 2;
+
+    //   this.models.navigationModel.scale = scale;
+    //   this.models.navigationModel.offset = { x: offsetX, y: offsetY };
+
+    this.views.pdfLayerView.clear();
+    this.views.pdfLayerView.render();
+    this.views.maskLayerView.render();
+  }
+  private _loadImage(url: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("Failed to load image"));
+      img.src = url;
+    });
+  }
+}
