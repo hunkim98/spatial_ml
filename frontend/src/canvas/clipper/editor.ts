@@ -23,7 +23,6 @@ import { MaskLayerView } from "./view/maskLayerView";
 import { HitTestController } from "./controller/hitTestController";
 import { PdfUpdateController } from "./controller/pdfUpdateController";
 import { MouseInteractionController } from "./controller/mouseInteractionController";
-import { ResizeController } from "./controller/resizeController";
 import { UndoController } from "./controller/undoController";
 import { RedoController } from "./controller/redoController";
 import {
@@ -127,11 +126,7 @@ export class ClipperEditor {
         this.views,
         this.listeners
       ),
-      resizeController: new ResizeController(
-        this.models,
-        this.views,
-        this.listeners
-      ),
+
       undoController: new UndoController(
         this.models,
         this.views,
@@ -238,7 +233,7 @@ export class ClipperEditor {
     this.render();
   }
 
-  onMouseUp(_e: React.MouseEvent<HTMLCanvasElement>): void {
+  onMouseUp(): void {
     if (!this.models.editorStatusModel.isLoaded) return;
     // const worldPos = getWorldPointFromEvent(
     //   e,
