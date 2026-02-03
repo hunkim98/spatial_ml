@@ -10,6 +10,7 @@ class MunicodeScraper:
     REINIT_AFTER_N_DOWNLOADS = (
         5  # Reinitialize driver every N downloads to avoid detection
     )
+    MAX_CONSECUTIVE_FAILURES = 5  # Abort if this many downloads fail in a row (likely blocked)
 
     def __init__(self, url: str, download_dir: str):
         if not url.startswith("https://library.municode.com"):
@@ -231,6 +232,12 @@ class MunicodeScraper:
         print("Collecting all sections at level 1...")
         sections = []
 
+        # Extract the nodeId from URL to identify container nodes to skip
+        url_node_id = None
+        if "nodeId=" in self.url:
+            url_node_id = self.url.split("nodeId=")[-1].split("&")[0]
+            print(f"URL nodeId (container to skip): {url_node_id}")
+
         try:
             # Find the root UL in the offcanvas
             offcanvas = self.selenium_util.find_element(
@@ -253,6 +260,11 @@ class MunicodeScraper:
                     )
                     parent_heading = heading_elem.text.strip()
                     parent_node_id = li.get_attribute("data-nodeid")
+
+                    # Skip the root container node (same as URL nodeId) - it's not directly downloadable
+                    if url_node_id and parent_node_id == url_node_id:
+                        print(f"  Skipping container node: {parent_heading} (nodeId={parent_node_id})")
+                        continue
 
                     # Check if this node has children (look for child ul)
                     try:
@@ -375,9 +387,18 @@ class MunicodeScraper:
 
             downloaded_files = []
             failed_sections = []
+            consecutive_failures = 0  # Track consecutive failures to detect blocking
 
             # Download each section individually
             for idx, (path, parent_node_id, node_id) in enumerate(all_sections, 1):
+                # Check if we've hit too many consecutive failures (likely blocked)
+                if consecutive_failures >= self.MAX_CONSECUTIVE_FAILURES:
+                    print(f"\n{'='*60}")
+                    print(f"ABORTING: {consecutive_failures} consecutive download failures detected!")
+                    print("The site may be blocking downloads. Try again later.")
+                    print(f"{'='*60}")
+                    raise Exception(f"Download blocked: {consecutive_failures} consecutive failures")
+
                 # Refresh session periodically to avoid detection
                 if (
                     self.download_count > 0
@@ -387,6 +408,7 @@ class MunicodeScraper:
                         f"\n[After {self.download_count} downloads] Refreshing session..."
                     )
                     self._refresh_session()
+                    consecutive_failures = 0  # Reset after session refresh
 
                 # Create hierarchical filename
                 path_str = separator.join(path)
@@ -407,10 +429,11 @@ class MunicodeScraper:
                     print(f"Saved as: {safe_filename}")
                     downloaded_files.append(downloaded_file)
                     self.download_count += 1  # Increment successful download count
+                    consecutive_failures = 0  # Reset on success
 
                     # Add random delay to appear more human-like
                     if idx < len(all_sections):
-                        delay = random.uniform(1.0, 3.0)
+                        delay = random.uniform(2.0, 5.0)  # Increased delay to be safer
                         print(f"Waiting {delay:.1f}s before next download...")
                         time.sleep(delay)
 
@@ -421,6 +444,8 @@ class MunicodeScraper:
                     failed_sections.append(
                         (path, parent_node_id, node_id, safe_filename)
                     )
+                    consecutive_failures += 1
+                    print(f"Consecutive failures: {consecutive_failures}/{self.MAX_CONSECUTIVE_FAILURES}")
                     # Panel closes; next iteration will handle reopening
 
                 except Exception as e:
@@ -428,6 +453,8 @@ class MunicodeScraper:
                     failed_sections.append(
                         (path, parent_node_id, node_id, safe_filename)
                     )
+                    consecutive_failures += 1
+                    print(f"Consecutive failures: {consecutive_failures}/{self.MAX_CONSECUTIVE_FAILURES}")
                     # Panel closes; next iteration will handle reopening
 
             # Retry failed downloads
@@ -543,6 +570,27 @@ class MunicodeScraper:
         print(f"  Incomplete downloads: {len(list(download_dir.glob('*.crdownload')))}")
         raise TimeoutError(f"Download did not complete within {timeout} seconds")
 
+    def _clear_all_checkboxes(self):
+        """
+        Clear all selected checkboxes in the download panel.
+        This ensures only one section is selected at a time.
+        """
+        try:
+            selected_checkboxes = self.selenium_util.driver.find_elements(
+                By.XPATH, "//button[@role='checkbox' and @aria-checked='true']"
+            )
+            if selected_checkboxes:
+                print(f"Clearing {len(selected_checkboxes)} previously selected checkbox(es)")
+                for cb in selected_checkboxes:
+                    try:
+                        cb.click()
+                        time.sleep(0.2)
+                    except Exception:
+                        pass
+                time.sleep(0.3)
+        except Exception as e:
+            print(f"Warning: Could not clear checkboxes: {e}")
+
     def _download_single_section(self, node_id, filename):
         """
         Download a single section by finding it fresh from node_id.
@@ -560,6 +608,9 @@ class MunicodeScraper:
             set(download_dir.glob("*.docx")) if download_dir.exists() else set()
         )
         print(f"Starting download for node_id: {node_id}")
+
+        # IMPORTANT: Clear any previously selected checkboxes first
+        self._clear_all_checkboxes()
 
         # Find the checkbox fresh by node_id to avoid stale element
         try:
