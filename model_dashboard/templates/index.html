@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zone Code Extraction Model Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .zone-highlight { background-color: #fef08a; padding: 2px 4px; border-radius: 4px; }
+        .zone-pred { background-color: #bbf7d0; }
+        .zone-true { border-bottom: 2px solid #22c55e; }
+        .zone-both { background-color: #bbf7d0; border-bottom: 2px solid #22c55e; }
+        .zone-false-pos { background-color: #dc2626; color: white; font-weight: 600; padding: 1px 3px; border-radius: 3px; }
+        .zone-false-neg { background-color: #fef08a; border-bottom: 2px solid #ef4444; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen" x-data="dashboard()">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">Zone Code Extraction Model Dashboard</h1>
+                    <p class="text-gray-500 mt-1">Visualize model performance and predictions</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        <!-- Tabs -->
+        <div class="border-b border-gray-200 mb-6">
+            <nav class="-mb-px flex space-x-8">
+                <button @click="activeTab = 'metrics'" 
+                        :class="activeTab === 'metrics' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                        class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                    Performance Metrics
+                </button>
+                <button @click="activeTab = 'extractor'; loadExtractorExamples()" 
+                        :class="activeTab === 'extractor' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                        class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                    Extractor Examples
+                </button>
+                <button @click="activeTab = 'validator'; loadValidatorExamples()" 
+                        :class="activeTab === 'validator' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                        class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                    Validator Examples
+                </button>
+                <button @click="activeTab = 'city-comparison'; loadCityComparison()" 
+                        :class="activeTab === 'city-comparison' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                        class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                    City Comparison
+                </button>
+                <button @click="activeTab = 'playground'" 
+                        :class="activeTab === 'playground' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                        class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                    Playground
+                </button>
+            </nav>
+        </div>
+
+        <!-- Metrics Tab -->
+        <div x-show="activeTab === 'metrics'" x-cloak>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Test Cities Table -->
+                <div class="bg-white rounded-lg shadow p-6 flex flex-col">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">Test Set Cities</h2>
+                    <div class="flex-1 overflow-y-auto border rounded-lg">
+                        <table class="w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50 sticky top-0">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-2/3">City</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/3">State</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <template x-for="city in metrics.extractor?.test_cities_list || []" :key="city">
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-4 py-2 text-sm text-gray-900" x-text="city.split(', ')[0]"></td>
+                                        <td class="px-4 py-2 text-sm font-mono text-gray-600" x-text="city.split(', ')[1]"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="mt-2 text-xs text-gray-500">
+                        <span x-text="metrics.extractor?.test_city_count || 0"></span> cities in test set
+                    </p>
+                </div>
+
+                <!-- Extractor Metrics -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold text-gray-900">Extractor Model (Token Classification)</h2>
+                        <span class="text-xs font-mono bg-indigo-100 text-indigo-700 px-2 py-1 rounded" x-text="metrics.extractor?.model_name || 'extractor'"></span>
+                    </div>
+                    <p class="text-sm text-gray-500 mb-4">Identifies zone code mentions in ordinance text using BIO tagging</p>
+                    
+                    <div class="grid grid-cols-3 gap-4 mb-6">
+                        <div class="bg-blue-50 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-blue-600" x-text="(metrics.extractor?.precision * 100).toFixed(0) + '%'">--</div>
+                            <div class="text-sm text-gray-600">Precision</div>
+                        </div>
+                        <div class="bg-green-50 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-green-600" x-text="(metrics.extractor?.recall * 100).toFixed(0) + '%'">--</div>
+                            <div class="text-sm text-gray-600">Recall</div>
+                        </div>
+                        <div class="bg-purple-50 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-purple-600" x-text="(metrics.extractor?.f1 * 100).toFixed(0) + '%'">--</div>
+                            <div class="text-sm text-gray-600">F1 Score</div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 text-sm text-gray-500">
+                        <span x-text="metrics.extractor?.train_examples?.toLocaleString()">--</span> training examples,
+                        <span x-text="metrics.extractor?.test_examples?.toLocaleString()">--</span> test examples
+                    </div>
+                    <div class="mt-2 text-xs text-blue-600 font-medium" x-show="metrics.extractor?.train_city">
+                        Train: <span x-text="metrics.extractor?.train_city">--</span> |
+                        Test: <span x-text="metrics.extractor?.test_city">--</span>
+                    </div>
+                    <div class="mt-1 text-xs text-gray-400 italic" x-show="metrics.extractor?.metrics_source">
+                        <span x-text="metrics.extractor?.metrics_source"></span>
+                    </div>
+                </div>
+
+                <!-- Validator Metrics -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold text-gray-900">Validator Model (Binary Classification)</h2>
+                        <span class="text-xs font-mono bg-green-100 text-green-700 px-2 py-1 rounded" x-text="metrics.validator?.model_name || 'validator'"></span>
+                    </div>
+                    <p class="text-sm text-gray-500 mb-4">Distinguishes real zone codes from false positives</p>
+                    
+                    <div class="grid grid-cols-4 gap-3 mb-6">
+                        <div class="bg-gray-50 rounded-lg p-3 text-center">
+                            <div class="text-xl font-bold text-gray-700" x-text="(metrics.validator?.accuracy * 100).toFixed(0) + '%'">--</div>
+                            <div class="text-xs text-gray-600">Accuracy</div>
+                        </div>
+                        <div class="bg-blue-50 rounded-lg p-3 text-center">
+                            <div class="text-xl font-bold text-blue-600" x-text="(metrics.validator?.precision * 100).toFixed(0) + '%'">--</div>
+                            <div class="text-xs text-gray-600">Precision</div>
+                        </div>
+                        <div class="bg-green-50 rounded-lg p-3 text-center">
+                            <div class="text-xl font-bold text-green-600" x-text="(metrics.validator?.recall * 100).toFixed(0) + '%'">--</div>
+                            <div class="text-xs text-gray-600">Recall</div>
+                        </div>
+                        <div class="bg-purple-50 rounded-lg p-3 text-center">
+                            <div class="text-xl font-bold text-purple-600" x-text="(metrics.validator?.f1 * 100).toFixed(0) + '%'">--</div>
+                            <div class="text-xs text-gray-600">F1 Score</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Confusion Matrix -->
+                    <h3 class="text-sm font-medium text-gray-700 mb-2">Confusion Matrix</h3>
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr>
+                                    <th></th>
+                                    <th colspan="2" class="text-center text-gray-500 pb-2">Predicted</th>
+                                </tr>
+                                <tr>
+                                    <th></th>
+                                    <th class="text-center text-gray-600 px-4">Invalid</th>
+                                    <th class="text-center text-gray-600 px-4">Valid</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="text-gray-500 pr-2">True Invalid</td>
+                                    <td class="text-center py-2">
+                                        <span class="bg-green-100 text-green-800 px-3 py-1 rounded font-medium" 
+                                              x-text="metrics.validator?.confusion_matrix?.true_invalid_pred_invalid">-</span>
+                                    </td>
+                                    <td class="text-center py-2">
+                                        <span class="bg-red-100 text-red-800 px-3 py-1 rounded font-medium"
+                                              x-text="metrics.validator?.confusion_matrix?.true_invalid_pred_valid">-</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="text-gray-500 pr-2">True Valid</td>
+                                    <td class="text-center py-2">
+                                        <span class="bg-red-100 text-red-800 px-3 py-1 rounded font-medium"
+                                              x-text="metrics.validator?.confusion_matrix?.true_valid_pred_invalid">-</span>
+                                    </td>
+                                    <td class="text-center py-2">
+                                        <span class="bg-green-100 text-green-800 px-3 py-1 rounded font-medium"
+                                              x-text="metrics.validator?.confusion_matrix?.true_valid_pred_valid">-</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="mt-4 text-sm text-gray-500">
+                        <span x-text="metrics.validator?.train_examples">--</span> zone codes for training,
+                        <span x-text="metrics.validator?.test_examples">--</span> zone codes for testing
+                    </div>
+                    <div class="mt-2 text-xs text-blue-600 font-medium" x-show="metrics.validator?.train_city">
+                        Train: <span x-text="metrics.validator?.train_city">--</span> (<span x-text="metrics.validator?.train_city_count || 0"></span> cities) |
+                        Test: <span x-text="metrics.validator?.test_city">--</span> (<span x-text="metrics.validator?.test_city_count || 0"></span> cities)
+                    </div>
+                    <div class="mt-1 text-xs text-gray-400 italic" x-show="metrics.validator?.metrics_source">
+                        <span x-text="metrics.validator?.metrics_source"></span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Extractor Examples Tab -->
+        <div x-show="activeTab === 'extractor'" x-cloak>
+            <div class="bg-white rounded-lg shadow">
+                <!-- Summary -->
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-semibold text-gray-900">Extractor Test Examples</h2>
+                        <div class="flex space-x-4 text-sm" x-show="extractorExamples.summary">
+
+                            <span class="text-green-600">
+                                <span class="font-medium" x-text="extractorExamples.summary?.correct">0</span> Correct
+                            </span>
+                            <span class="text-yellow-600">
+                                <span class="font-medium" x-text="extractorExamples.summary?.partial">0</span> Partial
+                            </span>
+                            <span class="text-red-600 font-bold">
+                                <span class="font-medium" x-text="extractorExamples.summary?.incorrect">0</span> Incorrect
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <!-- Filter -->
+                    <div class="mt-3 flex space-x-2">
+                        <button @click="extractorFilter = 'all'" 
+                                :class="extractorFilter === 'all' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'"
+                                class="px-3 py-1 rounded-full text-sm">All</button>
+                        <button @click="extractorFilter = 'correct'" 
+                                :class="extractorFilter === 'correct' ? 'bg-green-500 text-white' : 'bg-green-100 text-green-700'"
+                                class="px-3 py-1 rounded-full text-sm">Correct</button>
+                        <button @click="extractorFilter = 'partial'" 
+                                :class="extractorFilter === 'partial' ? 'bg-yellow-500 text-white' : 'bg-yellow-100 text-yellow-700'"
+                                class="px-3 py-1 rounded-full text-sm">Partial</button>
+                        <button @click="extractorFilter = 'incorrect'" 
+                                :class="extractorFilter === 'incorrect' ? 'bg-red-600 text-white' : 'bg-red-100 text-red-700'"
+                                class="px-3 py-1 rounded-full text-sm font-bold">Incorrect</button>
+                    </div>
+                </div>
+                
+                <!-- Loading -->
+                <div x-show="loading" class="px-6 py-12 text-center text-gray-500">
+                    <svg class="animate-spin h-8 w-8 mx-auto mb-2 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Loading examples...
+                </div>
+                
+                <!-- Examples List -->
+                <div x-show="!loading" class="divide-y divide-gray-200">
+                    <template x-for="example in filteredExtractorExamples" :key="example.id">
+                        <div class="px-6 py-4 hover:bg-gray-50 cursor-pointer" @click="selectedExtractorExample = selectedExtractorExample?.id === example.id ? null : example">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1">
+                                    <div class="flex items-center space-x-2">
+                                        <span x-show="example.status === 'correct'" class="inline-flex items-center px-2.5 py-1 rounded text-xs font-bold bg-green-200 text-green-800 border border-green-400">✓ Correct</span>
+                                        <span x-show="example.status === 'partial'" class="inline-flex items-center px-2.5 py-1 rounded text-xs font-bold bg-yellow-300 text-yellow-900 border border-yellow-500">~ Partial</span>
+                                        <span x-show="example.status === 'incorrect'" class="inline-flex items-center px-2.5 py-1 rounded text-xs font-bold bg-red-600 text-white">✗ Incorrect</span>
+                                        <span class="text-sm text-gray-500" x-text="example.city + ', ' + example.state"></span>
+                                    </div>
+                                    <div class="mt-2 flex space-x-4 text-sm">
+                                        <div>
+                                            <span class="text-gray-500">True:</span>
+                                            <span class="font-mono ml-1" x-text="example.true_zones.join(', ') || '(none)'"></span>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-500">Pred:</span>
+                                            <span class="font-mono ml-1" x-text="example.pred_zones.join(', ') || '(none)'"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <svg class="w-5 h-5 text-gray-400 transform transition-transform" :class="selectedExtractorExample?.id === example.id ? 'rotate-180' : ''" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                            
+                            <!-- Expanded View -->
+                            <div x-show="selectedExtractorExample?.id === example.id" class="mt-4 p-4 bg-gray-50 rounded-lg">
+                                <h4 class="text-sm font-medium text-gray-700 mb-2">Token Annotations</h4>
+                                <div class="text-sm leading-relaxed">
+                                    <template x-for="(token, idx) in example.tokens" :key="idx">
+                                        <span :class="{
+                                            'zone-both': token.is_true_zone && token.is_pred_zone,
+                                            'zone-false-neg': token.is_true_zone && !token.is_pred_zone,
+                                            'zone-false-pos': !token.is_true_zone && token.is_pred_zone,
+                                        }" x-text="token.token.replace('##', '') + ' '"></span>
+                                    </template>
+                                </div>
+                                <div class="mt-3 flex space-x-4 text-xs text-gray-500">
+                                    <span><span class="inline-block w-3 h-3 bg-green-200 rounded mr-1"></span> Correct (both match)</span>
+                                    <span><span class="inline-block w-3 h-3 bg-yellow-200 border-b-2 border-red-500 rounded mr-1"></span> Missed (false negative)</span>
+                                    <span><span class="inline-block w-3 h-3 bg-red-200 rounded mr-1"></span> Wrong (false positive)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- Validator Examples Tab -->
+        <div x-show="activeTab === 'validator'" x-cloak>
+            <div class="bg-white rounded-lg shadow">
+                <!-- Summary -->
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-semibold text-gray-900">Validator Test Examples</h2>
+                        <div class="flex space-x-4 text-sm" x-show="validatorExamples.summary">
+                            <span class="text-green-600">
+                                <span class="font-medium" x-text="validatorExamples.summary?.correct">0</span> Correct
+                            </span>
+                            <span class="text-red-600 font-bold">
+                                <span class="font-medium" x-text="validatorExamples.summary?.false_positives">0</span> False Pos
+                            </span>
+                            <span class="text-orange-600">
+                                <span class="font-medium" x-text="validatorExamples.summary?.false_negatives">0</span> False Neg
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <!-- Filter -->
+                    <div class="mt-3 flex space-x-2">
+                        <button @click="validatorFilter = 'all'" 
+                                :class="validatorFilter === 'all' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'"
+                                class="px-3 py-1 rounded-full text-sm">All</button>
+                        <button @click="validatorFilter = 'correct'" 
+                                :class="validatorFilter === 'correct' ? 'bg-green-500 text-white' : 'bg-green-100 text-green-700'"
+                                class="px-3 py-1 rounded-full text-sm">Correct</button>
+                        <button @click="validatorFilter = 'incorrect'" 
+                                :class="validatorFilter === 'incorrect' ? 'bg-red-600 text-white' : 'bg-red-100 text-red-700'"
+                                class="px-3 py-1 rounded-full text-sm font-bold">Incorrect</button>
+                    </div>
+                </div>
+                
+                <!-- Loading -->
+                <div x-show="loading" class="px-6 py-12 text-center text-gray-500">
+                    <svg class="animate-spin h-8 w-8 mx-auto mb-2 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Loading examples...
+                </div>
+                
+                <!-- Examples Grid -->
+                <div x-show="!loading" class="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <template x-for="example in filteredValidatorExamples" :key="example.id">
+                        <div class="border-2 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                             :class="example.is_correct ? 'border-green-400 bg-green-50' : 'border-red-600 bg-red-200'"
+                             @click="selectedValidatorExample = selectedValidatorExample?.id === example.id ? null : example">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-lg font-mono font-bold" x-text="example.code"></span>
+                                <span x-show="example.is_correct" class="text-green-600 text-xl font-bold">✓</span>
+                                <span x-show="!example.is_correct" class="text-red-600 text-xl font-bold">✗</span>
+                            </div>
+                            <div class="text-sm space-y-1">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-500">True:</span>
+                                    <span :class="example.true_label === 'Valid' ? 'text-green-700' : 'text-red-600 font-bold'" x-text="example.true_label"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-500">Pred:</span>
+                                    <span :class="example.pred_label === 'Valid' ? 'text-green-700' : 'text-red-600 font-bold'" x-text="example.pred_label"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-500">Conf:</span>
+                                    <span x-text="(example.confidence * 100).toFixed(1) + '%'"></span>
+                                </div>
+                            </div>
+                            <div class="mt-2 text-xs text-gray-500" x-text="example.city + ', ' + example.state"></div>
+                            
+                            <!-- Expanded Passage -->
+                            <div x-show="selectedValidatorExample?.id === example.id" class="mt-3 pt-3 border-t">
+                                <h4 class="text-xs font-medium text-gray-700 mb-1">Passage Preview:</h4>
+                                <p class="text-xs text-gray-600 leading-relaxed" x-text="example.passage_preview"></p>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- City Comparison Tab -->
+        <div x-show="activeTab === 'city-comparison'" x-cloak>
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h2 class="text-lg font-semibold text-gray-900">City-Level Zone Code Comparison</h2>
+                        <p class="text-sm text-gray-500 mt-1">Compare extracted zone codes vs ground truth for each test city</p>
+                    </div>
+                    <div class="text-sm text-gray-500" x-show="cityComparison.cities">
+                        <span x-text="cityComparison.cities?.length || 0"></span> cities in test set
+                    </div>
+                </div>
+                
+                <!-- Loading state -->
+                <div x-show="cityComparisonLoading" class="flex items-center justify-center py-12">
+                    <svg class="animate-spin h-8 w-8 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span class="ml-3 text-gray-600">Loading city comparisons (this may take a moment)...</span>
+                </div>
+                
+                <!-- City cards -->
+                <div x-show="!cityComparisonLoading && cityComparison.cities" class="space-y-6">
+                    <template x-for="city in cityComparison.cities" :key="city.city + city.state">
+                        <div class="border rounded-lg p-5 hover:shadow-md transition-shadow">
+                            <!-- City header -->
+                            <div class="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 class="text-lg font-semibold text-gray-900" x-text="city.city + ', ' + city.state.toUpperCase()"></h3>
+                                    <p class="text-sm text-gray-500"><span x-text="city.example_count"></span> examples in test set</p>
+                                </div>
+                                <div class="flex space-x-6 text-sm">
+                                    <!-- Raw Extractor Metrics -->
+                                    <div class="border-r pr-6">
+                                        <div class="text-xs text-orange-600 font-medium mb-1">Extractor Only</div>
+                                        <div class="flex space-x-3">
+                                            <div class="text-center">
+                                                <div class="font-bold" :class="city.precision_raw >= 0.7 ? 'text-green-600' : city.precision_raw >= 0.4 ? 'text-yellow-600' : 'text-red-600'" x-text="(city.precision_raw * 100).toFixed(0) + '%'"></div>
+                                                <div class="text-gray-400 text-xs">P</div>
+                                            </div>
+                                            <div class="text-center">
+                                                <div class="font-bold" :class="city.recall_raw >= 0.7 ? 'text-green-600' : city.recall_raw >= 0.4 ? 'text-yellow-600' : 'text-red-600'" x-text="(city.recall_raw * 100).toFixed(0) + '%'"></div>
+                                                <div class="text-gray-400 text-xs">R</div>
+                                            </div>
+                                            <div class="text-center">
+                                                <div class="font-bold" :class="city.f1_raw >= 0.7 ? 'text-green-600' : city.f1_raw >= 0.4 ? 'text-yellow-600' : 'text-red-600'" x-text="(city.f1_raw * 100).toFixed(0) + '%'"></div>
+                                                <div class="text-gray-400 text-xs">F1</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!-- Validated Metrics -->
+                                    <div>
+                                        <div class="text-xs text-emerald-600 font-medium mb-1">+ Validator</div>
+                                        <div class="flex space-x-3">
+                                            <div class="text-center">
+                                                <div class="font-bold" :class="city.precision_validated >= 0.7 ? 'text-green-600' : city.precision_validated >= 0.4 ? 'text-yellow-600' : 'text-red-600'" x-text="(city.precision_validated * 100).toFixed(0) + '%'"></div>
+                                                <div class="text-gray-400 text-xs">P</div>
+                                            </div>
+                                            <div class="text-center">
+                                                <div class="font-bold" :class="city.recall_validated >= 0.7 ? 'text-green-600' : city.recall_validated >= 0.4 ? 'text-yellow-600' : 'text-red-600'" x-text="(city.recall_validated * 100).toFixed(0) + '%'"></div>
+                                                <div class="text-gray-400 text-xs">R</div>
+                                            </div>
+                                            <div class="text-center">
+                                                <div class="font-bold" :class="city.f1_validated >= 0.7 ? 'text-green-600' : city.f1_validated >= 0.4 ? 'text-yellow-600' : 'text-red-600'" x-text="(city.f1_validated * 100).toFixed(0) + '%'"></div>
+                                                <div class="text-gray-400 text-xs">F1</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- CSV Ground Truth (from Zoneomics) -->
+                            <div x-show="city.csv_count > 0" class="bg-gray-50 rounded-lg p-4 mb-4">
+                                <div class="flex items-center justify-between mb-2">
+                                    <h4 class="font-medium text-gray-900">
+                                        CSV Ground Truth (Zoneomics) <span class="text-gray-600 font-normal">(<span x-text="city.csv_count"></span> codes)</span>
+                                    </h4>
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-sm text-gray-600">Test Data Coverage:</span>
+                                        <span class="font-bold text-lg" :class="city.csv_coverage >= 0.7 ? 'text-green-600' : city.csv_coverage >= 0.4 ? 'text-yellow-600' : 'text-red-600'" x-text="(city.csv_coverage * 100).toFixed(0) + '%'"></span>
+                                    </div>
+                                </div>
+                                <div class="flex flex-wrap gap-1">
+                                    <template x-for="zone in city.csv_zones" :key="zone">
+                                        <span class="px-2 py-0.5 text-xs font-mono rounded"
+                                              :class="city.csv_in_test.includes(zone) ? 'bg-green-200 text-green-800 border border-green-400' : 'bg-slate-200 text-slate-500 border border-slate-300'"
+                                              x-text="zone"></span>
+                                    </template>
+                                </div>
+                                <div class="mt-2 text-xs text-gray-500">
+                                    <span class="inline-block w-2 h-2 bg-green-200 border border-green-400 rounded mr-1"></span> In test data
+                                    <span class="inline-block w-2 h-2 bg-slate-200 border border-slate-300 rounded mr-1 ml-3"></span> Missing from test data
+                                </div>
+                            </div>
+
+                            <!-- Zone codes comparison - 3 columns -->
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <!-- True zones (from test.jsonl) -->
+                                <div class="bg-blue-50 rounded-lg p-4">
+                                    <h4 class="font-medium text-blue-900 mb-2">
+                                        Test Data Labels <span class="text-blue-600 font-normal">(<span x-text="city.true_count"></span>)</span>
+                                    </h4>
+                                    <div class="flex flex-wrap gap-1">
+                                        <template x-for="zone in city.true_zones" :key="zone">
+                                            <span class="px-2 py-0.5 text-xs font-mono rounded"
+                                                  :class="city.common_zones_validated.includes(zone) ? 'bg-green-200 text-green-800 border border-green-400' : 'bg-yellow-200 text-yellow-800 border border-yellow-400'"
+                                                  x-text="zone"></span>
+                                        </template>
+                                        <span x-show="city.true_zones.length === 0" class="text-gray-400 text-sm">No zones</span>
+                                    </div>
+                                </div>
+
+                                <!-- Extractor output (raw) -->
+                                <div class="bg-orange-50 rounded-lg p-4">
+                                    <h4 class="font-medium text-orange-900 mb-2">
+                                        Extractor Only <span class="text-orange-600 font-normal">(<span x-text="city.pred_count_raw"></span>)</span>
+                                    </h4>
+                                    <div class="flex flex-wrap gap-1">
+                                        <template x-for="zone in city.pred_zones_raw" :key="zone">
+                                            <span class="px-2 py-0.5 text-xs font-mono rounded"
+                                                  :class="city.common_zones_raw.includes(zone) ? 'bg-green-200 text-green-800 border border-green-400' : 'bg-red-600 text-white border border-red-700'"
+                                                  x-text="zone"></span>
+                                        </template>
+                                        <span x-show="city.pred_zones_raw?.length === 0" class="text-gray-400 text-sm">No zones</span>
+                                    </div>
+
+                                    <!-- Not extracted (missed by extractor) -->
+                                    <template x-if="city.true_zones?.filter(z => !city.pred_zones_raw?.includes(z)).length > 0">
+                                        <div class="mt-3 pt-3 border-t border-orange-200">
+                                            <h5 class="text-xs font-medium text-gray-500 mb-2">Not extracted</h5>
+                                            <div class="flex flex-wrap gap-1">
+                                                <template x-for="zone in city.true_zones?.filter(z => !city.pred_zones_raw?.includes(z))" :key="'missed-' + zone">
+                                                    <span class="px-2 py-0.5 text-xs font-mono rounded bg-yellow-200 text-yellow-800 border border-yellow-400"
+                                                          x-text="zone"></span>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <!-- Validated output (extractor + validator) -->
+                                <div class="bg-emerald-50 rounded-lg p-4">
+                                    <h4 class="font-medium text-emerald-900 mb-2">
+                                        + Validator <span class="text-emerald-600 font-normal">(<span x-text="city.pred_count_validated"></span>)</span>
+                                    </h4>
+                                    <div class="flex flex-wrap gap-1">
+                                        <template x-for="zone in city.pred_zones_validated" :key="zone">
+                                            <span class="px-2 py-0.5 text-xs font-mono rounded"
+                                                  :class="city.common_zones_validated.includes(zone) ? 'bg-green-200 text-green-800 border border-green-400' : 'bg-red-600 text-white border border-red-700'"
+                                                  x-text="zone"></span>
+                                        </template>
+                                        <span x-show="city.pred_zones_validated?.length === 0" class="text-gray-400 text-sm">No zones</span>
+                                    </div>
+
+                                    <!-- Discarded by validator -->
+                                    <template x-if="city.pred_zones_raw?.filter(z => !city.pred_zones_validated?.includes(z)).length > 0">
+                                        <div class="mt-3 pt-3 border-t border-emerald-200">
+                                            <h5 class="text-xs font-medium text-gray-500 mb-2">Discarded</h5>
+                                            <div class="flex flex-wrap gap-1">
+                                                <template x-for="zone in city.pred_zones_raw?.filter(z => !city.pred_zones_validated?.includes(z))" :key="'discarded-' + zone">
+                                                    <span class="px-2 py-0.5 text-xs font-mono rounded"
+                                                          :class="city.true_zones.includes(zone) ? 'bg-yellow-200 text-yellow-800 border border-yellow-400' : 'bg-red-600 text-white border border-red-700'"
+                                                          x-text="zone"></span>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <!-- Legend -->
+                            <div class="mt-3 flex space-x-4 text-xs text-gray-500">
+                                <span><span class="inline-block w-3 h-3 bg-green-200 border border-green-400 rounded mr-1"></span> Correct</span>
+                                <span><span class="inline-block w-3 h-3 bg-yellow-200 border border-yellow-400 rounded mr-1"></span> Missed</span>
+                                <span><span class="inline-block w-3 h-3 bg-red-600 border border-red-700 rounded mr-1"></span> Incorrect</span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- Playground Tab -->
+        <div x-show="activeTab === 'playground'" x-cloak>
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Try the Extractor</h2>
+                <p class="text-sm text-gray-500 mb-4">Enter zoning ordinance text to see what zone codes the model extracts</p>
+                
+                <textarea x-model="playgroundText" rows="6" 
+                          class="w-full border border-gray-300 rounded-lg p-4 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                          placeholder="Enter zoning ordinance text here, e.g.: The R-1 Single Family Residential District is intended to provide for low-density residential development..."></textarea>
+                
+                <div class="mt-4 flex items-center space-x-4">
+                    <button @click="runPrediction()" 
+                            :disabled="!playgroundText || predicting"
+                            class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span x-show="!predicting">Extract Zone Codes</span>
+                        <span x-show="predicting">Processing...</span>
+                    </button>
+                    <button @click="playgroundText = sampleText; runPrediction()" 
+                            class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
+                        Load Sample Text
+                    </button>
+                </div>
+                
+                <!-- Results -->
+                <div x-show="playgroundResult" class="mt-6">
+                    <h3 class="text-sm font-medium text-gray-700 mb-2">Extracted Zone Codes:</h3>
+                    <div class="flex flex-wrap gap-2 mb-4">
+                        <template x-for="zone in playgroundResult?.zones || []" :key="zone">
+                            <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-mono" x-text="zone"></span>
+                        </template>
+                        <span x-show="!playgroundResult?.zones?.length" class="text-gray-500 text-sm">No zone codes detected</span>
+                    </div>
+                    
+                    <h3 class="text-sm font-medium text-gray-700 mb-2">Annotated Text:</h3>
+                    <div class="p-4 bg-gray-50 rounded-lg text-sm leading-relaxed">
+                        <template x-for="(token, idx) in playgroundResult?.tokens || []" :key="idx">
+                            <span :class="token.is_zone ? 'zone-highlight' : ''" x-text="token.token.replace('##', '') + ' '"></span>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function dashboard() {
+            return {
+                activeTab: 'metrics',
+                loading: false,
+                predicting: false,
+                metrics: {},
+                extractorExamples: { examples: [], summary: null },
+                validatorExamples: { examples: [], summary: null },
+                cityComparison: { cities: null },
+                cityComparisonLoading: false,
+                extractorFilter: 'all',
+                validatorFilter: 'all',
+                selectedExtractorExample: null,
+                selectedValidatorExample: null,
+                playgroundText: '',
+                playgroundResult: null,
+                sampleText: 'The R-1 Single Family Residential District is intended to provide for low-density residential development. The B-2 General Business District allows commercial retail and office uses. Properties zoned M-1 Light Industrial may include warehousing and manufacturing.',
+                // Model selector state
+                availableModels: { extractors: [], validators: [] },
+                selectedExtractor: '',
+                selectedValidator: '',
+                modelSwitching: false,
+                refreshing: false,
+
+                async init() {
+                    await this.loadAvailableModels();
+                    await this.loadMetrics();
+                },
+
+                async loadAvailableModels() {
+                    try {
+                        const response = await fetch('/api/models');
+                        const data = await response.json();
+                        this.availableModels = data;
+                        this.selectedExtractor = data.current_extractor;
+                        this.selectedValidator = data.current_validator;
+                    } catch (error) {
+                        console.error('Failed to load available models:', error);
+                    }
+                },
+
+                async switchModels() {
+                    this.modelSwitching = true;
+                    try {
+                        const response = await fetch('/api/models/select', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                extractor: this.selectedExtractor,
+                                validator: this.selectedValidator
+                            })
+                        });
+                        const result = await response.json();
+                        if (result.success) {
+                            // Clear cached data to force refresh
+                            this.extractorExamples = { examples: [], summary: null };
+                            this.validatorExamples = { examples: [], summary: null };
+                            this.cityComparison = { cities: null };
+                            this.playgroundResult = null;
+                            // Reload metrics
+                            await this.loadMetrics();
+                            // Reload current tab data if needed
+                            if (this.activeTab === 'extractor') {
+                                await this.loadExtractorExamples();
+                            } else if (this.activeTab === 'validator') {
+                                await this.loadValidatorExamples();
+                            } else if (this.activeTab === 'city-comparison') {
+                                await this.loadCityComparison();
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Failed to switch models:', error);
+                    }
+                    this.modelSwitching = false;
+                },
+
+                async loadMetrics() {
+                    try {
+                        const response = await fetch('/api/metrics');
+                        this.metrics = await response.json();
+                    } catch (error) {
+                        console.error('Failed to load metrics:', error);
+                    }
+                },
+                
+                async loadExtractorExamples() {
+                    if (this.extractorExamples.examples.length > 0) return;
+                    
+                    this.loading = true;
+                    try {
+                        const response = await fetch('/api/extractor/examples');
+                        this.extractorExamples = await response.json();
+                    } catch (error) {
+                        console.error('Failed to load extractor examples:', error);
+                    }
+                    this.loading = false;
+                },
+                
+                async loadValidatorExamples() {
+                    if (this.validatorExamples.examples.length > 0) return;
+                    
+                    this.loading = true;
+                    try {
+                        const response = await fetch('/api/validator/examples');
+                        this.validatorExamples = await response.json();
+                    } catch (error) {
+                        console.error('Failed to load validator examples:', error);
+                    }
+                    this.loading = false;
+                },
+                
+                async loadCityComparison() {
+                    if (this.cityComparison.cities) return;
+                    
+                    this.cityComparisonLoading = true;
+                    try {
+                        const response = await fetch('/api/city-comparison');
+                        this.cityComparison = await response.json();
+                    } catch (error) {
+                        console.error('Failed to load city comparison:', error);
+                    }
+                    this.cityComparisonLoading = false;
+                },
+                
+                async runPrediction() {
+                    if (!this.playgroundText) return;
+                    
+                    this.predicting = true;
+                    try {
+                        const response = await fetch('/api/predict', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ text: this.playgroundText })
+                        });
+                        this.playgroundResult = await response.json();
+                    } catch (error) {
+                        console.error('Prediction failed:', error);
+                    }
+                    this.predicting = false;
+                },
+                
+                get filteredExtractorExamples() {
+                    if (this.extractorFilter === 'all') return this.extractorExamples.examples;
+                    return this.extractorExamples.examples.filter(e => e.status === this.extractorFilter);
+                },
+                
+                get filteredValidatorExamples() {
+                    if (this.validatorFilter === 'all') return this.validatorExamples.examples;
+                    if (this.validatorFilter === 'correct') return this.validatorExamples.examples.filter(e => e.is_correct);
+                    return this.validatorExamples.examples.filter(e => !e.is_correct);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
