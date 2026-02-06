@@ -1,7 +1,7 @@
 import { IModel } from "./base";
 import { Point } from "../types/geometry";
 
-export type MouseControlModelType = {
+export type MouseInteractionModelType = {
   mouseDownWorldPosition: Point | null;
   mouseDownScreenPosition: Point | null;
   mouseMoveWorldPosition: Point | null;
@@ -10,9 +10,9 @@ export type MouseControlModelType = {
   mouseUpScreenPosition: Point | null;
 };
 
-export class MouseControlModel
-  extends IModel<MouseControlModelType>
-  implements MouseControlModelType
+export class MouseInteractionModel
+  extends IModel<MouseInteractionModelType>
+  implements MouseInteractionModelType
 {
   private _mouseDownWorldPosition: Point | null;
   private _mouseDownScreenPosition: Point | null;

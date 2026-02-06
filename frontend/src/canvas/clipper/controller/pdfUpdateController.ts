@@ -68,26 +68,6 @@ export class PdfUpdateController extends BaseController<
       offset: { x: x, y: y },
     });
     this.models.editorStatusModel.isLoaded = true;
-    //   const { padding = 0.9 } = params;
-
-    //   const { width: imageWidth, height: imageHeight } = this.models.imageModel;
-    //   const { element } = this.models.pdfLayerModel;
-    //   const canvasWidth = element.width;
-    //   const canvasHeight = element.height;
-
-    //   if (imageWidth === 0 || imageHeight === 0) return;
-
-    //   // Calculate scale to fit image in canvas
-    //   const scaleX = (canvasWidth * padding) / imageWidth;
-    //   const scaleY = (canvasHeight * padding) / imageHeight;
-    //   const scale = Math.min(scaleX, scaleY);
-
-    //   // Calculate offset to center the image
-    //   const offsetX = (canvasWidth - imageWidth * scale) / 2;
-    //   const offsetY = (canvasHeight - imageHeight * scale) / 2;
-
-    //   this.models.navigationModel.scale = scale;
-    //   this.models.navigationModel.offset = { x: offsetX, y: offsetY };
 
     this.views.pdfLayerView.clear();
     this.views.pdfLayerView.render();

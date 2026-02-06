@@ -79,7 +79,7 @@ export function Layout({ children, sidebar, hideHeader }: LayoutProps) {
         </AppShell.Navbar>
       )}
 
-      <AppShell.Main style={{ height: "calc(100vh - 50px)" }}>
+      <AppShell.Main style={{ height: "calc(100vh - 50px)", overflow: "hidden" }}>
         {children}
       </AppShell.Main>
       {/* <AppShell.Main style={{}}>hi there</AppShell.Main> */}

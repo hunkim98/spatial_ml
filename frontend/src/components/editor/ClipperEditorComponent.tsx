@@ -1,7 +1,7 @@
 import { ClipperEditor } from "@/canvas/clipper/editor";
 import { GeoCorners } from "@/canvas/overlay/types";
 import { useClipperEditor } from "@/hooks/useClipperEditor";
-import { forwardRef, useRef } from "react";
+import { forwardRef, useEffect, useRef } from "react";
 
 export interface ClipperEditorComponentHandle {
   extractFrame: (corners: GeoCorners) => Promise<string>;
@@ -27,6 +27,34 @@ export const ClipperEditorComponent = forwardRef<
     pdfCanvasRef,
     pdfUrl
   );
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    // Mobile pinch (touch)
+    const onTouch = (e: TouchEvent) => {
+      if (e.touches.length > 1) e.preventDefault();
+    };
+
+    // Wheel: must be non-passive so preventDefault works
+    // (React onWheel is passive and cannot preventDefault)
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      editor?.onWheel(e);
+    };
+
+    el.addEventListener("touchstart", onTouch, { passive: false });
+    el.addEventListener("touchmove", onTouch, { passive: false });
+    el.addEventListener("wheel", onWheel, { passive: false, capture: true });
+
+    return () => {
+      el.removeEventListener("touchstart", onTouch);
+      el.removeEventListener("touchmove", onTouch);
+      el.removeEventListener("wheel", onWheel, true);
+    };
+  }, [editor]);
+
   return (
     <div
       className={`w-full h-full relative`}
@@ -34,15 +62,15 @@ export const ClipperEditorComponent = forwardRef<
       tabIndex={1}
       style={{
         outline: "none",
+        overflow: "hidden",
         // IMPORTANT: DO NOT REMOVE THIS `Background` STYLE
         // This background color is used mask the image when the user is cropping it
+        overscrollBehavior: "contain",
+        touchAction: "none",
         background: "#000000",
       }}
       onMouseDown={() => {
         containerRef.current?.focus();
-      }}
-      onScroll={(e) => {
-        e.stopPropagation();
       }}
       onKeyDown={(e) => {
         editor?.onKeyDown(e.nativeEvent);
@@ -58,18 +86,23 @@ export const ClipperEditorComponent = forwardRef<
         style={{
           touchAction: "none",
         }}
-        onWheel={(e) => {
-          e.preventDefault();
-          editor?.onWheel(e);
-        }}
         onMouseDown={(e) => {
           editor?.onMouseDown(e);
+          if (editor) {
+            e.currentTarget.style.cursor = editor.getCursor(e);
+          }
         }}
         onMouseMove={(e) => {
           editor?.onMouseMove(e);
+          if (editor) {
+            e.currentTarget.style.cursor = editor.getCursor(e);
+          }
         }}
-        onMouseUp={() => {
-          editor?.onMouseUp();
+        onMouseUp={(e) => {
+          editor?.onMouseUp(e);
+          if (editor) {
+            e.currentTarget.style.cursor = editor.getCursor(e);
+          }
         }}
       />
       <canvas
