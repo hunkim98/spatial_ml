@@ -1,12 +1,16 @@
 import { ClipperEventListeners } from "../events";
 import { ClipperModel } from "../model";
+import { ToolType } from "../types/tool";
 import { addPoints, subtractPoints } from "../utils/math";
 import { ClipperView } from "../view";
 import { BaseController } from "./base";
 
 type Models = Pick<
   ClipperModel,
-  "mouseInteractionModel" | "dragInteractionModel" | "navigationModel"
+  | "mouseInteractionModel"
+  | "dragInteractionModel"
+  | "navigationModel"
+  | "toolManagerModel"
 >;
 
 type Views = never;
@@ -40,25 +44,35 @@ export class DragInteractionController extends BaseController<
   }
 
   executeDragStart(e: React.MouseEvent<HTMLCanvasElement>): void {
+    if (this.models.toolManagerModel.activeTool === ToolType.CLIP_RECT_CREATE) {
+      return;
+    }
     const { mouseDownScreenPosition } = this.models.mouseInteractionModel;
     if (!mouseDownScreenPosition) return;
-    this.models.dragInteractionModel.dragStart = mouseDownScreenPosition;
-    this.models.dragInteractionModel.lastDragScreenPoint =
+    this.models.dragInteractionModel.dragStartWorldPosition =
+      mouseDownScreenPosition;
+    this.models.dragInteractionModel.lastDragScreenPosition =
       mouseDownScreenPosition;
   }
 
   executeDragMove(e: React.MouseEvent<HTMLCanvasElement>): void {
-    const { dragStart, lastDragScreenPoint } = this.models.dragInteractionModel;
+    if (this.models.toolManagerModel.activeTool === ToolType.CLIP_RECT_CREATE) {
+      return;
+    }
+    const {
+      dragStartWorldPosition: dragStart,
+      lastDragScreenPosition: lastDragScreenPoint,
+    } = this.models.dragInteractionModel;
     const { mouseMoveScreenPosition } = this.models.mouseInteractionModel;
     if (!dragStart || !lastDragScreenPoint || !mouseMoveScreenPosition) return;
     const delta = subtractPoints(mouseMoveScreenPosition, lastDragScreenPoint);
     const newOffset = addPoints(this.models.navigationModel.offset, delta);
     this.models.navigationModel.offset = { x: newOffset.x, y: newOffset.y };
-    this.models.dragInteractionModel.lastDragScreenPoint =
+    this.models.dragInteractionModel.lastDragScreenPosition =
       mouseMoveScreenPosition;
   }
 
   executeDragEnd(e: React.MouseEvent<HTMLCanvasElement>): void {
-    this.models.dragInteractionModel.dragStart = null;
+    this.models.dragInteractionModel.dragStartWorldPosition = null;
   }
 }

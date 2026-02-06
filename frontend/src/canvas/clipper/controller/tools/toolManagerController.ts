@@ -5,7 +5,7 @@ import { ClipperEventListeners } from "../../events";
 import { ToolType } from "../../types/tool";
 import { HandleType, Point, Rect } from "../../types";
 import { isInsideRect, isNearPoint } from "../../lib/geometry";
-``;
+
 type Models = Pick<
   ClipperModel,
   | "toolManagerModel"
@@ -42,6 +42,9 @@ export class ToolManagerController extends BaseController<
   }
 
   detectTool() {
+    // Don't change tool while actively creating a clip rect
+    if (this.models.clipRectToolModel.isCreating) return;
+
     const isInsideImage = this.detectInsideImage();
     if (!isInsideImage) {
       this.setTool(null);
@@ -49,11 +52,15 @@ export class ToolManagerController extends BaseController<
     }
     if (!this.models.clipRectToolModel.rect) {
       this.setTool(ToolType.CLIP_RECT_CREATE);
+      return;
     }
     const onClipRect = this.detectOnClipRect();
     if (onClipRect) {
       this.models.clipRectToolModel.activeHandle = onClipRect;
       this.setTool(ToolType.CLIP_RECT_RESIZE);
+    } else {
+      this.models.clipRectToolModel.activeHandle = null;
+      this.setTool(null);
     }
   }
 

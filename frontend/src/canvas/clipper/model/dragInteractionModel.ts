@@ -7,30 +7,31 @@ export class DragInteractionModel
   extends IModel<DragInteractionModelType>
   implements DragInteractionModelType
 {
-  private _dragStart: Point | null;
-  private _lastDragScreenPoint: Point | null;
+  private _dragStartWorldPosition: Point | null;
+  private _lastDragScreenPosition: Point | null;
 
   constructor(props: Partial<DragInteractionModelType>) {
     super();
-    this._dragStart = null;
-    this._lastDragScreenPoint = null;
+    this._dragStartWorldPosition = null;
+    this._lastDragScreenPosition = null;
   }
 
-  get dragStart(): Point | null {
-    return this._dragStart;
+  get dragStartWorldPosition(): Point | null {
+    return this._dragStartWorldPosition;
   }
 
-  set dragStart(point: Point | null) {
-    this._dragStart = point;
+  set dragStartWorldPosition(point: Point | null) {
+    this._dragStartWorldPosition = point;
   }
-  get lastDragScreenPoint(): Point | null {
-    return this._lastDragScreenPoint;
+  get lastDragScreenPosition(): Point | null {
+    return this._lastDragScreenPosition;
   }
-  set lastDragScreenPoint(point: Point | null) {
-    this._lastDragScreenPoint = point;
+  set lastDragScreenPosition(point: Point | null) {
+    this._lastDragScreenPosition = point;
   }
 
   reset(): void {
-    this._dragStart = null;
+    this._dragStartWorldPosition = null;
+    this._lastDragScreenPosition = null;
   }
 }

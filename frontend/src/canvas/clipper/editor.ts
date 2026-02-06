@@ -31,6 +31,7 @@ import {
 import { CanvasSizeScaleController } from "./controller/settings/CanvasSizeScaleController";
 import { ToolManagerModel } from "./model/tools/toolManagerModel";
 import { ToolManagerController } from "./controller/tools/toolManagerController";
+import { ClipRectCreateToolController } from "./controller/tools/clipRectCreateToolController";
 import { ToolType } from "./types/tool";
 import { DragInteractionModel } from "./model/dragInteractionModel";
 import { DragInteractionController } from "./controller/dragInteractionController";
@@ -141,6 +142,11 @@ export class ClipperEditor {
         this.listeners
       ),
       dragInteractionController: new DragInteractionController(
+        this.models,
+        this.views,
+        this.listeners
+      ),
+      clipRectCreateToolController: new ClipRectCreateToolController(
         this.models,
         this.views,
         this.listeners
@@ -266,9 +272,18 @@ export class ClipperEditor {
 
   executeInteraction(e: React.MouseEvent<HTMLCanvasElement>): void {
     if (!this.models.editorStatusModel.isLoaded) return;
-    if (!this.models.editorStatusModel.tool) {
+    const { activeTool } = this.models.toolManagerModel;
+    if (!activeTool) {
+      return;
     }
-    this.controllers.mouseInteractionController.execute({ e });
+    switch (activeTool) {
+      case ToolType.CLIP_RECT_CREATE:
+        this.controllers.clipRectCreateToolController.execute({ e });
+        break;
+      default:
+        this.controllers.mouseInteractionController.execute({ e });
+    }
+    this.render();
   }
 
   render(): void {
@@ -283,7 +298,7 @@ export class ClipperEditor {
     if (!this.models.editorStatusModel.isLoaded) return "default";
 
     const tool = this.models.toolManagerModel.activeTool;
-    const dragStart = this.models.dragInteractionModel.dragStart;
+    const dragStart = this.models.dragInteractionModel.dragStartWorldPosition;
 
     if (!tool) {
       if (dragStart) {
@@ -295,7 +310,7 @@ export class ClipperEditor {
       return "crosshair";
     }
     if (tool === ToolType.CLIP_RECT_RESIZE) {
-      const handle = this.models.clipRectToolModel.activeHandle;
+      const handle = this.controllers.toolManagerController.detectOnClipRect();
       if (!handle) return "grab";
       return this._getCursorForHandle(handle);
     }

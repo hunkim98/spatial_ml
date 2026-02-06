@@ -4,6 +4,7 @@ import { RedoController } from "./redoController";
 import { PdfUpdateController } from "./pdfUpdateController";
 import { CanvasSizeScaleController } from "./settings/CanvasSizeScaleController";
 import { ToolManagerController } from "./tools/toolManagerController";
+import { ClipRectCreateToolController } from "./tools/clipRectCreateToolController";
 import { DragInteractionController } from "./dragInteractionController";
 
 export type ClipperController = {
@@ -14,4 +15,5 @@ export type ClipperController = {
   redoController: RedoController;
   canvasSizeScaleController: CanvasSizeScaleController;
   toolManagerController: ToolManagerController;
+  clipRectCreateToolController: ClipRectCreateToolController;
 };
