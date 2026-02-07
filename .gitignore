@@ -28,3 +28,4 @@ model/zoning_codes_extract/trained_models/*
 # Zoning model training data
 model/zoning_codes_extract/training/data/*
 model/zoning_codes_extract/training/data_test/*
+model/zoning_codes_extract/training/data_full/*

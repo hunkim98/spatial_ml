@@ -25,7 +25,7 @@ from transformers import (
 
 # Paths
 SCRIPT_DIR = Path(__file__).parent.resolve()
-DATA_DIR = SCRIPT_DIR / "training" / "data"
+DATA_DIR = SCRIPT_DIR / "training" / "data_full"  # Use full dataset
 TRAINED_MODELS_DIR = SCRIPT_DIR / "trained_models"
 
 # Label mappings
@@ -445,8 +445,8 @@ def compute_city_comparison(
 
 def main():
     parser = argparse.ArgumentParser(description='Pre-compute metrics for dashboard')
-    parser.add_argument('--extractor', default='extractor_v1', help='Extractor model name')
-    parser.add_argument('--validator', default='validator_v3', help='Validator model name')
+    parser.add_argument('--extractor', default='extractor', help='Extractor model name')
+    parser.add_argument('--validator', default='validator', help='Validator model name')
     parser.add_argument('--skip-city-comparison', action='store_true', help='Skip city comparison (slow)')
     args = parser.parse_args()
 

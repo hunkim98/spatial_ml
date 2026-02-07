@@ -24,7 +24,7 @@ app = Flask(__name__)
 BASE_DIR = Path(__file__).parent.parent
 MODEL_DIR = BASE_DIR / "model" / "zoning_codes_extract"
 TRAINED_MODELS_DIR = MODEL_DIR / "trained_models"
-DATA_DIR = MODEL_DIR / "training" / "data"
+DATA_DIR = MODEL_DIR / "training" / "data_full"
 
 # Cached metrics files
 CACHED_METRICS_FILE = TRAINED_MODELS_DIR / "cached_metrics.json"
@@ -103,8 +103,8 @@ models = {
 }
 
 # Current model names
-current_extractor_model = "extractor_v1"
-current_validator_model = "validator_v3"
+current_extractor_model = "extractor"
+current_validator_model = "validator"
 
 
 def load_models(extractor_name=None, validator_name=None, force_reload=False):

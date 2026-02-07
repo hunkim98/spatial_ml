@@ -5,6 +5,7 @@ Includes qualitative analysis of predictions.
 """
 
 import json
+import os
 import random
 from pathlib import Path
 from dataclasses import dataclass
@@ -12,15 +13,35 @@ from typing import List, Dict, Tuple
 
 import numpy as np
 import torch
+from dotenv import load_dotenv
 from transformers import (
     AutoTokenizer,
     AutoModelForTokenClassification,
     AutoModelForSequenceClassification,
     TrainingArguments,
     Trainer,
+    TrainerCallback,
     DataCollatorForTokenClassification,
     DataCollatorWithPadding,
 )
+import gc
+
+
+class MPSMemoryCallback(TrainerCallback):
+    """Callback to clear MPS cache periodically to prevent memory buildup."""
+
+    def on_step_end(self, args, state, control, **kwargs):
+        # Clear cache every 100 steps
+        if state.global_step % 100 == 0:
+            if torch.backends.mps.is_available():
+                torch.mps.empty_cache()
+            gc.collect()
+
+    def on_epoch_end(self, args, state, control, **kwargs):
+        # Clear cache at end of each epoch
+        if torch.backends.mps.is_available():
+            torch.mps.empty_cache()
+        gc.collect()
 from datasets import Dataset, DatasetDict
 from seqeval.metrics import classification_report as ner_classification_report
 from sklearn.metrics import (
@@ -29,6 +50,15 @@ from sklearn.metrics import (
     classification_report,
     confusion_matrix
 )
+import wandb
+
+# Load environment variables (for WANDB_API_KEY)
+ENV_FILE = Path(__file__).parent.parent.parent / "secrets" / "teamspatially-project.env"
+if ENV_FILE.exists():
+    load_dotenv(ENV_FILE)
+
+# Initialize wandb
+WANDB_PROJECT = "zoning-code-extraction"
 
 
 # ============================================================================
@@ -37,14 +67,15 @@ from sklearn.metrics import (
 
 # Get the script's directory for relative paths
 SCRIPT_DIR = Path(__file__).parent.resolve()
-DATA_DIR = SCRIPT_DIR / "training" / "data_test"
+DATA_DIR = SCRIPT_DIR / "training" / "data_full"
 OUTPUT_DIR = SCRIPT_DIR / "trained_models"
 MODEL_NAME = "bert-base-uncased"
 SEED = 42
 
-# Training hyperparameters (reduced for quick training)
-NUM_EPOCHS = 5
-BATCH_SIZE = 8
+# Training hyperparameters
+NUM_EPOCHS = 3
+BATCH_SIZE = 4  # Smaller batch to reduce per-step memory
+GRADIENT_ACCUMULATION_STEPS = 4  # Effective batch size = 4 * 4 = 16
 LEARNING_RATE = 3e-5
 WARMUP_STEPS = 50
 
@@ -160,6 +191,7 @@ def train_extractor():
         learning_rate=LEARNING_RATE,
         per_device_train_batch_size=BATCH_SIZE,
         per_device_eval_batch_size=BATCH_SIZE,
+        gradient_accumulation_steps=GRADIENT_ACCUMULATION_STEPS,
         num_train_epochs=NUM_EPOCHS,
         weight_decay=0.01,
         warmup_steps=WARMUP_STEPS,
@@ -168,7 +200,14 @@ def train_extractor():
         metric_for_best_model="f1",
         greater_is_better=True,
         seed=SEED,
-        report_to="none",  # Disable wandb/tensorboard
+        report_to="wandb",
+        run_name="extractor",
+        # MPS memory optimizations
+        dataloader_pin_memory=False,  # MPS doesn't support pinned memory
+        dataloader_num_workers=0,  # Avoid memory duplication from workers
+        fp16=False,  # MPS doesn't support fp16
+        bf16=False,  # bf16 can cause issues on some MPS versions
+        gradient_checkpointing=True,  # Trade compute for memory
     )
     
     # Data collator
@@ -177,8 +216,11 @@ def train_extractor():
         padding=True,
         max_length=512
     )
-    
-    # Trainer
+
+    # Enable gradient checkpointing on model for memory efficiency
+    model.gradient_checkpointing_enable()
+
+    # Trainer with MPS memory callback
     trainer = Trainer(
         model=model,
         args=training_args,
@@ -187,8 +229,9 @@ def train_extractor():
         processing_class=tokenizer,
         data_collator=data_collator,
         compute_metrics=compute_metrics,
+        callbacks=[MPSMemoryCallback()],
     )
-    
+
     # Train
     print("\nStarting training...")
     trainer.train()
@@ -424,6 +467,7 @@ def train_validator():
         learning_rate=LEARNING_RATE,
         per_device_train_batch_size=BATCH_SIZE,
         per_device_eval_batch_size=BATCH_SIZE,
+        gradient_accumulation_steps=GRADIENT_ACCUMULATION_STEPS,
         num_train_epochs=NUM_EPOCHS,
         weight_decay=0.01,
         warmup_steps=WARMUP_STEPS,
@@ -432,13 +476,23 @@ def train_validator():
         metric_for_best_model="f1",
         greater_is_better=True,
         seed=SEED,
-        report_to="none",
+        report_to="wandb",
+        run_name="validator",
+        # MPS memory optimizations
+        dataloader_pin_memory=False,
+        dataloader_num_workers=0,
+        fp16=False,
+        bf16=False,
+        gradient_checkpointing=True,
     )
     
     # Data collator
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
-    
-    # Trainer
+
+    # Enable gradient checkpointing on model for memory efficiency
+    model.gradient_checkpointing_enable()
+
+    # Trainer with MPS memory callback
     trainer = Trainer(
         model=model,
         args=training_args,
@@ -447,8 +501,9 @@ def train_validator():
         processing_class=tokenizer,
         data_collator=data_collator,
         compute_metrics=compute_metrics,
+        callbacks=[MPSMemoryCallback()],
     )
-    
+
     # Train
     print("\nStarting training...")
     trainer.train()
@@ -544,15 +599,39 @@ def main():
     print(f"Output directory: {OUTPUT_DIR}")
     print(f"Base model: {MODEL_NAME}")
     print(f"Epochs: {NUM_EPOCHS}, Batch size: {BATCH_SIZE}, LR: {LEARNING_RATE}")
-    
-    # Check for GPU
-    device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+
+    # Check for GPU - force CPU to avoid MPS memory issues with large datasets
+    # device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+    device = "cpu"  # Force CPU for stability with large dataset
     print(f"Device: {device}")
+
+    # Initialize wandb
+    wandb.init(
+        entity="spatially",
+        project=WANDB_PROJECT,
+        config={
+            "model_name": MODEL_NAME,
+            "num_epochs": NUM_EPOCHS,
+            "batch_size": BATCH_SIZE,
+            "learning_rate": LEARNING_RATE,
+            "warmup_steps": WARMUP_STEPS,
+            "seed": SEED,
+            "device": device,
+        }
+    )
+    print(f"Wandb initialized: {wandb.run.url}")
     
     # Train extractor
     extractor_trainer, extractor_datasets, tokenizer, id_to_label = train_extractor()
     qualitative_analysis_extractor(extractor_trainer, extractor_datasets, tokenizer, id_to_label)
-    
+
+    # Clear memory before training validator
+    print("\nClearing memory before validator training...")
+    del extractor_trainer
+    gc.collect()
+    if torch.backends.mps.is_available():
+        torch.mps.empty_cache()
+
     # Train validator
     validator_trainer, validator_datasets = train_validator()
     qualitative_analysis_validator(validator_trainer, validator_datasets)
@@ -561,6 +640,9 @@ def main():
     print("TRAINING AND EVALUATION COMPLETE")
     print("="*60)
     print(f"\nModels saved to: {OUTPUT_DIR}")
+
+    # Finish wandb run
+    wandb.finish()
 
 
 if __name__ == "__main__":
