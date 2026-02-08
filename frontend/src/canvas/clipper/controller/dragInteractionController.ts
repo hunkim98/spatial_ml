@@ -44,7 +44,11 @@ export class DragInteractionController extends BaseController<
   }
 
   executeDragStart(e: React.MouseEvent<HTMLCanvasElement>): void {
-    if (this.models.toolManagerModel.activeTool === ToolType.CLIP_RECT_CREATE) {
+    const activeTool = this.models.toolManagerModel.activeTool;
+    if (
+      activeTool === ToolType.CLIP_RECT_CREATE ||
+      activeTool === ToolType.CLIP_RECT_RESIZE
+    ) {
       return;
     }
     const { mouseDownScreenPosition } = this.models.mouseInteractionModel;
@@ -56,7 +60,11 @@ export class DragInteractionController extends BaseController<
   }
 
   executeDragMove(e: React.MouseEvent<HTMLCanvasElement>): void {
-    if (this.models.toolManagerModel.activeTool === ToolType.CLIP_RECT_CREATE) {
+    const activeTool = this.models.toolManagerModel.activeTool;
+    if (
+      activeTool === ToolType.CLIP_RECT_CREATE ||
+      activeTool === ToolType.CLIP_RECT_RESIZE
+    ) {
       return;
     }
     const {

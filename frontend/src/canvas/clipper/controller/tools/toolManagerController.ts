@@ -4,7 +4,7 @@ import { BaseController } from "../base";
 import { ClipperEventListeners } from "../../events";
 import { ToolType } from "../../types/tool";
 import { HandleType, Point, Rect } from "../../types";
-import { isInsideRect, isNearPoint } from "../../lib/geometry";
+import { isInsideRect, isNearPoint, getScaledHitRadius } from "../../lib/geometry";
 
 type Models = Pick<
   ClipperModel,
@@ -12,6 +12,7 @@ type Models = Pick<
   | "clipRectToolModel"
   | "imageModel"
   | "mouseInteractionModel"
+  | "navigationModel"
 >;
 type Views = never;
 type ExecuteParams = {
@@ -36,32 +37,66 @@ export class ToolManagerController extends BaseController<
   execute(params: ExecuteParams): void {
     this.detectTool();
     console.log(
+      "active:",
       this.models.toolManagerModel.activeTool,
-      this.models.clipRectToolModel.activeHandle
+      this.models.clipRectToolModel.activeHandle,
+      "candidate:",
+      this.models.toolManagerModel.candidateTool,
+      this.models.clipRectToolModel.candidateHandle
     );
   }
 
   detectTool() {
-    // Don't change tool while actively creating a clip rect
-    if (this.models.clipRectToolModel.isCreating) return;
+    // Always update candidate for cursor display
+    this.updateCandidate();
 
+    // Only update active when not in the middle of an interaction
+    if (this.shouldLockActiveTool()) {
+      return;
+    }
+
+    this.applyCandidateToActive();
+  }
+
+  private updateCandidate() {
     const isInsideImage = this.detectInsideImage();
+
     if (!isInsideImage) {
-      this.setTool(null);
+      this.setCandidate(null, null);
       return;
     }
-    if (!this.models.clipRectToolModel.rect) {
-      this.setTool(ToolType.CLIP_RECT_CREATE);
+
+    const hasRect = !!this.models.clipRectToolModel.rect;
+    if (!hasRect) {
+      this.setCandidate(ToolType.CLIP_RECT_CREATE, null);
       return;
     }
-    const onClipRect = this.detectOnClipRect();
-    if (onClipRect) {
-      this.models.clipRectToolModel.activeHandle = onClipRect;
-      this.setTool(ToolType.CLIP_RECT_RESIZE);
+
+    const handleAtPoint = this.detectOnClipRect();
+    if (handleAtPoint) {
+      this.setCandidate(ToolType.CLIP_RECT_RESIZE, handleAtPoint);
     } else {
-      this.models.clipRectToolModel.activeHandle = null;
-      this.setTool(null);
+      this.setCandidate(null, null);
     }
+  }
+
+  private shouldLockActiveTool(): boolean {
+    return (
+      this.models.clipRectToolModel.isCreating ||
+      this.models.clipRectToolModel.isEditing
+    );
+  }
+
+  private setCandidate(tool: ToolType | null, handle: HandleType | null) {
+    this.models.toolManagerModel.candidateTool = tool;
+    this.models.clipRectToolModel.candidateHandle = handle;
+  }
+
+  private applyCandidateToActive() {
+    this.models.toolManagerModel.activeTool =
+      this.models.toolManagerModel.candidateTool;
+    this.models.clipRectToolModel.activeHandle =
+      this.models.clipRectToolModel.candidateHandle;
   }
 
   detectInsideImage() {
@@ -83,6 +118,11 @@ export class ToolManagerController extends BaseController<
     if (!this.models.mouseInteractionModel.mouseMoveWorldPosition) return null;
     const { rect } = this.models.clipRectToolModel;
     if (!rect) return null;
+
+    // Get scale-adjusted hit radius (larger when zoomed out)
+    const scale = this.models.navigationModel.scale;
+    const hitRadius = getScaledHitRadius(scale);
+
     const topLeft: Point = { x: rect.offset.x, y: rect.offset.y };
     const topRight: Point = { x: rect.offset.x + rect.width, y: rect.offset.y };
     const bottomRight: Point = {
@@ -107,19 +147,17 @@ export class ToolManagerController extends BaseController<
       y: rect.offset.y + rect.height,
     };
     const point = this.models.mouseInteractionModel.mouseMoveWorldPosition;
+
     // Check corner handles first (they have priority)
-    if (isNearPoint(point, topLeft)) return HandleType.TOP_LEFT;
-    if (isNearPoint(point, topRight)) return HandleType.TOP_RIGHT;
-    if (isNearPoint(point, bottomRight)) return HandleType.BOTTOM_RIGHT;
-    if (isNearPoint(point, bottomLeft)) return HandleType.BOTTOM_LEFT;
-    if (isNearPoint(point, left)) return HandleType.LEFT;
-    if (isNearPoint(point, right)) return HandleType.RIGHT;
-    if (isNearPoint(point, top)) return HandleType.TOP;
-    if (isNearPoint(point, bottom)) return HandleType.BOTTOM;
+    if (isNearPoint(point, topLeft, hitRadius)) return HandleType.TOP_LEFT;
+    if (isNearPoint(point, topRight, hitRadius)) return HandleType.TOP_RIGHT;
+    if (isNearPoint(point, bottomRight, hitRadius)) return HandleType.BOTTOM_RIGHT;
+    if (isNearPoint(point, bottomLeft, hitRadius)) return HandleType.BOTTOM_LEFT;
+    if (isNearPoint(point, left, hitRadius)) return HandleType.LEFT;
+    if (isNearPoint(point, right, hitRadius)) return HandleType.RIGHT;
+    if (isNearPoint(point, top, hitRadius)) return HandleType.TOP;
+    if (isNearPoint(point, bottom, hitRadius)) return HandleType.BOTTOM;
     return null;
   }
 
-  setTool(tool: ToolType | null) {
-    this.models.toolManagerModel.activeTool = tool;
-  }
 }

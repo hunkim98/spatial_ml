@@ -17,7 +17,9 @@ export class ClipRectToolModel
   private _corner3: Point | null;
   private _corner4: Point | null;
   private _activeHandle: HandleType | null;
+  private _candidateHandle: HandleType | null;
   private _isCreating: boolean;
+  private _isEditing: boolean;
 
   constructor(props: Partial<ClipRectToolModelType>) {
     super();
@@ -26,7 +28,9 @@ export class ClipRectToolModel
     this._corner3 = props.corner3 ?? null;
     this._corner4 = props.corner4 ?? null;
     this._activeHandle = null;
+    this._candidateHandle = null;
     this._isCreating = false;
+    this._isEditing = false;
   }
 
   get corner1(): Point | null {
@@ -62,11 +66,25 @@ export class ClipRectToolModel
     this._activeHandle = handle;
   }
 
+  get candidateHandle(): HandleType | null {
+    return this._candidateHandle;
+  }
+  set candidateHandle(handle: HandleType | null) {
+    this._candidateHandle = handle;
+  }
+
   get isCreating(): boolean {
     return this._isCreating;
   }
   set isCreating(value: boolean) {
     this._isCreating = value;
+  }
+
+  get isEditing(): boolean {
+    return this._isEditing;
+  }
+  set isEditing(value: boolean) {
+    this._isEditing = value;
   }
 
   /** Computed Rect from the 4 corners. Returns null if corner1 or corner4 are unset. */
@@ -89,6 +107,8 @@ export class ClipRectToolModel
     this._corner3 = null;
     this._corner4 = null;
     this._activeHandle = null;
+    this._candidateHandle = null;
     this._isCreating = false;
+    this._isEditing = false;
   }
 }

@@ -1,9 +1,14 @@
 import { ClipperEditor } from "@/canvas/clipper/editor";
+import { ExportResult } from "@/canvas/clipper/controller/exportController";
 import { GeoCorners } from "@/canvas/overlay/types";
 import { useClipperEditor } from "@/hooks/useClipperEditor";
-import { forwardRef, useEffect, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 
 export interface ClipperEditorComponentHandle {
+  exportClippedImage: (
+    format?: "png" | "jpeg",
+    quality?: number
+  ) => Promise<ExportResult | null>;
   extractFrame: (corners: GeoCorners) => Promise<string>;
   exportImage: (image: string) => Promise<string>;
 }
@@ -27,6 +32,22 @@ export const ClipperEditorComponent = forwardRef<
     pdfCanvasRef,
     pdfUrl
   );
+
+  // Expose methods via ref
+  useImperativeHandle(ref, () => ({
+    exportClippedImage: async (format, quality) => {
+      if (!editor) return null;
+      return editor.exportClippedImage(format, quality);
+    },
+    extractFrame: async (corners: GeoCorners) => {
+      // TODO: implement if needed
+      throw new Error("Not implemented");
+    },
+    exportImage: async (image: string) => {
+      // TODO: implement if needed
+      throw new Error("Not implemented");
+    },
+  }));
 
   useEffect(() => {
     const el = containerRef.current;

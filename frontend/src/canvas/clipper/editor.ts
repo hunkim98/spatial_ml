@@ -32,9 +32,11 @@ import { CanvasSizeScaleController } from "./controller/settings/CanvasSizeScale
 import { ToolManagerModel } from "./model/tools/toolManagerModel";
 import { ToolManagerController } from "./controller/tools/toolManagerController";
 import { ClipRectCreateToolController } from "./controller/tools/clipRectCreateToolController";
+import { ClipRectEditToolController } from "./controller/tools/clipRectEditToolController";
 import { ToolType } from "./types/tool";
 import { DragInteractionModel } from "./model/dragInteractionModel";
 import { DragInteractionController } from "./controller/dragInteractionController";
+import { ExportController } from "./controller/exportController";
 
 export class ClipperEditor {
   private models: ClipperModel = {} as ClipperModel;
@@ -151,6 +153,16 @@ export class ClipperEditor {
         this.views,
         this.listeners
       ),
+      clipRectEditToolController: new ClipRectEditToolController(
+        this.models,
+        this.views,
+        this.listeners
+      ),
+      exportController: new ExportController(
+        this.models,
+        this.views,
+        this.listeners
+      ),
     };
   }
 
@@ -187,11 +199,11 @@ export class ClipperEditor {
     });
     this.controllers.mouseInteractionController.execute({ e });
     this.controllers.dragInteractionController.execute({ e });
+    this.controllers.toolManagerController.execute({ e }); // Detect tool/handle at mousedown
     this.executeInteraction(e);
   }
 
   onMouseMove(e: React.MouseEvent<HTMLCanvasElement>): void {
-    // If panning mode, use panZoomController
     if (!this.models.editorStatusModel.isLoaded) return;
     const worldPos = getWorldPointFromEvent(
       e,
@@ -199,7 +211,6 @@ export class ClipperEditor {
       this.models.navigationModel.offset,
       this.models.navigationModel.scale
     );
-    // console.log("worldPos", worldPos);
     const screenPos = getCanvasRelativePositionFromWorldPoint(
       worldPos,
       this.models.navigationModel.offset,
@@ -216,6 +227,7 @@ export class ClipperEditor {
     });
     this.controllers.mouseInteractionController.execute({ e });
     this.controllers.dragInteractionController.execute({ e });
+    // Always update candidate (for cursor), locks active during editing
     this.controllers.toolManagerController.execute({ e });
     this.executeInteraction(e);
   }
@@ -252,7 +264,7 @@ export class ClipperEditor {
   onKeyDown(e: KeyboardEvent): void {
     if (e.code === "Space") {
       // null means the grab tool is active
-      this.controllers.toolManagerController.setTool(null);
+      this.models.toolManagerModel.activeTool = null;
     }
   }
 
@@ -280,6 +292,9 @@ export class ClipperEditor {
       case ToolType.CLIP_RECT_CREATE:
         this.controllers.clipRectCreateToolController.execute({ e });
         break;
+      case ToolType.CLIP_RECT_RESIZE:
+        this.controllers.clipRectEditToolController.execute({ e });
+        break;
       default:
         this.controllers.mouseInteractionController.execute({ e });
     }
@@ -294,10 +309,11 @@ export class ClipperEditor {
   }
 
   getCursor(e: React.MouseEvent<HTMLCanvasElement>): string {
-    // Panning cursor
     if (!this.models.editorStatusModel.isLoaded) return "default";
 
-    const tool = this.models.toolManagerModel.activeTool;
+    // Use candidate tool/handle for cursor (always reflects current mouse position)
+    const tool = this.models.toolManagerModel.candidateTool;
+    const handle = this.models.clipRectToolModel.candidateHandle;
     const dragStart = this.models.dragInteractionModel.dragStartWorldPosition;
 
     if (!tool) {
@@ -310,7 +326,6 @@ export class ClipperEditor {
       return "crosshair";
     }
     if (tool === ToolType.CLIP_RECT_RESIZE) {
-      const handle = this.controllers.toolManagerController.detectOnClipRect();
       if (!handle) return "grab";
       return this._getCursorForHandle(handle);
     }
@@ -382,5 +397,14 @@ export class ClipperEditor {
 
   get tool(): ActionType {
     return this.models.editorStatusModel.tool;
+  }
+
+  // Public methods
+  /**
+   * Export the clipped region as a high-quality image
+   * Delegates to ExportController
+   */
+  async exportClippedImage(format?: "png" | "jpeg", quality?: number) {
+    return this.controllers.exportController.execute({ format, quality });
   }
 }
