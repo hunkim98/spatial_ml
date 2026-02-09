@@ -1,8 +1,7 @@
 import { GeoCorners } from "@/canvas/overlay/types";
-import { ClipperEditorComponent } from "@/components/editor/ClipperEditorComponent";
-import EditorComponent from "@/components/editor/EditorComponent";
-import { NoEditorComponent } from "@/components/editor/NoEditorComponent";
-import { OverlayEditorComponent } from "@/components/editor/OverlayEditorComponent";
+import EditorComponent, {
+  EditorComponentHandle,
+} from "@/components/editor/EditorComponent";
 import { PdfSelectSidebar } from "@/components/editor/PDFSelectSidebar";
 import { GeoReferencerHandle } from "@/components/GeoReferencer";
 import { Layout } from "@/components/Layout";
@@ -24,12 +23,11 @@ export default function StudioPage() {
 
   // ========== Refs ==========
   const geoReferencerRef = useRef<GeoReferencerHandle>(null);
+  const editorRef = useRef<EditorComponentHandle>(null);
   const [selectedPdf, setSelectedPdf] = useState<PdfFile | null>(null);
   const [pageNumber, setPageNumber] = useState(1); // we will default to page 1
   const [saving, setSaving] = useState(false);
   const [geoCorners, setGeoCorners] = useState<GeoCorners | null>(null);
-  const [pdfMapFrameImageBuffer, setPdfMapFrameImageBuffer] =
-    useState<Buffer | null>(null);
 
   // ========== Effects ==========
   // Auto-select first PDF for testing
@@ -78,7 +76,12 @@ export default function StudioPage() {
     await saveLabel({
       pdfHash: selectedPdf.hash,
       pdfPath: selectedPdf.path,
-      corners,
+      corners: {
+        topLeft: corners.corner1,
+        topRight: corners.corner2,
+        bottomRight: corners.corner4,
+        bottomLeft: corners.corner3,
+      },
     });
     setSaving(false);
   }, [selectedPdf, saveLabel]);
@@ -109,9 +112,9 @@ export default function StudioPage() {
     >
       <Box style={{ width: "100%", height: "100%", backgroundColor: "red" }}>
         <EditorComponent
+          ref={editorRef}
           isLoadingResources={isLoadingResources}
           pdfUrl={pdfUrl}
-          pdfMapFrameImageBuffer={pdfMapFrameImageBuffer}
           pageNumber={pageNumber}
         />
       </Box>

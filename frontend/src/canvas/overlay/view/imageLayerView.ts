@@ -3,7 +3,7 @@ import { IView } from "./base";
 
 type Models = Pick<
   CanvasModel,
-  "canvasElementModel" | "transformModel" | "imageBufferModel"
+  "imageLayerModel" | "imageTransformToolModel" | "imageBufferModel"
 >;
 
 export class ImageLayerView extends IView<Models> {
@@ -13,38 +13,38 @@ export class ImageLayerView extends IView<Models> {
 
   render(): void {
     const { buffer } = this.models.imageBufferModel;
-    const { corners } = this.models.transformModel;
+    const { corners } = this.models.imageTransformToolModel;
 
     if (!buffer || !corners) return;
 
-    const ctx = this.models.canvasElementModel.ctx;
+    const ctx = this.models.imageLayerModel.ctx;
 
     ctx.save();
 
     // Calculate bounding rect from corners
     const minX = Math.min(
-      corners.topLeft.x,
-      corners.topRight.x,
-      corners.bottomRight.x,
-      corners.bottomLeft.x
+      corners.corner1.x,
+      corners.corner2.x,
+      corners.corner3.x,
+      corners.corner4.x
     );
     const minY = Math.min(
-      corners.topLeft.y,
-      corners.topRight.y,
-      corners.bottomRight.y,
-      corners.bottomLeft.y
+      corners.corner1.y,
+      corners.corner2.y,
+      corners.corner3.y,
+      corners.corner4.y
     );
     const maxX = Math.max(
-      corners.topLeft.x,
-      corners.topRight.x,
-      corners.bottomRight.x,
-      corners.bottomLeft.x
+      corners.corner1.x,
+      corners.corner2.x,
+      corners.corner3.x,
+      corners.corner4.x
     );
     const maxY = Math.max(
-      corners.topLeft.y,
-      corners.topRight.y,
-      corners.bottomRight.y,
-      corners.bottomLeft.y
+      corners.corner1.y,
+      corners.corner2.y,
+      corners.corner3.y,
+      corners.corner4.y
     );
 
     ctx.drawImage(buffer, minX, minY, maxX - minX, maxY - minY);
@@ -53,11 +53,11 @@ export class ImageLayerView extends IView<Models> {
   }
 
   clear(): void {
-    const { htmlCanvas, ctx } = this.models.canvasElementModel;
+    const { element, ctx } = this.models.imageLayerModel;
 
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, htmlCanvas.width, htmlCanvas.height);
+    ctx.clearRect(0, 0, element.width, element.height);
     ctx.restore();
   }
 }

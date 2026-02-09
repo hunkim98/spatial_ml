@@ -92,7 +92,12 @@ export default function Labeller() {
     await saveLabel({
       pdfHash: selectedPdf.hash,
       pdfPath: selectedPdf.path,
-      corners,
+      corners: {
+        topLeft: corners.corner1,
+        topRight: corners.corner2,
+        bottomRight: corners.corner4,
+        bottomLeft: corners.corner3,
+      },
     });
     setSaving(false);
   }, [selectedPdf, saveLabel]);

@@ -6,7 +6,7 @@ const HANDLE_SIZE = 8;
 const STROKE_COLOR = "#6D96FF";
 const STROKE_WIDTH = 2;
 
-type Models = Pick<CanvasModel, "canvasElementModel" | "transformModel">;
+type Models = Pick<CanvasModel, "frameLayerModel" | "imageTransformToolModel">;
 
 export class FrameLayerView extends IView<Models> {
   constructor(models: CanvasModel) {
@@ -14,11 +14,11 @@ export class FrameLayerView extends IView<Models> {
   }
 
   render(): void {
-    const { corners } = this.models.transformModel;
+    const { corners } = this.models.imageTransformToolModel;
 
     if (!corners) return;
 
-    const ctx = this.models.canvasElementModel.ctx;
+    const ctx = this.models.frameLayerModel.ctx;
 
     ctx.save();
 
@@ -26,18 +26,18 @@ export class FrameLayerView extends IView<Models> {
     ctx.strokeStyle = STROKE_COLOR;
     ctx.lineWidth = STROKE_WIDTH;
     ctx.beginPath();
-    ctx.moveTo(corners.topLeft.x, corners.topLeft.y);
-    ctx.lineTo(corners.topRight.x, corners.topRight.y);
-    ctx.lineTo(corners.bottomRight.x, corners.bottomRight.y);
-    ctx.lineTo(corners.bottomLeft.x, corners.bottomLeft.y);
+    ctx.moveTo(corners.corner1.x, corners.corner1.y);
+    ctx.lineTo(corners.corner2.x, corners.corner2.y);
+    ctx.lineTo(corners.corner4.x, corners.corner4.y);
+    ctx.lineTo(corners.corner3.x, corners.corner3.y);
     ctx.closePath();
     ctx.stroke();
 
     // Draw corner handles
-    this.drawHandle(ctx, corners.topLeft);
-    this.drawHandle(ctx, corners.topRight);
-    this.drawHandle(ctx, corners.bottomRight);
-    this.drawHandle(ctx, corners.bottomLeft);
+    this.drawHandle(ctx, corners.corner1);
+    this.drawHandle(ctx, corners.corner2);
+    this.drawHandle(ctx, corners.corner4);
+    this.drawHandle(ctx, corners.corner3);
 
     ctx.restore();
   }
@@ -59,11 +59,11 @@ export class FrameLayerView extends IView<Models> {
   }
 
   clear(): void {
-    const { htmlCanvas, ctx } = this.models.canvasElementModel;
+    const { element, ctx } = this.models.frameLayerModel;
 
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, htmlCanvas.width, htmlCanvas.height);
+    ctx.clearRect(0, 0, element.width, element.height);
     ctx.restore();
   }
 }

@@ -209,24 +209,24 @@ export function LabellerSidebar({
                         const json = JSON.stringify(
                           {
                             topLeft: {
-                              lng: Number(geoCorners.topLeft.lng.toFixed(6)),
-                              lat: Number(geoCorners.topLeft.lat.toFixed(6)),
+                              lng: Number(geoCorners.corner1.lng.toFixed(6)),
+                              lat: Number(geoCorners.corner1.lat.toFixed(6)),
                             },
                             topRight: {
-                              lng: Number(geoCorners.topRight.lng.toFixed(6)),
-                              lat: Number(geoCorners.topRight.lat.toFixed(6)),
+                              lng: Number(geoCorners.corner2.lng.toFixed(6)),
+                              lat: Number(geoCorners.corner2.lat.toFixed(6)),
                             },
                             bottomRight: {
                               lng: Number(
-                                geoCorners.bottomRight.lng.toFixed(6)
+                                geoCorners.corner4.lng.toFixed(6)
                               ),
                               lat: Number(
-                                geoCorners.bottomRight.lat.toFixed(6)
+                                geoCorners.corner4.lat.toFixed(6)
                               ),
                             },
                             bottomLeft: {
-                              lng: Number(geoCorners.bottomLeft.lng.toFixed(6)),
-                              lat: Number(geoCorners.bottomLeft.lat.toFixed(6)),
+                              lng: Number(geoCorners.corner3.lng.toFixed(6)),
+                              lat: Number(geoCorners.corner3.lat.toFixed(6)),
                             },
                           },
                           null,
@@ -243,14 +243,14 @@ export function LabellerSidebar({
                     ff="monospace"
                     style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}
                   >
-                    TL: {geoCorners.topLeft.lng.toFixed(6)},{" "}
-                    {geoCorners.topLeft.lat.toFixed(6)}
-                    {"\n"}TR: {geoCorners.topRight.lng.toFixed(6)},{" "}
-                    {geoCorners.topRight.lat.toFixed(6)}
-                    {"\n"}BR: {geoCorners.bottomRight.lng.toFixed(6)},{" "}
-                    {geoCorners.bottomRight.lat.toFixed(6)}
-                    {"\n"}BL: {geoCorners.bottomLeft.lng.toFixed(6)},{" "}
-                    {geoCorners.bottomLeft.lat.toFixed(6)}
+                    TL: {geoCorners.corner1.lng.toFixed(6)},{" "}
+                    {geoCorners.corner1.lat.toFixed(6)}
+                    {"\n"}TR: {geoCorners.corner2.lng.toFixed(6)},{" "}
+                    {geoCorners.corner2.lat.toFixed(6)}
+                    {"\n"}BR: {geoCorners.corner4.lng.toFixed(6)},{" "}
+                    {geoCorners.corner4.lat.toFixed(6)}
+                    {"\n"}BL: {geoCorners.corner3.lng.toFixed(6)},{" "}
+                    {geoCorners.corner3.lat.toFixed(6)}
                   </Text>
                 </Stack>
               </Paper>

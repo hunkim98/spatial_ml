@@ -16,7 +16,6 @@ import {
   MapMediaType,
   EditorMode,
   GeoCorners,
-  HandleType,
 } from "@/canvas/overlay/types";
 import { CanvasEvent } from "@/canvas/overlay/events";
 import { useEditorContext } from "@/canvas/overlay/context";
@@ -61,7 +60,8 @@ export const GeoReferencer = forwardRef<
   // ========== Refs ==========
   const containerRef = useRef<HTMLDivElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imageCanvasRef = useRef<HTMLCanvasElement>(null);
+  const frameCanvasRef = useRef<HTMLCanvasElement>(null);
   const mapManagerRef = useRef<MapManager | null>(null);
   const editorRef = useRef<Editor | null>(null);
   const initialCenterRef = useRef(initialCenter);
@@ -209,18 +209,21 @@ export const GeoReferencer = forwardRef<
     []
   );
 
-  const handleMouseUp = useCallback(() => {
-    const editor = editorRef.current;
-    if (!editor) return;
+  const handleMouseUp = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const editor = editorRef.current;
+      if (!editor) return;
 
-    const wasInteracting = isInteracting;
-    editor.onMouseUp();
+      const wasInteracting = isInteracting;
+      editor.onMouseUp(e);
 
-    // Only end interaction if we were actually interacting
-    if (wasInteracting && editor.isInitialized) {
-      endInteraction();
-    }
-  }, [isInteracting, endInteraction]);
+      // Only end interaction if we were actually interacting
+      if (wasInteracting && editor.isInitialized) {
+        endInteraction();
+      }
+    },
+    [isInteracting, endInteraction]
+  );
 
   const handleWheel = useCallback(
     (e: React.WheelEvent<HTMLCanvasElement>) => {
@@ -243,11 +246,14 @@ export const GeoReferencer = forwardRef<
 
   const handleResize = useCallback(
     (width: number, height: number) => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
+      const imageCanvas = imageCanvasRef.current;
+      const frameCanvas = frameCanvasRef.current;
+      if (!imageCanvas || !frameCanvas) return;
 
-      canvas.width = width;
-      canvas.height = height;
+      imageCanvas.width = width;
+      imageCanvas.height = height;
+      frameCanvas.width = width;
+      frameCanvas.height = height;
 
       // Re-sync screen corners from geo corners after resize
       syncScreenCorners();
@@ -324,17 +330,30 @@ export const GeoReferencer = forwardRef<
     }
 
     const rafId = requestAnimationFrame(() => {
-      const canvas = canvasRef.current;
+      const imageCanvas = imageCanvasRef.current;
+      const frameCanvas = frameCanvasRef.current;
       const container = containerRef.current;
-      if (!canvas || !container) return;
+      if (!imageCanvas || !frameCanvas || !container) return;
 
       const rect = container.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) {
-        canvas.width = rect.width;
-        canvas.height = rect.height;
-      }
+      const canvasWidth = rect.width > 0 ? rect.width : 800;
+      const canvasHeight = rect.height > 0 ? rect.height : 600;
 
-      const editor = new Editor(MapMediaType.PDF, pdfUrl, canvas, pageNumber);
+      // Set canvas dimensions
+      imageCanvas.width = canvasWidth;
+      imageCanvas.height = canvasHeight;
+      frameCanvas.width = canvasWidth;
+      frameCanvas.height = canvasHeight;
+
+      const editor = new Editor(
+        MapMediaType.PDF,
+        pdfUrl,
+        imageCanvas,
+        frameCanvas,
+        canvasWidth,
+        canvasHeight,
+        pageNumber
+      );
       editorRef.current = editor;
 
       editor.load().then(() => {
@@ -478,9 +497,9 @@ export const GeoReferencer = forwardRef<
         return;
       }
 
-      // Use editor's hit test to check if over overlay
-      const hit = editor.hitTest({ x, y });
-      setIsOverOverlay(hit !== HandleType.NONE);
+      // TODO: Implement overlay hit detection without hitTest
+      // For now, assume we're over overlay if editor is initialized
+      setIsOverOverlay(isInitialized);
     };
 
     document.addEventListener("mousemove", handleDocumentMouseMove);
@@ -541,22 +560,38 @@ export const GeoReferencer = forwardRef<
 
       {/* Canvas overlay for Editor */}
       {pdfUrl && (
-        <canvas
-          ref={canvasRef}
-          style={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-            pointerEvents: canvasPointerEvents,
-            cursor: editorMode === EditorMode.CREATE ? "crosshair" : cursor,
-          }}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          onWheel={handleWheel}
-        />
+        <>
+          {/* Image layer canvas - displays the PDF/image */}
+          <canvas
+            ref={imageCanvasRef}
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              pointerEvents: "none",
+              zIndex: 1,
+            }}
+          />
+          {/* Frame layer canvas - displays handles and receives mouse events */}
+          <canvas
+            ref={frameCanvasRef}
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              pointerEvents: canvasPointerEvents,
+              cursor: editorMode === EditorMode.CREATE ? "crosshair" : cursor,
+              zIndex: 2,
+            }}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            onWheel={handleWheel}
+          />
+        </>
       )}
 
       {/* Opacity slider (only when initialized) */}

@@ -5,23 +5,29 @@ import { CanvasEvent, CanvasEventListeners } from "./events";
 import { MapMediaType, HandleType, EditorMode, Point } from "./types";
 
 // Models
-import { CanvasElementModel } from "./model/canvasElementModel";
+import { ImageLayerModel } from "./model/layers/imageLayerModel";
+import { FrameLayerModel } from "./model/layers/frameLayerModel";
 import { MouseControlModel } from "./model/mouseControlModel";
+import { MouseInteractionModel } from "./model/mouseInteractionModel";
 import { EditorStateModel } from "./model/editorStateModel";
-import { TransformModel } from "./model/transformModel";
 import { ImageBufferModel } from "./model/imageBufferModel";
+import { NavigationModel } from "./model/navigationModel";
+import { DragInteractionModel } from "./model/dragInteractionModel";
+import { ToolManagerModel } from "./model/tools/toolManagerModel";
+import { ImageTransformToolModel } from "./model/tools/imageTransformToolModel";
 
 // Views
 import { ImageLayerView } from "./view/imageLayerView";
 import { FrameLayerView } from "./view/frameLayerView";
 
 // Controllers
-import { HitTestController } from "./controller/hitTestController";
 import { ModeController } from "./controller/modeController";
-import { ImageCreateController } from "./controller/imageCreateController";
-import { ImageMoveController } from "./controller/imageMoveController";
-import { ImageResizeController } from "./controller/imageResizeController";
-import { ImageRotateController } from "./controller/imageRotateController";
+import { ImageUploadController } from "./controller/imageUploadController";
+import { ToolManagerController } from "./controller/tools/toolManagerController";
+import { ImageCreateToolController } from "./controller/tools/imageCreateToolController";
+import { ImageMoveToolController } from "./controller/tools/imageMoveToolController";
+import { ImageResizeToolController } from "./controller/tools/imageResizeToolController";
+import { ImageRotateToolController } from "./controller/tools/imageRotateToolController";
 
 // pdfjs-dist is loaded dynamically to avoid SSR issues
 let pdfjs: typeof import("pdfjs-dist") | null = null;
@@ -41,13 +47,16 @@ export class Editor {
 
   private models: CanvasModel;
   private views: CanvasView;
-  private controllers: CanvasController;
+  public controllers: CanvasController;
   private listeners: CanvasEventListeners;
 
   constructor(
     type: MapMediaType,
     resourceUrl: string,
-    canvas: HTMLCanvasElement,
+    imageCanvas: HTMLCanvasElement,
+    frameCanvas: HTMLCanvasElement,
+    canvasWidth: number,
+    canvasHeight: number,
     pageNumber: number = 1
   ) {
     this._type = type;
@@ -55,22 +64,50 @@ export class Editor {
     this._pageNumber = pageNumber;
 
     this.listeners = {};
-    this.models = this._createModels(canvas);
+    this.models = this._createModels(
+      imageCanvas,
+      frameCanvas,
+      canvasWidth,
+      canvasHeight
+    );
     this.views = this._createViews();
     this.controllers = this._createControllers();
   }
 
-  private _createModels(canvas: HTMLCanvasElement): CanvasModel {
+  private _createModels(
+    imageCanvas: HTMLCanvasElement,
+    frameCanvas: HTMLCanvasElement,
+    canvasWidth: number,
+    canvasHeight: number
+  ): CanvasModel {
+    const dpr = window.devicePixelRatio || 1;
+
     return {
-      canvasElementModel: new CanvasElementModel({
-        htmlCanvas: canvas,
-        width: canvas.width,
-        height: canvas.height,
+      imageLayerModel: new ImageLayerModel({
+        element: imageCanvas,
+        width: canvasWidth,
+        height: canvasHeight,
+        dpr,
+      }),
+      frameLayerModel: new FrameLayerModel({
+        element: frameCanvas,
+        width: canvasWidth,
+        height: canvasHeight,
+        dpr,
       }),
       mouseControlModel: new MouseControlModel(),
+      mouseInteractionModel: new MouseInteractionModel(),
       editorStateModel: new EditorStateModel(),
-      transformModel: new TransformModel(),
       imageBufferModel: new ImageBufferModel(),
+      navigationModel: new NavigationModel({
+        scale: 1,
+        offset: { x: 0, y: 0 },
+        maxScale: 10,
+        minScale: 0.1,
+      }),
+      dragInteractionModel: new DragInteractionModel({}),
+      toolManagerModel: new ToolManagerModel({}),
+      imageTransformToolModel: new ImageTransformToolModel({}),
     };
   }
 
@@ -83,32 +120,37 @@ export class Editor {
 
   private _createControllers(): CanvasController {
     return {
-      hitTestController: new HitTestController(
-        this.models,
-        this.views,
-        this.listeners
-      ),
       modeController: new ModeController(
         this.models,
         this.views,
         this.listeners
       ),
-      imageCreateController: new ImageCreateController(
+      imageUploadController: new ImageUploadController(
         this.models,
         this.views,
         this.listeners
       ),
-      imageMoveController: new ImageMoveController(
+      toolManagerController: new ToolManagerController(
         this.models,
         this.views,
         this.listeners
       ),
-      imageResizeController: new ImageResizeController(
+      imageCreateToolController: new ImageCreateToolController(
         this.models,
         this.views,
         this.listeners
       ),
-      imageRotateController: new ImageRotateController(
+      imageMoveToolController: new ImageMoveToolController(
+        this.models,
+        this.views,
+        this.listeners
+      ),
+      imageResizeToolController: new ImageResizeToolController(
+        this.models,
+        this.views,
+        this.listeners
+      ),
+      imageRotateToolController: new ImageRotateToolController(
         this.models,
         this.views,
         this.listeners
@@ -183,37 +225,41 @@ export class Editor {
     const point = this._getPoint(e);
     const mode = this.models.editorStateModel.mode;
 
+    // Update mouse interaction model
+    this.models.mouseInteractionModel.mouseDownWorldPosition = point;
+    this.models.mouseInteractionModel.mouseDownScreenPosition = point;
+
     switch (mode) {
       case EditorMode.CREATE: {
         if (!this.models.editorStateModel.isLoaded) {
           return false;
         }
         this.models.mouseControlModel.isDown = true;
-        this.controllers.imageCreateController.execute({ type: "start", point });
+        this.controllers.imageCreateToolController.execute({ e });
         return true;
       }
 
       case EditorMode.VIEW: {
-        const handle = this.controllers.hitTestController.execute(point);
+        const handle = this.controllers.toolManagerController.detectHandle();
         if (handle === HandleType.NONE) {
           return false;
         }
         this.controllers.modeController.execute(EditorMode.EDIT);
         this.models.mouseControlModel.isDown = true;
-        this.models.transformModel.activeHandle = handle;
-        this._startTransform(handle, point);
+        this.models.imageTransformToolModel.activeHandle = handle;
+        this._startTransform(handle, e);
         return true;
       }
 
       case EditorMode.EDIT: {
-        const handle = this.controllers.hitTestController.execute(point);
+        const handle = this.controllers.toolManagerController.detectHandle();
         if (handle === HandleType.NONE) {
           this.controllers.modeController.execute(EditorMode.VIEW);
           return false;
         }
         this.models.mouseControlModel.isDown = true;
-        this.models.transformModel.activeHandle = handle;
-        this._startTransform(handle, point);
+        this.models.imageTransformToolModel.activeHandle = handle;
+        this._startTransform(handle, e);
         return true;
       }
 
@@ -222,11 +268,14 @@ export class Editor {
     }
   }
 
-  private _startTransform(handle: HandleType, point: Point): void {
+  private _startTransform(
+    handle: HandleType,
+    e: React.MouseEvent<HTMLCanvasElement>
+  ): void {
     if (handle === HandleType.BODY) {
-      this.controllers.imageMoveController.execute({ type: "start", point });
+      this.controllers.imageMoveToolController.execute({ e });
     } else {
-      this.controllers.imageResizeController.execute({ type: "start", point, handle });
+      this.controllers.imageResizeToolController.execute({ e });
     }
   }
 
@@ -236,20 +285,24 @@ export class Editor {
     const point = this._getPoint(e);
     const mode = this.models.editorStateModel.mode;
 
+    // Update mouse interaction model
+    this.models.mouseInteractionModel.mouseMoveWorldPosition = point;
+    this.models.mouseInteractionModel.mouseMoveScreenPosition = point;
+
     switch (mode) {
       case EditorMode.CREATE: {
-        this.controllers.imageCreateController.execute({ type: "move", point });
+        this.controllers.imageCreateToolController.execute({ e });
         this.render();
         break;
       }
 
       case EditorMode.VIEW:
       case EditorMode.EDIT: {
-        const handle = this.models.transformModel.activeHandle;
+        const handle = this.models.imageTransformToolModel.activeHandle;
         if (handle === HandleType.BODY) {
-          this.controllers.imageMoveController.execute({ type: "move", point });
+          this.controllers.imageMoveToolController.execute({ e });
         } else if (handle !== HandleType.NONE) {
-          this.controllers.imageResizeController.execute({ type: "move", point, handle });
+          this.controllers.imageResizeToolController.execute({ e });
         }
         this.render();
         break;
@@ -257,14 +310,19 @@ export class Editor {
     }
   }
 
-  onMouseUp(): void {
+  onMouseUp(e: React.MouseEvent<HTMLCanvasElement>): void {
     if (!this.models.mouseControlModel.isDown) return;
 
+    const point = this._getPoint(e);
     const mode = this.models.editorStateModel.mode;
+
+    // Update mouse interaction model
+    this.models.mouseInteractionModel.mouseUpWorldPosition = point;
+    this.models.mouseInteractionModel.mouseUpScreenPosition = point;
 
     switch (mode) {
       case EditorMode.CREATE: {
-        this.controllers.imageCreateController.execute({ type: "end", point: { x: 0, y: 0 } });
+        this.controllers.imageCreateToolController.execute({ e });
         this.models.editorStateModel.isInitialized = true;
         this.controllers.modeController.execute(EditorMode.EDIT);
         break;
@@ -272,11 +330,11 @@ export class Editor {
 
       case EditorMode.VIEW:
       case EditorMode.EDIT: {
-        const handle = this.models.transformModel.activeHandle;
+        const handle = this.models.imageTransformToolModel.activeHandle;
         if (handle === HandleType.BODY) {
-          this.controllers.imageMoveController.execute({ type: "end", point: { x: 0, y: 0 } });
+          this.controllers.imageMoveToolController.execute({ e });
         } else if (handle !== HandleType.NONE) {
-          this.controllers.imageResizeController.execute({ type: "end", point: { x: 0, y: 0 }, handle });
+          this.controllers.imageResizeToolController.execute({ e });
         }
         break;
       }
@@ -292,7 +350,7 @@ export class Editor {
   }
 
   private _getPoint(e: React.MouseEvent<HTMLCanvasElement>): Point {
-    const rect = this.models.canvasElementModel.htmlCanvas.getBoundingClientRect();
+    const rect = this.models.frameLayerModel.element.getBoundingClientRect();
 
     return {
       x: e.clientX - rect.left,
@@ -317,12 +375,18 @@ export class Editor {
     if (mode === EditorMode.EDIT) {
       // If dragging, use the cursor for the active handle
       if (this.models.mouseControlModel.isDown) {
-        return this._getCursorForHandle(this.models.transformModel.activeHandle);
+        return this._getCursorForHandle(
+          this.models.imageTransformToolModel.activeHandle || HandleType.NONE
+        );
       }
 
       // Otherwise, check what's under the cursor
       const point = this._getPoint(e);
-      const handle = this.controllers.hitTestController.execute(point);
+      // Temporarily update mouse position for detection
+      const prevPos = this.models.mouseInteractionModel.mouseMoveWorldPosition;
+      this.models.mouseInteractionModel.mouseMoveWorldPosition = point;
+      const handle = this.controllers.toolManagerController.detectHandle();
+      this.models.mouseInteractionModel.mouseMoveWorldPosition = prevPos;
       return this._getCursorForHandle(handle);
     }
 
@@ -386,19 +450,21 @@ export class Editor {
   }
 
   get corners() {
-    return this.models.transformModel.corners;
+    return this.models.imageTransformToolModel.corners;
   }
 
   get geoCorners() {
-    return this.models.transformModel.geoCorners;
+    return this.models.imageTransformToolModel.geoCorners;
   }
 
-  setCorners(corners: typeof this.models.transformModel.corners) {
-    this.models.transformModel.corners = corners;
+  setCorners(corners: typeof this.models.imageTransformToolModel.corners) {
+    this.models.imageTransformToolModel.corners = corners;
   }
 
-  setGeoCorners(geoCorners: typeof this.models.transformModel.geoCorners) {
-    this.models.transformModel.geoCorners = geoCorners;
+  setGeoCorners(
+    geoCorners: typeof this.models.imageTransformToolModel.geoCorners
+  ) {
+    this.models.imageTransformToolModel.geoCorners = geoCorners;
   }
 
   /**
@@ -406,11 +472,11 @@ export class Editor {
    * Sets the editor to EDIT mode and marks as initialized.
    */
   initializeWithCorners(
-    screenCorners: typeof this.models.transformModel.corners,
-    geoCorners: typeof this.models.transformModel.geoCorners
+    screenCorners: typeof this.models.imageTransformToolModel.corners,
+    geoCorners: typeof this.models.imageTransformToolModel.geoCorners
   ) {
-    this.models.transformModel.corners = screenCorners;
-    this.models.transformModel.geoCorners = geoCorners;
+    this.models.imageTransformToolModel.corners = screenCorners;
+    this.models.imageTransformToolModel.geoCorners = geoCorners;
     this.models.editorStateModel.isInitialized = true;
     this.controllers.modeController.execute(EditorMode.EDIT);
   }
@@ -424,13 +490,5 @@ export class Editor {
 
   clearCanvas(): void {
     this.views.imageLayerView.clear();
-  }
-
-  /**
-   * Check if a point (in canvas coordinates) is over the overlay.
-   * Used for external hit testing (e.g., document-level mouse tracking).
-   */
-  hitTest(point: { x: number; y: number }): HandleType {
-    return this.controllers.hitTestController.execute(point);
   }
 }

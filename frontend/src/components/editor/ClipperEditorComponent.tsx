@@ -5,10 +5,7 @@ import { useClipperEditor } from "@/hooks/useClipperEditor";
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 
 export interface ClipperEditorComponentHandle {
-  exportClippedImage: (
-    format?: "png" | "jpeg",
-    quality?: number
-  ) => Promise<ExportResult | null>;
+  exportClippedImage: () => ExportResult | null;
   extractFrame: (corners: GeoCorners) => Promise<string>;
   exportImage: (image: string) => Promise<string>;
 }
@@ -35,9 +32,9 @@ export const ClipperEditorComponent = forwardRef<
 
   // Expose methods via ref
   useImperativeHandle(ref, () => ({
-    exportClippedImage: async (format, quality) => {
+    exportClippedImage: () => {
       if (!editor) return null;
-      return editor.exportClippedImage(format, quality);
+      return editor.exportClippedImage();
     },
     extractFrame: async (corners: GeoCorners) => {
       // TODO: implement if needed

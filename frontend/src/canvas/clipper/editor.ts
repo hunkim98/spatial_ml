@@ -401,10 +401,10 @@ export class ClipperEditor {
 
   // Public methods
   /**
-   * Export the clipped region as a high-quality image
+   * Export the clipped region as a canvas buffer
    * Delegates to ExportController
    */
-  async exportClippedImage(format?: "png" | "jpeg", quality?: number) {
-    return this.controllers.exportController.execute({ format, quality });
+  exportClippedImage() {
+    return this.controllers.exportController.execute();
   }
 }

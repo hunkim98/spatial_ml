@@ -1,13 +1,23 @@
 import { MouseControlModel } from "./mouseControlModel";
+import { MouseInteractionModel } from "./mouseInteractionModel";
 import { EditorStateModel } from "./editorStateModel";
-import { TransformModel } from "./transformModel";
 import { ImageBufferModel } from "./imageBufferModel";
-import { CanvasElementModel } from "./canvasElementModel";
+import { NavigationModel } from "./navigationModel";
+import { DragInteractionModel } from "./dragInteractionModel";
+import { ToolManagerModel } from "./tools/toolManagerModel";
+import { ImageTransformToolModel } from "./tools/imageTransformToolModel";
+import { ImageLayerModel } from "./layers/imageLayerModel";
+import { FrameLayerModel } from "./layers/frameLayerModel";
 
 export type CanvasModel = {
-  canvasElementModel: CanvasElementModel;
+  imageLayerModel: ImageLayerModel;
+  frameLayerModel: FrameLayerModel;
   mouseControlModel: MouseControlModel;
+  mouseInteractionModel: MouseInteractionModel;
   editorStateModel: EditorStateModel;
-  transformModel: TransformModel;
   imageBufferModel: ImageBufferModel;
+  navigationModel: NavigationModel;
+  dragInteractionModel: DragInteractionModel;
+  toolManagerModel: ToolManagerModel;
+  imageTransformToolModel: ImageTransformToolModel;
 };

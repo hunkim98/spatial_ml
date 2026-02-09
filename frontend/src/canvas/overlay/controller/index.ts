@@ -1,15 +1,17 @@
-import { HitTestController } from "./hitTestController";
 import { ModeController } from "./modeController";
-import { ImageCreateController } from "./imageCreateController";
-import { ImageMoveController } from "./imageMoveController";
-import { ImageResizeController } from "./imageResizeController";
-import { ImageRotateController } from "./imageRotateController";
+import { ImageUploadController } from "./imageUploadController";
+import { ToolManagerController } from "./tools/toolManagerController";
+import { ImageCreateToolController } from "./tools/imageCreateToolController";
+import { ImageMoveToolController } from "./tools/imageMoveToolController";
+import { ImageResizeToolController } from "./tools/imageResizeToolController";
+import { ImageRotateToolController } from "./tools/imageRotateToolController";
 
 export type CanvasController = {
-  hitTestController: HitTestController;
   modeController: ModeController;
-  imageCreateController: ImageCreateController;
-  imageMoveController: ImageMoveController;
-  imageResizeController: ImageResizeController;
-  imageRotateController: ImageRotateController;
+  imageUploadController: ImageUploadController;
+  toolManagerController: ToolManagerController;
+  imageCreateToolController: ImageCreateToolController;
+  imageMoveToolController: ImageMoveToolController;
+  imageResizeToolController: ImageResizeToolController;
+  imageRotateToolController: ImageRotateToolController;
 };

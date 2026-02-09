@@ -31,19 +31,19 @@ export class ProjectionController {
 
   projectCorners(geoCorners: GeoCorners): ScreenCorners {
     return {
-      topLeft: this.project(geoCorners.topLeft),
-      topRight: this.project(geoCorners.topRight),
-      bottomRight: this.project(geoCorners.bottomRight),
-      bottomLeft: this.project(geoCorners.bottomLeft),
+      corner1: this.project(geoCorners.corner1),
+      corner2: this.project(geoCorners.corner2),
+      corner4: this.project(geoCorners.corner4),
+      corner3: this.project(geoCorners.corner3),
     };
   }
 
   unprojectCorners(screenCorners: ScreenCorners): GeoCorners {
     return {
-      topLeft: this.unproject(screenCorners.topLeft),
-      topRight: this.unproject(screenCorners.topRight),
-      bottomRight: this.unproject(screenCorners.bottomRight),
-      bottomLeft: this.unproject(screenCorners.bottomLeft),
+      corner1: this.unproject(screenCorners.corner1),
+      corner2: this.unproject(screenCorners.corner2),
+      corner4: this.unproject(screenCorners.corner4),
+      corner3: this.unproject(screenCorners.corner3),
     };
   }
 }

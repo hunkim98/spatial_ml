@@ -7,16 +7,14 @@ type Models = Pick<ClipperModel, "clipRectToolModel" | "imageModel">;
 type Views = never;
 
 export interface ExportResult {
-  blob: Blob;
-  blobUrl: string;
+  buffer: HTMLCanvasElement;
   width: number;
   height: number;
   clipRect: { x: number; y: number; width: number; height: number };
 }
 
 export interface ExportParams {
-  format?: "png" | "jpeg";
-  quality?: number; // 0-1, for jpeg only
+  // No format/quality needed - we return raw canvas buffer
 }
 
 /**
@@ -37,13 +35,12 @@ export class ExportController extends BaseController<
   }
 
   /**
-   * Export the clipped region as a high-quality image
-   * @param params - Export parameters (format, quality)
-   * @returns Export result with blob and metadata, or null if nothing to export
+   * Export the clipped region as a canvas buffer
+   * Returns raw canvas buffer for direct use in overlay editor
+   * @param params - Export parameters (currently unused)
+   * @returns Export result with canvas buffer and metadata, or null if nothing to export
    */
-  async execute(params: ExportParams = {}): Promise<ExportResult | null> {
-    const { format = "png", quality = 0.95 } = params;
-
+  execute(params: ExportParams = {}): ExportResult | null {
     const { rect } = this.models.clipRectToolModel;
     const { image } = this.models.imageModel;
 
@@ -52,11 +49,11 @@ export class ExportController extends BaseController<
       return null;
     }
 
-    // Create temporary canvas for clipped region
-    const tempCanvas = document.createElement("canvas");
-    tempCanvas.width = rect.width;
-    tempCanvas.height = rect.height;
-    const ctx = tempCanvas.getContext("2d");
+    // Create canvas buffer for clipped region
+    const buffer = document.createElement("canvas");
+    buffer.width = rect.width;
+    buffer.height = rect.height;
+    const ctx = buffer.getContext("2d");
 
     if (!ctx) {
       console.error("Could not get canvas context");
@@ -76,24 +73,8 @@ export class ExportController extends BaseController<
       rect.height // dest height
     );
 
-    // Convert to blob
-    const mimeType = format === "png" ? "image/png" : "image/jpeg";
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      tempCanvas.toBlob(
-        (b) => {
-          if (b) resolve(b);
-          else reject(new Error("Failed to create blob"));
-        },
-        mimeType,
-        quality
-      );
-    });
-
-    const blobUrl = URL.createObjectURL(blob);
-
     return {
-      blob,
-      blobUrl,
+      buffer,
       width: rect.width,
       height: rect.height,
       clipRect: {
