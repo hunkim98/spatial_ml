@@ -30,15 +30,23 @@ export default function StudioPage() {
   const [geoCorners, setGeoCorners] = useState<GeoCorners | null>(null);
 
   // ========== Effects ==========
-  // Auto-select first PDF for testing
+  // TEMPORARY: Use test image for overlay editor testing
   useEffect(() => {
-    if (pdfs.length > 0 && !selectedPdf) {
-      setSelectedPdf(pdfs[0]);
+    if (!selectedPdf) {
+      // Create a mock PDF entry for the test image
+      setSelectedPdf({
+        hash: "test-anniston",
+        path: "test/anniston-test.png",
+        name: "anniston-test.png",
+        state: "Alabama",
+        city: "Anniston",
+      });
     }
-  }, [pdfs, selectedPdf]);
+  }, [selectedPdf]);
 
   // ========== Derived Values ==========
-  const pdfUrl = selectedPdf ? `/api/pdf/${selectedPdf.path}` : null;
+  // TEMPORARY: Use direct image URL for testing
+  const pdfUrl = selectedPdf ? "/anniston-test.png" : null;
   const isLoadingResources = isFetchingAllPDFs || isFetchingAllLabels;
 
   // ========== Callbacks ==========

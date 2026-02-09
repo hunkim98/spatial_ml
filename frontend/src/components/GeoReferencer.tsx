@@ -12,11 +12,7 @@ import { Loader } from "@mantine/core";
 import { Corner } from "@/types/db";
 import { MapManager } from "@/map";
 import { Editor } from "@/canvas/overlay/editor";
-import {
-  MapMediaType,
-  EditorMode,
-  GeoCorners,
-} from "@/canvas/overlay/types";
+import { EditorMode, GeoCorners } from "@/canvas/overlay/types";
 import { CanvasEvent } from "@/canvas/overlay/events";
 import { useEditorContext } from "@/canvas/overlay/context";
 import { OpacitySlider } from "./OpacitySlider";
@@ -183,11 +179,8 @@ export const GeoReferencer = forwardRef<
       const editor = editorRef.current;
       if (!editor) return;
 
-      const consumed = editor.onMouseDown(e);
-      if (consumed) {
-        e.stopPropagation();
-        startInteraction();
-      }
+      e.stopPropagation();
+      startInteraction();
     },
     [startInteraction]
   );
@@ -346,17 +339,14 @@ export const GeoReferencer = forwardRef<
       frameCanvas.height = canvasHeight;
 
       const editor = new Editor(
-        MapMediaType.PDF,
-        pdfUrl,
         imageCanvas,
         frameCanvas,
         canvasWidth,
-        canvasHeight,
-        pageNumber
+        canvasHeight
       );
       editorRef.current = editor;
 
-      editor.load().then(() => {
+      editor.updatePdf(pdfUrl, pageNumber).then(() => {
         setIsEditorReady(true);
         setEditorMode(editor.mode);
       });

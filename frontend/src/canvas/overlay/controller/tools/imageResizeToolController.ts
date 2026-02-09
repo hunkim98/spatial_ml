@@ -6,7 +6,7 @@ import { Point, HandleType, ScreenCorners } from "../../types";
 
 type Models = Pick<
   CanvasModel,
-  "imageTransformToolModel" | "mouseInteractionModel"
+  "imageTransformToolModel" | "mouseInteractionModel" | "imageBufferModel"
 >;
 type Views = Pick<CanvasView, "imageLayerView">;
 type ExecuteParams = {
@@ -61,24 +61,69 @@ export class ImageResizeToolController extends BaseController<
     const { mouseMoveWorldPosition } = this.models.mouseInteractionModel;
     const initialCorners = this.models.imageTransformToolModel.initialCorners;
     const activeHandle = this.models.imageTransformToolModel.activeHandle;
+    const { width: imageWidth, height: imageHeight } = this.models.imageBufferModel;
 
-    if (!mouseMoveWorldPosition || !initialCorners || !activeHandle) return;
+    if (!mouseMoveWorldPosition || !initialCorners || !activeHandle || !imageWidth || !imageHeight) return;
 
-    // Get anchor (opposite corner) and dragged corner
+    // Calculate image aspect ratio
+    const aspectRatio = imageWidth / imageHeight;
+
+    // Get anchor (opposite corner)
     const anchor = this.getAnchorPoint(initialCorners, activeHandle);
-    const draggedCorner = this.getDraggedCorner(initialCorners, activeHandle);
 
-    // Calculate scale factor based on distance from anchor
-    const originalDist = this.distance(draggedCorner, anchor);
-    const newDist = this.distance(mouseMoveWorldPosition, anchor);
-    const scale = newDist / originalDist;
+    // Calculate new dimensions from anchor to mouse position
+    let width = Math.abs(mouseMoveWorldPosition.x - anchor.x);
+    let height = Math.abs(mouseMoveWorldPosition.y - anchor.y);
 
-    // Apply scale from anchor point to all corners
-    this.models.imageTransformToolModel.corners = this.scaleFromAnchor(
-      initialCorners,
-      anchor,
-      scale
-    );
+    // Constrain to aspect ratio based on the larger dimension
+    if (width / aspectRatio > height) {
+      // Width is constraining - adjust height
+      height = width / aspectRatio;
+    } else {
+      // Height is constraining - adjust width
+      width = height * aspectRatio;
+    }
+
+    // Determine the direction of the resize based on which corner is being dragged
+    const signX = mouseMoveWorldPosition.x >= anchor.x ? 1 : -1;
+    const signY = mouseMoveWorldPosition.y >= anchor.y ? 1 : -1;
+
+    // Calculate new corners maintaining axis alignment and aspect ratio
+    const newCorners: ScreenCorners = {
+      corner1: { x: 0, y: 0 },
+      corner2: { x: 0, y: 0 },
+      corner3: { x: 0, y: 0 },
+      corner4: { x: 0, y: 0 },
+    };
+
+    // Position corners based on anchor and signs
+    if (signX > 0 && signY > 0) {
+      // Bottom-right from anchor
+      newCorners.corner1 = anchor;
+      newCorners.corner2 = { x: anchor.x + width, y: anchor.y };
+      newCorners.corner3 = { x: anchor.x, y: anchor.y + height };
+      newCorners.corner4 = { x: anchor.x + width, y: anchor.y + height };
+    } else if (signX < 0 && signY > 0) {
+      // Bottom-left from anchor
+      newCorners.corner1 = { x: anchor.x - width, y: anchor.y };
+      newCorners.corner2 = anchor;
+      newCorners.corner3 = { x: anchor.x - width, y: anchor.y + height };
+      newCorners.corner4 = { x: anchor.x, y: anchor.y + height };
+    } else if (signX > 0 && signY < 0) {
+      // Top-right from anchor
+      newCorners.corner1 = { x: anchor.x, y: anchor.y - height };
+      newCorners.corner2 = { x: anchor.x + width, y: anchor.y - height };
+      newCorners.corner3 = anchor;
+      newCorners.corner4 = { x: anchor.x + width, y: anchor.y };
+    } else {
+      // Top-left from anchor
+      newCorners.corner1 = { x: anchor.x - width, y: anchor.y - height };
+      newCorners.corner2 = { x: anchor.x, y: anchor.y - height };
+      newCorners.corner3 = { x: anchor.x - width, y: anchor.y };
+      newCorners.corner4 = anchor;
+    }
+
+    this.models.imageTransformToolModel.corners = newCorners;
   }
 
   onMouseUpExecute(): void {

@@ -80,7 +80,12 @@ export class ToolManagerController extends BaseController<
   }
 
   private shouldLockActiveTool(): boolean {
-    return this.models.mouseControlModel.isDown;
+    // Lock tool during mouse interaction or when creating/editing image
+    return (
+      this.models.mouseControlModel.isDown ||
+      this.models.imageTransformToolModel.isCreating ||
+      this.models.imageTransformToolModel.isEditing
+    );
   }
 
   private setCandidate(tool: ToolType | null) {
@@ -108,8 +113,7 @@ export class ToolManagerController extends BaseController<
     if (this.isNearPoint(point, corners.corner2)) return HandleType.TOP_RIGHT;
     if (this.isNearPoint(point, corners.corner4))
       return HandleType.BOTTOM_RIGHT;
-    if (this.isNearPoint(point, corners.corner3))
-      return HandleType.BOTTOM_LEFT;
+    if (this.isNearPoint(point, corners.corner3)) return HandleType.BOTTOM_LEFT;
 
     // Check if inside the polygon (body)
     if (this.isInsidePolygon(point, corners)) return HandleType.BODY;

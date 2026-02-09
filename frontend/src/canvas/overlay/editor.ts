@@ -2,7 +2,7 @@ import { CanvasModel } from "./model";
 import { CanvasController } from "./controller";
 import { CanvasView } from "./view";
 import { CanvasEvent, CanvasEventListeners } from "./events";
-import { MapMediaType, HandleType, EditorMode, Point } from "./types";
+import { HandleType, EditorMode, Point } from "./types";
 
 // Models
 import { ImageLayerModel } from "./model/layers/imageLayerModel";
@@ -13,7 +13,7 @@ import { EditorStateModel } from "./model/editorStateModel";
 import { ImageBufferModel } from "./model/imageBufferModel";
 import { NavigationModel } from "./model/navigationModel";
 import { DragInteractionModel } from "./model/dragInteractionModel";
-import { ToolManagerModel } from "./model/tools/toolManagerModel";
+import { ToolManagerModel, ToolType } from "./model/tools/toolManagerModel";
 import { ImageTransformToolModel } from "./model/tools/imageTransformToolModel";
 
 // Views
@@ -23,46 +23,33 @@ import { FrameLayerView } from "./view/frameLayerView";
 // Controllers
 import { ModeController } from "./controller/modeController";
 import { ImageUploadController } from "./controller/imageUploadController";
+import { MouseInteractionController } from "./controller/mouseInteractionController";
+import { DragInteractionController } from "./controller/dragInteractionController";
 import { ToolManagerController } from "./controller/tools/toolManagerController";
 import { ImageCreateToolController } from "./controller/tools/imageCreateToolController";
 import { ImageMoveToolController } from "./controller/tools/imageMoveToolController";
 import { ImageResizeToolController } from "./controller/tools/imageResizeToolController";
 import { ImageRotateToolController } from "./controller/tools/imageRotateToolController";
-
-// pdfjs-dist is loaded dynamically to avoid SSR issues
-let pdfjs: typeof import("pdfjs-dist") | null = null;
-
-async function getPdfjs() {
-  if (!pdfjs) {
-    pdfjs = await import("pdfjs-dist");
-    pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
-  }
-  return pdfjs;
-}
+import { PdfUpdateController } from "./controller/input/pdfUpdateController";
+import { ImageUpdateController } from "./controller/input/imageUpdateController";
+import { BufferUpdateController } from "./controller/input/bufferUpdateController";
+import {
+  getCanvasRelativePositionFromWorldPoint,
+  getWorldPointFromEvent,
+} from "./utils/project";
 
 export class Editor {
-  private _type: MapMediaType;
-  private _resourceUrl: string;
-  private _pageNumber: number;
-
   private models: CanvasModel;
   private views: CanvasView;
   public controllers: CanvasController;
   private listeners: CanvasEventListeners;
 
   constructor(
-    type: MapMediaType,
-    resourceUrl: string,
     imageCanvas: HTMLCanvasElement,
     frameCanvas: HTMLCanvasElement,
     canvasWidth: number,
-    canvasHeight: number,
-    pageNumber: number = 1
+    canvasHeight: number
   ) {
-    this._type = type;
-    this._resourceUrl = resourceUrl;
-    this._pageNumber = pageNumber;
-
     this.listeners = {};
     this.models = this._createModels(
       imageCanvas,
@@ -130,6 +117,16 @@ export class Editor {
         this.views,
         this.listeners
       ),
+      mouseInteractionController: new MouseInteractionController(
+        this.models,
+        this.views,
+        this.listeners
+      ),
+      dragInteractionController: new DragInteractionController(
+        this.models,
+        this.views,
+        this.listeners
+      ),
       toolManagerController: new ToolManagerController(
         this.models,
         this.views,
@@ -155,197 +152,168 @@ export class Editor {
         this.views,
         this.listeners
       ),
+      pdfUpdateController: new PdfUpdateController(
+        this.models,
+        this.views,
+        this.listeners
+      ),
+      imageUpdateController: new ImageUpdateController(
+        this.models,
+        this.views,
+        this.listeners
+      ),
+      bufferUpdateController: new BufferUpdateController(
+        this.models,
+        this.views,
+        this.listeners
+      ),
     };
   }
 
-  async load(): Promise<void> {
-    if (this._type === MapMediaType.PDF) {
-      await this._loadPdf();
-    } else {
-      await this._loadImage();
-    }
-    this.models.editorStateModel.isLoaded = true;
+  // Public methods for updating content
+  public async updatePdf(url: string, pageNumber: number): Promise<void> {
+    await this.controllers.pdfUpdateController.execute({ url, pageNumber });
   }
 
-  private async _loadPdf(): Promise<void> {
-    const pdfjsLib = await getPdfjs();
-    const pdf = await pdfjsLib.getDocument(this._resourceUrl).promise;
-    const page = await pdf.getPage(this._pageNumber);
-    const viewport = page.getViewport({ scale: 2 });
-
-    const buffer = document.createElement("canvas");
-
-    buffer.width = viewport.width;
-    buffer.height = viewport.height;
-
-    const ctx = buffer.getContext("2d");
-
-    if (!ctx) throw new Error("Could not get buffer context");
-
-    await page.render({
-      canvasContext: ctx,
-      viewport,
-      canvas: buffer,
-    }).promise;
-
-    this.models.imageBufferModel.buffer = buffer;
-    this.models.imageBufferModel.width = viewport.width;
-    this.models.imageBufferModel.height = viewport.height;
+  public async updateImage(url: string): Promise<void> {
+    await this.controllers.imageUpdateController.execute({ url });
   }
 
-  private async _loadImage(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
+  public updateBuffer(buffer: HTMLCanvasElement): void {
+    this.controllers.bufferUpdateController.execute({ buffer });
+  }
 
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        const buffer = document.createElement("canvas");
-
-        buffer.width = img.naturalWidth;
-        buffer.height = img.naturalHeight;
-
-        const ctx = buffer.getContext("2d");
-
-        if (!ctx) return reject(new Error("Could not get buffer context"));
-
-        ctx.drawImage(img, 0, 0);
-
-        this.models.imageBufferModel.buffer = buffer;
-        this.models.imageBufferModel.width = img.naturalWidth;
-        this.models.imageBufferModel.height = img.naturalHeight;
-
-        resolve();
-      };
-      img.onerror = reject;
-      img.src = this._resourceUrl;
+  onMouseDown(e: React.MouseEvent<HTMLCanvasElement>) {
+    const worldPos = getWorldPointFromEvent(
+      e,
+      this.models.frameLayerModel.element,
+      this.models.navigationModel.offset,
+      this.models.navigationModel.scale
+    );
+    const screenPos = getCanvasRelativePositionFromWorldPoint(
+      worldPos,
+      this.models.navigationModel.offset,
+      this.models.navigationModel.scale
+    );
+    this.models.mouseInteractionModel.update({
+      mouseDownWorldPosition: worldPos,
+      mouseDownScreenPosition: screenPos,
+      mouseMoveWorldPosition: worldPos,
+      mouseMoveScreenPosition: screenPos,
+      mouseUpWorldPosition: null,
+      mouseUpScreenPosition: null,
     });
-  }
 
-  onMouseDown(e: React.MouseEvent<HTMLCanvasElement>): boolean {
-    const point = this._getPoint(e);
-    const mode = this.models.editorStateModel.mode;
-
-    // Update mouse interaction model
-    this.models.mouseInteractionModel.mouseDownWorldPosition = point;
-    this.models.mouseInteractionModel.mouseDownScreenPosition = point;
-
-    switch (mode) {
-      case EditorMode.CREATE: {
-        if (!this.models.editorStateModel.isLoaded) {
-          return false;
-        }
-        this.models.mouseControlModel.isDown = true;
-        this.controllers.imageCreateToolController.execute({ e });
-        return true;
-      }
-
-      case EditorMode.VIEW: {
-        const handle = this.controllers.toolManagerController.detectHandle();
-        if (handle === HandleType.NONE) {
-          return false;
-        }
-        this.controllers.modeController.execute(EditorMode.EDIT);
-        this.models.mouseControlModel.isDown = true;
-        this.models.imageTransformToolModel.activeHandle = handle;
-        this._startTransform(handle, e);
-        return true;
-      }
-
-      case EditorMode.EDIT: {
-        const handle = this.controllers.toolManagerController.detectHandle();
-        if (handle === HandleType.NONE) {
-          this.controllers.modeController.execute(EditorMode.VIEW);
-          return false;
-        }
-        this.models.mouseControlModel.isDown = true;
-        this.models.imageTransformToolModel.activeHandle = handle;
-        this._startTransform(handle, e);
-        return true;
-      }
-
-      default:
-        return false;
-    }
-  }
-
-  private _startTransform(
-    handle: HandleType,
-    e: React.MouseEvent<HTMLCanvasElement>
-  ): void {
-    if (handle === HandleType.BODY) {
-      this.controllers.imageMoveToolController.execute({ e });
-    } else {
-      this.controllers.imageResizeToolController.execute({ e });
-    }
+    // Update mouse interaction state
+    this.controllers.mouseInteractionController.execute({ e });
+    this.controllers.dragInteractionController.execute({ e });
+    this.controllers.toolManagerController.execute({ e });
+    this.executeInteraction(e);
   }
 
   onMouseMove(e: React.MouseEvent<HTMLCanvasElement>): void {
-    if (!this.models.mouseControlModel.isDown) return;
+    if (!this.models.editorStateModel.isLoaded) return;
 
-    const point = this._getPoint(e);
-    const mode = this.models.editorStateModel.mode;
+    const worldPos = getWorldPointFromEvent(
+      e,
+      this.models.frameLayerModel.element,
+      this.models.navigationModel.offset,
+      this.models.navigationModel.scale
+    );
+    const screenPos = getCanvasRelativePositionFromWorldPoint(
+      worldPos,
+      this.models.navigationModel.offset,
+      this.models.navigationModel.scale
+    );
 
-    // Update mouse interaction model
-    this.models.mouseInteractionModel.mouseMoveWorldPosition = point;
-    this.models.mouseInteractionModel.mouseMoveScreenPosition = point;
+    this.models.mouseInteractionModel.update({
+      mouseMoveWorldPosition: worldPos,
+      mouseMoveScreenPosition: screenPos,
+      mouseUpWorldPosition: null,
+      mouseUpScreenPosition: null,
+    });
 
-    switch (mode) {
-      case EditorMode.CREATE: {
-        this.controllers.imageCreateToolController.execute({ e });
-        this.render();
-        break;
-      }
-
-      case EditorMode.VIEW:
-      case EditorMode.EDIT: {
-        const handle = this.models.imageTransformToolModel.activeHandle;
-        if (handle === HandleType.BODY) {
-          this.controllers.imageMoveToolController.execute({ e });
-        } else if (handle !== HandleType.NONE) {
-          this.controllers.imageResizeToolController.execute({ e });
-        }
-        this.render();
-        break;
-      }
-    }
+    this.controllers.mouseInteractionController.execute({ e });
+    this.controllers.dragInteractionController.execute({ e });
+    this.controllers.toolManagerController.execute({ e });
+    this.executeInteraction(e);
   }
 
   onMouseUp(e: React.MouseEvent<HTMLCanvasElement>): void {
-    if (!this.models.mouseControlModel.isDown) return;
+    if (!this.models.editorStateModel.isLoaded) return;
 
-    const point = this._getPoint(e);
-    const mode = this.models.editorStateModel.mode;
+    const worldPos = getWorldPointFromEvent(
+      e,
+      this.models.frameLayerModel.element,
+      this.models.navigationModel.offset,
+      this.models.navigationModel.scale
+    );
+    const screenPos = getCanvasRelativePositionFromWorldPoint(
+      worldPos,
+      this.models.navigationModel.offset,
+      this.models.navigationModel.scale
+    );
 
-    // Update mouse interaction model
-    this.models.mouseInteractionModel.mouseUpWorldPosition = point;
-    this.models.mouseInteractionModel.mouseUpScreenPosition = point;
+    this.models.mouseInteractionModel.update({
+      mouseUpWorldPosition: worldPos,
+      mouseUpScreenPosition: screenPos,
+    });
 
-    switch (mode) {
-      case EditorMode.CREATE: {
-        this.controllers.imageCreateToolController.execute({ e });
-        this.models.editorStateModel.isInitialized = true;
-        this.controllers.modeController.execute(EditorMode.EDIT);
-        break;
-      }
+    this.controllers.mouseInteractionController.execute({ e });
+    this.controllers.dragInteractionController.execute({ e });
+    this.controllers.toolManagerController.execute({ e });
+    this.executeInteraction(e);
+  }
 
-      case EditorMode.VIEW:
-      case EditorMode.EDIT: {
-        const handle = this.models.imageTransformToolModel.activeHandle;
-        if (handle === HandleType.BODY) {
-          this.controllers.imageMoveToolController.execute({ e });
-        } else if (handle !== HandleType.NONE) {
-          this.controllers.imageResizeToolController.execute({ e });
-        }
-        break;
-      }
+  onKeyDown(e: KeyboardEvent): void {
+    if (e.code === "Space") {
+      // null means the grab tool is active
+      this.models.toolManagerModel.activeTool = null;
     }
+  }
 
-    this.models.mouseControlModel.isDown = false;
+  onKeyUp(e: KeyboardEvent): void {
+    if (!this.models.editorStateModel.isLoaded) return;
+    if (e.code === "Space") {
+      this.models.mouseInteractionModel.reset();
+    }
+  }
+
+  onWheel(e: WheelEvent): void {
+    if (!this.models.editorStateModel.isLoaded) return;
+    this.controllers.mouseInteractionController.execute({
+      e: e as unknown as React.WheelEvent<HTMLCanvasElement>,
+    });
+  }
+
+  executeInteraction(e: React.MouseEvent<HTMLCanvasElement>): void {
+    if (!this.models.editorStateModel.isLoaded) return;
+    const { activeTool } = this.models.toolManagerModel;
+    if (!activeTool) {
+      return;
+    }
+    console.log("executeInteraction", activeTool);
+    switch (activeTool) {
+      case ToolType.IMAGE_CREATE:
+        this.controllers.imageCreateToolController.execute({ e });
+        break;
+      case ToolType.IMAGE_MOVE:
+        this.controllers.imageMoveToolController.execute({ e });
+        break;
+      case ToolType.IMAGE_RESIZE:
+        this.controllers.imageResizeToolController.execute({ e });
+        break;
+      case ToolType.IMAGE_ROTATE:
+        this.controllers.imageRotateToolController.execute({ e });
+        break;
+    }
+    this.render();
   }
 
   render(): void {
     this.views.imageLayerView.clear();
     this.views.imageLayerView.render();
+    this.views.frameLayerView.clear();
     this.views.frameLayerView.render();
   }
 

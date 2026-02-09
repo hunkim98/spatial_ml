@@ -218,8 +218,6 @@ export class ClipperEditor {
     );
 
     this.models.mouseInteractionModel.update({
-      mouseDownWorldPosition: worldPos,
-      mouseDownScreenPosition: screenPos,
       mouseMoveWorldPosition: worldPos,
       mouseMoveScreenPosition: screenPos,
       mouseUpWorldPosition: null,
@@ -234,27 +232,22 @@ export class ClipperEditor {
 
   onMouseUp(e: React.MouseEvent<HTMLCanvasElement>): void {
     if (!this.models.editorStatusModel.isLoaded) return;
-    // const worldPos = getWorldPointFromEvent(
-    //   e,
-    //   this.models.pdfLayerModel.element,
-    //   this.models.navigationModel.offset,
-    //   this.models.navigationModel.scale
-    // );
-    // // console.log("worldPos", worldPos);
-    // const screenPos = getCanvasRelativePositionFromWorldPoint(
-    //   worldPos,
-    //   this.models.navigationModel.offset,
-    //   this.models.navigationModel.scale
-    // );
+    const worldPos = getWorldPointFromEvent(
+      e,
+      this.models.pdfLayerModel.element,
+      this.models.navigationModel.offset,
+      this.models.navigationModel.scale
+    );
+    const screenPos = getCanvasRelativePositionFromWorldPoint(
+      worldPos,
+      this.models.navigationModel.offset,
+      this.models.navigationModel.scale
+    );
+    this.models.mouseInteractionModel.update({
+      mouseUpWorldPosition: worldPos,
+      mouseUpScreenPosition: screenPos,
+    });
 
-    // this.models.mouseControlModel.update({
-    //   mouseDownWorldPosition: worldPos,
-    //   mouseDownScreenPosition: screenPos,
-    //   mouseMoveWorldPosition: worldPos,
-    //   mouseMoveScreenPosition: screenPos,
-    //   mouseUpWorldPosition: null,
-    //   mouseUpScreenPosition: null,
-    // });
     this.controllers.mouseInteractionController.execute({ e });
     this.controllers.dragInteractionController.execute({ e });
     this.controllers.toolManagerController.execute({ e });

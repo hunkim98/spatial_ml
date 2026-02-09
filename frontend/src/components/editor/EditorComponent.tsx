@@ -1,4 +1,10 @@
-import React, { forwardRef, useImperativeHandle, useRef, useState } from "react";
+import React, {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import { NoEditorComponent } from "./NoEditorComponent";
 import {
   ClipperEditorComponent,
@@ -24,6 +30,22 @@ const EditorComponent = forwardRef<EditorComponentHandle, EditorComponentProps>(
     const clipperRef = useRef<ClipperEditorComponentHandle>(null);
     const [clippedImageBuffer, setClippedImageBuffer] =
       useState<HTMLCanvasElement | null>(null);
+
+    // TEMPORARY: Load test image directly for overlay editor testing
+    useEffect(() => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          setClippedImageBuffer(canvas);
+        }
+      };
+      img.src = "/anniston-test.png";
+    }, []);
 
     useImperativeHandle(ref, () => ({
       applyClip: () => {

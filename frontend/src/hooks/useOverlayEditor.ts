@@ -1,5 +1,4 @@
 import { Editor } from "@/canvas/overlay/editor";
-import { MapMediaType } from "@/canvas/overlay/types";
 import { RefObject, useCallback, useEffect, useState } from "react";
 
 export function useOverlayEditor(
@@ -28,19 +27,14 @@ export function useOverlayEditor(
       frameCanvas.width = canvasWidth;
       frameCanvas.height = canvasHeight;
 
-      // Create editor with image type
+      // Create editor and update with buffer
       const newEditor = new Editor(
-        MapMediaType.IMAGE,
-        "", // empty URL since we load from buffer
         imageCanvas,
         frameCanvas,
         canvasWidth,
-        canvasHeight,
-        1
+        canvasHeight
       );
-
-      // Use ImageUploadController to load the buffer (following MVC pattern)
-      newEditor.controllers.imageUploadController.execute({ buffer });
+      newEditor.updateBuffer(buffer);
 
       setEditor(newEditor);
     },
