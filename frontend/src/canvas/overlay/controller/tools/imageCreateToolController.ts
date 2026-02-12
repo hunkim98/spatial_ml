@@ -47,7 +47,6 @@ export class ImageCreateToolController extends BaseController<
     const { mouseDownWorldPosition } = this.models.mouseInteractionModel;
     if (!mouseDownWorldPosition) return;
 
-    console.log("onMouseDownExecute");
     // Initialize transform corners at mouse down position
     // corner1 = top-left, corner2 = top-right, corner3 = bottom-left, corner4 = bottom-right
     this.models.imageTransformToolModel.corners = {

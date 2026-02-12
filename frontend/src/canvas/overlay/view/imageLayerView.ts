@@ -18,23 +18,31 @@ export class ImageLayerView extends IView<Models> {
 
   render(): void {
     const { ctx } = this.models.imageLayerModel;
-    const { buffer, leftTop, width, height } = this.models.imageBufferModel;
+    const { buffer, width, height, opacity } = this.models.imageBufferModel;
     if (!buffer || !width || !height) return;
-    const { offset, scale } = this.models.navigationModel;
 
-    // Convert world position to canvas position
-    const imageLeftTopWorldPoint: Point = {
-      x: leftTop.x,
-      y: leftTop.y,
-    };
+    const corners = this.models.imageTransformToolModel.corners;
+    if (corners) {
+      const w = corners.corner2.x - corners.corner1.x;
+      const h = corners.corner3.y - corners.corner1.y;
+      ctx.save();
+      ctx.globalAlpha = opacity;
+      ctx.drawImage(buffer, corners.corner1.x, corners.corner1.y, w, h);
+      ctx.restore();
+      return;
+    }
+
+    const { leftTop } = this.models.imageBufferModel;
+    const { offset, scale } = this.models.navigationModel;
     const imageLeftTopCanvasPoint: Point =
       getCanvasRelativePositionFromWorldPoint(
-        imageLeftTopWorldPoint,
+        { x: leftTop.x, y: leftTop.y },
         offset,
         scale
       );
 
     ctx.save();
+    ctx.globalAlpha = opacity;
     ctx.drawImage(
       buffer,
       imageLeftTopCanvasPoint.x,

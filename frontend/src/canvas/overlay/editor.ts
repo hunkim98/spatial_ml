@@ -11,6 +11,7 @@ import { MouseInteractionModel } from "./model/mouseInteractionModel";
 import { EditorStateModel } from "./model/editorStateModel";
 import { ImageBufferModel } from "./model/imageBufferModel";
 import { NavigationModel } from "./model/navigationModel";
+import { TransformSessionModel } from "./model/transformSessionModel";
 import { DragInteractionModel } from "./model/dragInteractionModel";
 import { ToolManagerModel, ToolType } from "./model/tools/toolManagerModel";
 import { ImageTransformToolModel } from "./model/tools/imageTransformToolModel";
@@ -37,6 +38,7 @@ import {
   getWorldPointFromEvent,
 } from "./utils/project";
 import { ImagePropertyController } from "./controller/imagePropertyController";
+import { TransformSessionController } from "./controller/transformSessionController";
 
 export class Editor {
   private models: CanvasModel;
@@ -98,6 +100,7 @@ export class Editor {
       dragInteractionModel: new DragInteractionModel({}),
       toolManagerModel: new ToolManagerModel({}),
       imageTransformToolModel: new ImageTransformToolModel({}),
+      transformSessionModel: new TransformSessionModel(),
     };
   }
 
@@ -171,6 +174,11 @@ export class Editor {
         this.listeners
       ),
       imagePropertyController: new ImagePropertyController(
+        this.models,
+        this.views,
+        this.listeners
+      ),
+      transformSessionController: new TransformSessionController(
         this.models,
         this.views,
         this.listeners
@@ -300,8 +308,6 @@ export class Editor {
     if (!activeTool) {
       return;
     }
-    console.log(activeTool, this.models.toolManagerModel);
-    console.log("executeInteraction", activeTool);
     switch (activeTool) {
       case ToolType.IMAGE_CREATE:
         this.controllers.imageCreateToolController.execute({ e });
@@ -406,6 +412,10 @@ export class Editor {
 
   get isInitialized(): boolean {
     return this.models.editorStateModel.isInitialized;
+  }
+
+  get isTransformActive(): boolean {
+    return this.models.transformSessionModel.isActive;
   }
 
   get corners() {

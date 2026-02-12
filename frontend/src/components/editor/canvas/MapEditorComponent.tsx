@@ -20,6 +20,7 @@ const IMAGE_LAYER_ID = "overlay-image-layer";
 
 interface MapEditorComponentProps {
   onMapClick?: (lngLat: Corner) => void;
+  cursor?: string;
   style?: React.CSSProperties;
 }
 
@@ -56,7 +57,7 @@ function toMapLibreCoordinates(
 export const MapEditorComponent = forwardRef<
   MapEditorComponentHandle,
   MapEditorComponentProps
->(function MapEditorComponent({ onMapClick, style }, ref) {
+>(function MapEditorComponent({ onMapClick, cursor, style }, ref) {
   const mapRef = useRef<MapRef>(null);
   const [viewState, setViewState] = useState({
     longitude: DEFAULT_CENTER.lng,
@@ -92,7 +93,10 @@ export const MapEditorComponent = forwardRef<
           id: IMAGE_LAYER_ID,
           type: "raster",
           source: IMAGE_SOURCE_ID,
-          paint: { "raster-opacity": opacity },
+          paint: {
+            "raster-opacity": opacity,
+            "raster-opacity-transition": { duration: 0, delay: 0 },
+          },
         });
       };
 
@@ -109,8 +113,6 @@ export const MapEditorComponent = forwardRef<
     (imageUrl: string, screenCorners: ScreenCorners, opacity: number = 0) => {
       const map = mapRef.current?.getMap();
       if (!map) return;
-      console.log("preloadImageLayer", { imageUrl, screenCorners, opacity });
-
       const preload = () => {
         // Unproject screen corners to geo corners (map is loaded at this point)
         const mapInstance = mapRef.current;
@@ -139,7 +141,10 @@ export const MapEditorComponent = forwardRef<
           id: IMAGE_LAYER_ID,
           type: "raster",
           source: IMAGE_SOURCE_ID,
-          paint: { "raster-opacity": opacity },
+          paint: {
+            "raster-opacity": opacity,
+            "raster-opacity-transition": { duration: 0, delay: 0 },
+          },
         });
       };
 
@@ -229,6 +234,7 @@ export const MapEditorComponent = forwardRef<
       {...viewState}
       onMove={(evt) => setViewState(evt.viewState)}
       onClick={handleClick}
+      cursor={cursor}
       style={{ width: "100%", height: "100%", ...style }}
       mapStyle={SATELLITE_STYLE}
       maxPitch={0}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { NoEditorComponent } from "./NoEditorComponent";
 import {
   ClipperEditorComponent,
@@ -10,7 +10,7 @@ import {
 } from "./OverlayEditorComponent";
 import { Loader } from "@mantine/core";
 import { MapEditorComponentHandle } from "./MapEditorComponent";
-import { GeoCorners, ScreenBounds } from "@/canvas/overlay/types";
+import { GeoCorners } from "@/canvas/overlay/types";
 
 interface EditorComponentProps {
   isLoadingResources: boolean;
@@ -23,6 +23,8 @@ interface EditorComponentProps {
   clipperRef: React.RefObject<ClipperEditorComponentHandle | null>;
   overlayRef: React.RefObject<OverlayEditorComponentHandle | null>;
   mapRef: React.RefObject<MapEditorComponentHandle | null>;
+  imageGeoCorners: GeoCorners | null;
+  onImageGeoCornersChange?: (corners: GeoCorners) => void;
 }
 
 export default function EditorComponent({
@@ -34,12 +36,9 @@ export default function EditorComponent({
   clipperRef,
   overlayRef,
   mapRef,
+  imageGeoCorners,
+  onImageGeoCornersChange,
 }: EditorComponentProps) {
-  const [imageGeoCorners, setImageGeoCorners] = useState<GeoCorners | null>(
-    null
-  );
-  const [imageScreenCorners, setImageScreenCorners] =
-    useState<ScreenBounds | null>(null);
   // TEMPORARY: Load test image directly for overlay editor testing
   useEffect(() => {
     const img = new Image();
@@ -81,6 +80,8 @@ export default function EditorComponent({
       ref={overlayRef}
       imageBuffer={clippedImageBuffer}
       mapRef={mapRef}
+      imageGeoCorners={imageGeoCorners}
+      onImageGeoCornersChange={onImageGeoCornersChange}
     />
   );
 }

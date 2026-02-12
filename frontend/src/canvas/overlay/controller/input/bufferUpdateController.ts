@@ -65,19 +65,6 @@ export class BufferUpdateController extends BaseController<
       canvasHeight,
       1
     );
-    console.log("buffer update controller", {
-      canvasWidth,
-      canvasHeight,
-      bufferWidth: buffer.width,
-      bufferHeight: buffer.height,
-      resizedImageWidth,
-      resizedImageHeight,
-      resizeRatio,
-      offsetX: x,
-      offsetY: y,
-      navScaleBefore: this.models.navigationModel.scale,
-      navOffsetBefore: this.models.navigationModel.offset,
-    });
     this.models.imageBufferModel.update({
       buffer: buffer,
       width: buffer.width,
@@ -87,11 +74,6 @@ export class BufferUpdateController extends BaseController<
     this.models.navigationModel.update({
       scale: resizeRatio,
       offset: { x: x, y: y },
-    });
-
-    console.log("buffer update controller AFTER", {
-      navScale: this.models.navigationModel.scale,
-      navOffset: this.models.navigationModel.offset,
     });
 
     // Trigger render

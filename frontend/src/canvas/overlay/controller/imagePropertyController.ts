@@ -6,7 +6,8 @@ import { BaseController } from "./base";
 type Models = Pick<CanvasModel, "imageLayerModel" | "imageBufferModel">;
 type Views = Pick<CanvasView, "imageLayerView">;
 type ExecuteParams = {
-  opacity: number;
+  opacity?: number;
+  visible?: boolean;
 };
 
 export class ImagePropertyController extends BaseController<
@@ -23,8 +24,13 @@ export class ImagePropertyController extends BaseController<
   }
 
   execute(params: ExecuteParams): void {
-    const { opacity } = params;
-    this.models.imageBufferModel.opacity = opacity;
-    this.models.imageLayerModel.element.style.opacity = String(opacity);
+    if (params.opacity !== undefined) {
+      this.models.imageBufferModel.opacity = params.opacity;
+    }
+    if (params.visible !== undefined) {
+      this.models.imageLayerModel.element.style.opacity = params.visible
+        ? "1"
+        : "0";
+    }
   }
 }

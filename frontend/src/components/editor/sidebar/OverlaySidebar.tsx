@@ -42,10 +42,9 @@ function OverlaySidebar({
     if (!overlayRef.current) return;
     const controllers = overlayRef.current?.getControllers();
     if (isHoveringButton) {
-      controllers?.imagePropertyController.execute({ opacity: 0.5 });
-      // overlayRef.current?.preloadMapImage();
+      controllers?.imagePropertyController.execute({ opacity: 0.5, visible: true });
     } else {
-      controllers?.imagePropertyController.execute({ opacity: 0 });
+      controllers?.imagePropertyController.execute({ visible: false });
     }
   }, [overlayRef, isHoveringButton]);
 
@@ -73,7 +72,7 @@ function OverlaySidebar({
               if (!geoCorners || !previewUrl) return;
               // Hide canvas preview, add to MapLibre
               const controllers = overlayRef.current?.getControllers();
-              controllers?.imagePropertyController.execute({ opacity: 0 });
+              controllers?.imagePropertyController.execute({ visible: false });
               mapRef.current?.addImageLayer(previewUrl, geoCorners, 0.7);
               setImageGeoCorners(geoCorners);
             }}

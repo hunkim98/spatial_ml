@@ -131,6 +131,8 @@ export default function StudioPage() {
           clipperRef={clipperRef}
           overlayRef={overlayRef}
           mapRef={mapRef}
+          imageGeoCorners={imageGeoCorners}
+          onImageGeoCornersChange={setImageGeoCorners}
         />
       </Box>
     </Layout>
