@@ -10,6 +10,7 @@ export enum ToolType {
 interface ToolManagerModelType {
   activeTool: ToolType | null;
   candidateTool: ToolType | null;
+  forcedTool: ToolType.IMAGE_CREATE | null;
 }
 
 /**
@@ -22,11 +23,13 @@ export class ToolManagerModel
 {
   private _activeTool: ToolType | null;
   private _candidateTool: ToolType | null;
+  private _forcedTool: ToolType.IMAGE_CREATE | null;
 
   constructor(props: Partial<ToolManagerModelType>) {
     super();
     this._activeTool = props.activeTool ?? null;
     this._candidateTool = props.candidateTool ?? null;
+    this._forcedTool = props.forcedTool ?? null;
   }
 
   get activeTool(): ToolType | null {
@@ -45,8 +48,17 @@ export class ToolManagerModel
     this._candidateTool = tool;
   }
 
+  get forcedTool(): ToolType.IMAGE_CREATE | null {
+    return this._forcedTool;
+  }
+
+  set forcedTool(tool: ToolType.IMAGE_CREATE | null) {
+    this._forcedTool = tool;
+  }
+
   reset() {
     this._activeTool = null;
     this._candidateTool = null;
+    this._forcedTool = null;
   }
 }

@@ -9,13 +9,12 @@ type Models = Pick<
   CanvasModel,
   | "toolManagerModel"
   | "imageTransformToolModel"
-  | "mouseControlModel"
   | "mouseInteractionModel"
   | "editorStateModel"
 >;
 type Views = never;
 type ExecuteParams = {
-  e: React.MouseEvent<HTMLCanvasElement>;
+  e: React.MouseEvent<Element>;
 };
 
 const HANDLE_HIT_RADIUS = 12;
@@ -59,15 +58,15 @@ export class ToolManagerController extends BaseController<
       return;
     }
 
-    const handle = this.detectHandle();
-
-    if (!this.models.imageTransformToolModel.corners) {
-      // No image placed yet - CREATE mode
-      this.setCandidate(ToolType.IMAGE_CREATE);
+    // Forced tool overrides auto-detection
+    if (this.models.toolManagerModel.forcedTool !== null) {
+      this.setCandidate(this.models.toolManagerModel.forcedTool);
       return;
     }
 
-    // Image exists - check what handle we're near
+    const handle = this.detectHandle();
+
+    // Check what handle we're near
     if (handle !== HandleType.NONE) {
       if (handle === HandleType.BODY) {
         this.setCandidate(ToolType.IMAGE_MOVE);
@@ -82,7 +81,6 @@ export class ToolManagerController extends BaseController<
   private shouldLockActiveTool(): boolean {
     // Lock tool during mouse interaction or when creating/editing image
     return (
-      this.models.mouseControlModel.isDown ||
       this.models.imageTransformToolModel.isCreating ||
       this.models.imageTransformToolModel.isEditing
     );

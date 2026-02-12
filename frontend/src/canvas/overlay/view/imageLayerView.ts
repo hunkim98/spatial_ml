@@ -1,9 +1,14 @@
 import { CanvasModel } from "../model";
 import { IView } from "./base";
+import { getCanvasRelativePositionFromWorldPoint } from "../utils/project";
+import { Point } from "../types";
 
 type Models = Pick<
   CanvasModel,
-  "imageLayerModel" | "imageTransformToolModel" | "imageBufferModel"
+  | "imageLayerModel"
+  | "imageTransformToolModel"
+  | "imageBufferModel"
+  | "navigationModel"
 >;
 
 export class ImageLayerView extends IView<Models> {
@@ -12,44 +17,36 @@ export class ImageLayerView extends IView<Models> {
   }
 
   render(): void {
-    const { buffer } = this.models.imageBufferModel;
-    const { corners } = this.models.imageTransformToolModel;
+    const { ctx } = this.models.imageLayerModel;
+    const { buffer, leftTop, width, height } = this.models.imageBufferModel;
+    if (!buffer || !width || !height) return;
+    const { offset, scale } = this.models.navigationModel;
 
-    if (!buffer || !corners) return;
-
-    const ctx = this.models.imageLayerModel.ctx;
+    // Convert world position to canvas position
+    const imageLeftTopWorldPoint: Point = {
+      x: leftTop.x,
+      y: leftTop.y,
+    };
+    const imageLeftTopCanvasPoint: Point =
+      getCanvasRelativePositionFromWorldPoint(
+        imageLeftTopWorldPoint,
+        offset,
+        scale
+      );
 
     ctx.save();
-
-    // Calculate bounding rect from corners
-    const minX = Math.min(
-      corners.corner1.x,
-      corners.corner2.x,
-      corners.corner3.x,
-      corners.corner4.x
+    ctx.drawImage(
+      buffer,
+      imageLeftTopCanvasPoint.x,
+      imageLeftTopCanvasPoint.y,
+      width * scale,
+      height * scale
     );
-    const minY = Math.min(
-      corners.corner1.y,
-      corners.corner2.y,
-      corners.corner3.y,
-      corners.corner4.y
-    );
-    const maxX = Math.max(
-      corners.corner1.x,
-      corners.corner2.x,
-      corners.corner3.x,
-      corners.corner4.x
-    );
-    const maxY = Math.max(
-      corners.corner1.y,
-      corners.corner2.y,
-      corners.corner3.y,
-      corners.corner4.y
-    );
-
-    ctx.drawImage(buffer, minX, minY, maxX - minX, maxY - minY);
-
     ctx.restore();
+  }
+
+  scale(dpr: number): void {
+    this.models.imageLayerModel.ctx.scale(dpr, dpr);
   }
 
   clear(): void {

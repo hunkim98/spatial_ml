@@ -4,7 +4,11 @@ import { BaseController } from "../base";
 import { ClipperEventListeners } from "../../events";
 import { ToolType } from "../../types/tool";
 import { HandleType, Point, Rect } from "../../types";
-import { isInsideRect, isNearPoint, getScaledHitRadius } from "../../lib/geometry";
+import {
+  isInsideRect,
+  isNearPoint,
+  getScaledHitRadius,
+} from "../../lib/geometry";
 
 type Models = Pick<
   ClipperModel,
@@ -151,13 +155,14 @@ export class ToolManagerController extends BaseController<
     // Check corner handles first (they have priority)
     if (isNearPoint(point, topLeft, hitRadius)) return HandleType.TOP_LEFT;
     if (isNearPoint(point, topRight, hitRadius)) return HandleType.TOP_RIGHT;
-    if (isNearPoint(point, bottomRight, hitRadius)) return HandleType.BOTTOM_RIGHT;
-    if (isNearPoint(point, bottomLeft, hitRadius)) return HandleType.BOTTOM_LEFT;
+    if (isNearPoint(point, bottomRight, hitRadius))
+      return HandleType.BOTTOM_RIGHT;
+    if (isNearPoint(point, bottomLeft, hitRadius))
+      return HandleType.BOTTOM_LEFT;
     if (isNearPoint(point, left, hitRadius)) return HandleType.LEFT;
     if (isNearPoint(point, right, hitRadius)) return HandleType.RIGHT;
     if (isNearPoint(point, top, hitRadius)) return HandleType.TOP;
     if (isNearPoint(point, bottom, hitRadius)) return HandleType.BOTTOM;
     return null;
   }
-
 }

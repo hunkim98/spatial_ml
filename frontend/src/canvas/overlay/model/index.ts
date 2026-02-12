@@ -1,4 +1,3 @@
-import { MouseControlModel } from "./mouseControlModel";
 import { MouseInteractionModel } from "./mouseInteractionModel";
 import { EditorStateModel } from "./editorStateModel";
 import { ImageBufferModel } from "./imageBufferModel";
@@ -12,7 +11,6 @@ import { FrameLayerModel } from "./layers/frameLayerModel";
 export type CanvasModel = {
   imageLayerModel: ImageLayerModel;
   frameLayerModel: FrameLayerModel;
-  mouseControlModel: MouseControlModel;
   mouseInteractionModel: MouseInteractionModel;
   editorStateModel: EditorStateModel;
   imageBufferModel: ImageBufferModel;

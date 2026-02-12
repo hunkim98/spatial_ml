@@ -58,6 +58,10 @@ export class FrameLayerView extends IView<Models> {
     ctx.stroke();
   }
 
+  scale(dpr: number): void {
+    this.models.frameLayerModel.ctx.scale(dpr, dpr);
+  }
+
   clear(): void {
     const { element, ctx } = this.models.frameLayerModel;
 

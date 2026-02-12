@@ -10,7 +10,7 @@ type Models = Pick<
 >;
 type Views = Pick<CanvasView, "imageLayerView">;
 type ExecuteParams = {
-  e: React.MouseEvent<HTMLCanvasElement>;
+  e: React.MouseEvent<Element>;
 };
 
 /**

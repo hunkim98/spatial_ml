@@ -10,7 +10,7 @@ type Models = Pick<
 >;
 type Views = Pick<CanvasView, "imageLayerView">;
 type ExecuteParams = {
-  e: React.MouseEvent<HTMLCanvasElement>;
+  e: React.MouseEvent<Element>;
 };
 
 /**
@@ -61,9 +61,17 @@ export class ImageResizeToolController extends BaseController<
     const { mouseMoveWorldPosition } = this.models.mouseInteractionModel;
     const initialCorners = this.models.imageTransformToolModel.initialCorners;
     const activeHandle = this.models.imageTransformToolModel.activeHandle;
-    const { width: imageWidth, height: imageHeight } = this.models.imageBufferModel;
+    const { width: imageWidth, height: imageHeight } =
+      this.models.imageBufferModel;
 
-    if (!mouseMoveWorldPosition || !initialCorners || !activeHandle || !imageWidth || !imageHeight) return;
+    if (
+      !mouseMoveWorldPosition ||
+      !initialCorners ||
+      !activeHandle ||
+      !imageWidth ||
+      !imageHeight
+    )
+      return;
 
     // Calculate image aspect ratio
     const aspectRatio = imageWidth / imageHeight;

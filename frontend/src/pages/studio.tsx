@@ -1,13 +1,15 @@
 import { GeoCorners } from "@/canvas/overlay/types";
-import EditorComponent, {
-  EditorComponentHandle,
-} from "@/components/editor/EditorComponent";
+import EditorComponent from "@/components/editor/canvas/EditorComponent";
+import { ClipperEditorComponentHandle } from "@/components/editor/canvas/ClipperEditorComponent";
+import { OverlayEditorComponentHandle } from "@/components/editor/canvas/OverlayEditorComponent";
 import { PdfSelectSidebar } from "@/components/editor/PDFSelectSidebar";
+import EditorSidebar from "@/components/editor/sidebar/EditorSidebar";
 import { GeoReferencerHandle } from "@/components/GeoReferencer";
 import { Layout } from "@/components/Layout";
 import { useLabels } from "@/hooks/useLabels";
 import { usePdfs } from "@/hooks/usePdfs";
 import { PdfFile } from "@/types/pdf";
+import { MapEditorComponentHandle } from "@/components/editor/canvas/MapEditorComponent";
 import { Box, Loader } from "@mantine/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -23,11 +25,15 @@ export default function StudioPage() {
 
   // ========== Refs ==========
   const geoReferencerRef = useRef<GeoReferencerHandle>(null);
-  const editorRef = useRef<EditorComponentHandle>(null);
+  const clipperRef = useRef<ClipperEditorComponentHandle>(null);
+  const overlayRef = useRef<OverlayEditorComponentHandle>(null);
+  const mapRef = useRef<MapEditorComponentHandle>(null);
   const [selectedPdf, setSelectedPdf] = useState<PdfFile | null>(null);
   const [pageNumber, setPageNumber] = useState(1); // we will default to page 1
   const [saving, setSaving] = useState(false);
-  const [geoCorners, setGeoCorners] = useState<GeoCorners | null>(null);
+  const [imageGeoCorners, setImageGeoCorners] = useState<GeoCorners | null>(null);
+  const [clippedImageBuffer, setClippedImageBuffer] =
+    useState<HTMLCanvasElement | null>(null);
 
   // ========== Effects ==========
   // TEMPORARY: Use test image for overlay editor testing
@@ -102,28 +108,29 @@ export default function StudioPage() {
   return (
     <Layout
       sidebar={
-        <PdfSelectSidebar
-          pdfs={pdfs}
-          labels={labels}
-          selectedPdf={selectedPdf}
-          saving={saving}
-          pageNumber={pageNumber}
-          numPages={1}
-          geoCorners={geoCorners}
-          onPdfSelect={handlePdfSelect}
-          onPageChange={handlePageChange}
-          onSave={handleSaveLabel}
-          onDelete={handleDeleteLabel}
-          onLocationSelect={handleLocationSelect}
+        <EditorSidebar
+          clippedImageBuffer={clippedImageBuffer}
+          setClippedImageBuffer={setClippedImageBuffer}
+          isLoadingResources={isLoadingResources}
+          pdfUrl={pdfUrl}
+          clipperRef={clipperRef}
+          overlayRef={overlayRef}
+          mapRef={mapRef}
+          imageGeoCorners={imageGeoCorners}
+          setImageGeoCorners={setImageGeoCorners}
         />
       }
     >
       <Box style={{ width: "100%", height: "100%", backgroundColor: "red" }}>
         <EditorComponent
-          ref={editorRef}
+          clippedImageBuffer={clippedImageBuffer}
+          setClippedImageBuffer={setClippedImageBuffer}
           isLoadingResources={isLoadingResources}
           pdfUrl={pdfUrl}
           pageNumber={pageNumber}
+          clipperRef={clipperRef}
+          overlayRef={overlayRef}
+          mapRef={mapRef}
         />
       </Box>
     </Layout>

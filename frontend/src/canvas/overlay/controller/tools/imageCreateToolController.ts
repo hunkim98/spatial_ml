@@ -5,11 +5,14 @@ import { CanvasEventListeners } from "../../events";
 
 type Models = Pick<
   CanvasModel,
-  "imageTransformToolModel" | "mouseInteractionModel" | "imageBufferModel"
+  | "imageTransformToolModel"
+  | "mouseInteractionModel"
+  | "imageBufferModel"
+  | "toolManagerModel"
 >;
 type Views = Pick<CanvasView, "imageLayerView">;
 type ExecuteParams = {
-  e: React.MouseEvent<HTMLCanvasElement>;
+  e: React.MouseEvent<Element>;
 };
 
 /**
@@ -59,7 +62,6 @@ export class ImageCreateToolController extends BaseController<
   onMouseMoveExecute(): void {
     if (!this.models.imageTransformToolModel.isCreating) return;
 
-    console.log("onMouseMoveExecute");
     const { mouseMoveWorldPosition } = this.models.mouseInteractionModel;
     const corners = this.models.imageTransformToolModel.corners;
     const { width: imageWidth, height: imageHeight } =
@@ -99,5 +101,6 @@ export class ImageCreateToolController extends BaseController<
 
   onMouseUpExecute(): void {
     this.models.imageTransformToolModel.isCreating = false;
+    this.models.toolManagerModel.forcedTool = null;
   }
 }

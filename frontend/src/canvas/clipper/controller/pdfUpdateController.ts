@@ -18,8 +18,6 @@ type ExecuteParams = {
   padding?: number; // 0-1, percentage of canvas to use (default 0.9)
   resourceUrl: string;
   pageNumber: number;
-  canvasWidth: number;
-  canvasHeight: number;
 };
 
 export class PdfUpdateController extends BaseController<
@@ -36,7 +34,9 @@ export class PdfUpdateController extends BaseController<
   }
 
   async execute(params: ExecuteParams): Promise<void> {
-    const { resourceUrl, pageNumber, canvasWidth, canvasHeight } = params;
+    const { resourceUrl, pageNumber } = params;
+    const canvasWidth = this.models.pdfLayerModel.width;
+    const canvasHeight = this.models.pdfLayerModel.height;
     this.models.editorStatusModel.isLoading = true;
 
     const { blob, url } = await getPdfPageAsBlob(resourceUrl, pageNumber);

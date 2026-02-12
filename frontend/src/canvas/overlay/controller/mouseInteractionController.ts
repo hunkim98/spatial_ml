@@ -10,7 +10,7 @@ type Models = Pick<
 type Views = Pick<CanvasView, "imageLayerView" | "frameLayerView">;
 
 type ExecuteParams = {
-  e: React.WheelEvent<HTMLCanvasElement> | React.MouseEvent<HTMLCanvasElement>;
+  e: React.WheelEvent<HTMLCanvasElement> | React.MouseEvent<Element>;
 };
 
 export class MouseInteractionController extends BaseController<
@@ -32,11 +32,11 @@ export class MouseInteractionController extends BaseController<
     if (e.type === "wheel") {
       this.executeWheel(e as React.WheelEvent<HTMLCanvasElement>);
     } else if (e.type === "mousedown") {
-      this.executeMouseDown(e as React.MouseEvent<HTMLCanvasElement>);
+      this.executeMouseDown(e as React.MouseEvent<Element>);
     } else if (e.type === "mousemove") {
-      this.executeMouseMove(e as React.MouseEvent<HTMLCanvasElement>);
+      this.executeMouseMove(e as React.MouseEvent<Element>);
     } else if (e.type === "mouseup") {
-      this.executeMouseUp(e as React.MouseEvent<HTMLCanvasElement>);
+      this.executeMouseUp(e as React.MouseEvent<Element>);
     }
   }
 
@@ -45,17 +45,17 @@ export class MouseInteractionController extends BaseController<
     // For now, keeping it empty as overlay editor doesn't handle zoom/pan
   }
 
-  private executeMouseDown(e: React.MouseEvent<HTMLCanvasElement>): void {
+  private executeMouseDown(e: React.MouseEvent<Element>): void {
     // Mouse positions are already updated in editor.onMouseDown
     // This is kept for consistency with clipper pattern
   }
 
-  private executeMouseMove(e: React.MouseEvent<HTMLCanvasElement>): void {
+  private executeMouseMove(e: React.MouseEvent<Element>): void {
     // Mouse move tracking handled by editor
     // This is kept for consistency with clipper pattern
   }
 
-  private executeMouseUp(e: React.MouseEvent<HTMLCanvasElement>): void {
+  private executeMouseUp(e: React.MouseEvent<Element>): void {
     // Clear mouse positions on mouse up
   }
 }

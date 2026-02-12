@@ -15,7 +15,7 @@ type Models = Pick<
 type Views = never;
 
 type ExecuteParams = {
-  e: React.MouseEvent<HTMLCanvasElement>;
+  e: React.MouseEvent<Element>;
 };
 
 export class DragInteractionController extends BaseController<

@@ -217,12 +217,8 @@ export function PdfSelectSidebar({
                               lat: Number(geoCorners.corner2.lat.toFixed(6)),
                             },
                             bottomRight: {
-                              lng: Number(
-                                geoCorners.corner4.lng.toFixed(6)
-                              ),
-                              lat: Number(
-                                geoCorners.corner4.lat.toFixed(6)
-                              ),
+                              lng: Number(geoCorners.corner4.lng.toFixed(6)),
+                              lat: Number(geoCorners.corner4.lat.toFixed(6)),
                             },
                             bottomLeft: {
                               lng: Number(geoCorners.corner3.lng.toFixed(6)),

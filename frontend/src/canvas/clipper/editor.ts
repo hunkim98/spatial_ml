@@ -170,8 +170,6 @@ export class ClipperEditor {
     this.controllers.pdfUpdateController.execute({
       resourceUrl,
       pageNumber,
-      canvasWidth: this.models.pdfLayerModel.width,
-      canvasHeight: this.models.pdfLayerModel.height,
     });
   }
 

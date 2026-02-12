@@ -12,7 +12,7 @@ import { Loader } from "@mantine/core";
 import { Corner } from "@/types/db";
 import { MapManager } from "@/map";
 import { Editor } from "@/canvas/overlay/editor";
-import { EditorMode, GeoCorners } from "@/canvas/overlay/types";
+import { GeoCorners } from "@/canvas/overlay/types";
 import { CanvasEvent } from "@/canvas/overlay/events";
 import { useEditorContext } from "@/canvas/overlay/context";
 import { OpacitySlider } from "./OpacitySlider";
@@ -66,7 +66,6 @@ export const GeoReferencer = forwardRef<
   // ========== State ==========
   const [isMapReady, setIsMapReady] = useState(false);
   const [isEditorReady, setIsEditorReady] = useState(false);
-  const [editorMode, setEditorMode] = useState<EditorMode>(EditorMode.CREATE);
   const [isInteracting, setIsInteracting] = useState(false);
   const [isOverOverlay, setIsOverOverlay] = useState(false);
   const [cursor, setCursor] = useState<string>("default");
@@ -149,12 +148,9 @@ export const GeoReferencer = forwardRef<
 
   const handleBoundsCreated = useCallback(() => {
     syncGeoCorners();
-    if (editorRef.current) {
-      setEditorMode(editorRef.current.mode);
-      const corners = editorRef.current.geoCorners;
-      if (corners) {
-        cornersChangeListeners.forEach((listener) => listener(corners));
-      }
+    const corners = editorRef.current?.geoCorners;
+    if (corners) {
+      cornersChangeListeners.forEach((listener) => listener(corners));
     }
   }, [syncGeoCorners, cornersChangeListeners]);
 
@@ -165,12 +161,6 @@ export const GeoReferencer = forwardRef<
       cornersChangeListeners.forEach((listener) => listener(corners));
     }
   }, [syncGeoCorners, cornersChangeListeners]);
-
-  const handleModeChanged = useCallback(() => {
-    if (editorRef.current) {
-      setEditorMode(editorRef.current.mode);
-    }
-  }, []);
 
   // ========== Mouse Handlers ==========
 
@@ -317,7 +307,6 @@ export const GeoReferencer = forwardRef<
     if (!pdfUrl) {
       editorRef.current = null;
       setIsEditorReady(false);
-      setEditorMode(EditorMode.CREATE);
       setIsInteracting(false);
       return;
     }
@@ -348,7 +337,6 @@ export const GeoReferencer = forwardRef<
 
       editor.updatePdf(pdfUrl, pageNumber).then(() => {
         setIsEditorReady(true);
-        setEditorMode(editor.mode);
       });
     });
 
@@ -376,7 +364,6 @@ export const GeoReferencer = forwardRef<
       CanvasEvent.TRANSFORM_CHANGED,
       handleTransformChanged
     );
-    editor.addEventListener(CanvasEvent.MODE_CHANGED, handleModeChanged);
 
     return () => {
       editor.removeEventListener(
@@ -387,13 +374,11 @@ export const GeoReferencer = forwardRef<
         CanvasEvent.TRANSFORM_CHANGED,
         handleTransformChanged
       );
-      editor.removeEventListener(CanvasEvent.MODE_CHANGED, handleModeChanged);
     };
   }, [
     isEditorReady,
     handleBoundsCreated,
     handleTransformChanged,
-    handleModeChanged,
   ]);
 
   // Apply initial corners when both map and editor are ready
@@ -414,7 +399,6 @@ export const GeoReferencer = forwardRef<
 
     // Initialize editor with pre-set corners
     editor.initializeWithCorners(screenCorners, initialCorners);
-    setEditorMode(EditorMode.EDIT);
 
     // Show on map
     showImageOnMapLibre();
@@ -464,8 +448,8 @@ export const GeoReferencer = forwardRef<
     const editor = editorRef.current;
     const container = containerRef.current;
 
-    // Only track when editor is initialized and not in CREATE mode
-    if (!editor || !editor.isInitialized || editorMode === EditorMode.CREATE) {
+    // Only track when editor is initialized
+    if (!editor || !editor.isInitialized) {
       return;
     }
 
@@ -495,7 +479,7 @@ export const GeoReferencer = forwardRef<
     document.addEventListener("mousemove", handleDocumentMouseMove);
     return () =>
       document.removeEventListener("mousemove", handleDocumentMouseMove);
-  }, [editorMode, isInteracting, isEditorReady]);
+  }, [isInteracting, isEditorReady]);
 
   // Expose methods to parent
   useImperativeHandle(
@@ -523,13 +507,13 @@ export const GeoReferencer = forwardRef<
 
   // Pointer events logic:
   // - readOnly: never capture (view only)
-  // - CREATE mode: always capture (need to draw bounds)
+  // - Not initialized: always capture (need to draw bounds)
   // - Interacting: always capture (dragging)
   // - Initialized + mouse over overlay: capture (to allow clicking to edit)
   // - Otherwise: none (allow map panning)
   const canvasPointerEvents = readOnly
     ? "none"
-    : editorMode === EditorMode.CREATE || isInteracting || isOverOverlay
+    : !isInitialized || isInteracting || isOverOverlay
       ? "auto"
       : "none";
 
@@ -572,7 +556,7 @@ export const GeoReferencer = forwardRef<
               width: "100%",
               height: "100%",
               pointerEvents: canvasPointerEvents,
-              cursor: editorMode === EditorMode.CREATE ? "crosshair" : cursor,
+              cursor: !isInitialized ? "crosshair" : cursor,
               zIndex: 2,
             }}
             onMouseDown={handleMouseDown}
@@ -587,22 +571,19 @@ export const GeoReferencer = forwardRef<
       {/* Opacity slider (only when initialized) */}
       {isInitialized && <OpacitySlider />}
 
-      {/* Instructions for CREATE mode */}
-      {pdfUrl && isEditorReady && editorMode === EditorMode.CREATE && (
+      {/* Instructions for drawing bounds */}
+      {pdfUrl && isEditorReady && !isInitialized && (
         <div style={instructionStyle}>
           Click and drag to draw the PDF overlay bounds
         </div>
       )}
 
-      {/* Instructions for EDIT mode (when interacting) */}
-      {pdfUrl &&
-        isEditorReady &&
-        editorMode === EditorMode.EDIT &&
-        isInteracting && (
-          <div style={instructionStyle}>
-            Drag to move | Drag corners to resize
-          </div>
-        )}
+      {/* Instructions when interacting */}
+      {pdfUrl && isEditorReady && isInitialized && isInteracting && (
+        <div style={instructionStyle}>
+          Drag to move | Drag corners to resize
+        </div>
+      )}
 
       {/* Instructions when not interacting (hide in readOnly mode) */}
       {pdfUrl && isInitialized && !isInteracting && !readOnly && (

@@ -2,12 +2,11 @@ import { CanvasModel } from "./model";
 import { CanvasController } from "./controller";
 import { CanvasView } from "./view";
 import { CanvasEvent, CanvasEventListeners } from "./events";
-import { HandleType, EditorMode, Point } from "./types";
+import { HandleType, Point, ScreenCorners } from "./types";
 
 // Models
 import { ImageLayerModel } from "./model/layers/imageLayerModel";
 import { FrameLayerModel } from "./model/layers/frameLayerModel";
-import { MouseControlModel } from "./model/mouseControlModel";
 import { MouseInteractionModel } from "./model/mouseInteractionModel";
 import { EditorStateModel } from "./model/editorStateModel";
 import { ImageBufferModel } from "./model/imageBufferModel";
@@ -22,7 +21,6 @@ import { FrameLayerView } from "./view/frameLayerView";
 
 // Controllers
 import { ModeController } from "./controller/modeController";
-import { ImageUploadController } from "./controller/imageUploadController";
 import { MouseInteractionController } from "./controller/mouseInteractionController";
 import { DragInteractionController } from "./controller/dragInteractionController";
 import { ToolManagerController } from "./controller/tools/toolManagerController";
@@ -33,10 +31,12 @@ import { ImageRotateToolController } from "./controller/tools/imageRotateToolCon
 import { PdfUpdateController } from "./controller/input/pdfUpdateController";
 import { ImageUpdateController } from "./controller/input/imageUpdateController";
 import { BufferUpdateController } from "./controller/input/bufferUpdateController";
+import { CanvasSizeScaleController } from "./controller/settings/canvasSizeScaleController";
 import {
   getCanvasRelativePositionFromWorldPoint,
   getWorldPointFromEvent,
 } from "./utils/project";
+import { ImagePropertyController } from "./controller/imagePropertyController";
 
 export class Editor {
   private models: CanvasModel;
@@ -82,15 +82,18 @@ export class Editor {
         height: canvasHeight,
         dpr,
       }),
-      mouseControlModel: new MouseControlModel(),
       mouseInteractionModel: new MouseInteractionModel(),
       editorStateModel: new EditorStateModel(),
-      imageBufferModel: new ImageBufferModel(),
+      imageBufferModel: new ImageBufferModel({
+        buffer: null,
+        width: null,
+        height: null,
+        leftTop: { x: 0, y: 0 },
+        opacity: 0.5,
+      }),
       navigationModel: new NavigationModel({
         scale: 1,
         offset: { x: 0, y: 0 },
-        maxScale: 10,
-        minScale: 0.1,
       }),
       dragInteractionModel: new DragInteractionModel({}),
       toolManagerModel: new ToolManagerModel({}),
@@ -112,7 +115,7 @@ export class Editor {
         this.views,
         this.listeners
       ),
-      imageUploadController: new ImageUploadController(
+      imageUpdateController: new ImageUpdateController(
         this.models,
         this.views,
         this.listeners
@@ -157,12 +160,17 @@ export class Editor {
         this.views,
         this.listeners
       ),
-      imageUpdateController: new ImageUpdateController(
+      bufferUpdateController: new BufferUpdateController(
         this.models,
         this.views,
         this.listeners
       ),
-      bufferUpdateController: new BufferUpdateController(
+      canvasSizeScaleController: new CanvasSizeScaleController(
+        this.models,
+        this.views,
+        this.listeners
+      ),
+      imagePropertyController: new ImagePropertyController(
         this.models,
         this.views,
         this.listeners
@@ -211,7 +219,7 @@ export class Editor {
     this.executeInteraction(e);
   }
 
-  onMouseMove(e: React.MouseEvent<HTMLCanvasElement>): void {
+  onMouseMove(e: React.MouseEvent<Element>): void {
     if (!this.models.editorStateModel.isLoaded) return;
 
     const worldPos = getWorldPointFromEvent(
@@ -239,7 +247,7 @@ export class Editor {
     this.executeInteraction(e);
   }
 
-  onMouseUp(e: React.MouseEvent<HTMLCanvasElement>): void {
+  onMouseUp(e: React.MouseEvent<Element>): void {
     if (!this.models.editorStateModel.isLoaded) return;
 
     const worldPos = getWorldPointFromEvent(
@@ -286,12 +294,13 @@ export class Editor {
     });
   }
 
-  executeInteraction(e: React.MouseEvent<HTMLCanvasElement>): void {
+  executeInteraction(e: React.MouseEvent<Element>): void {
     if (!this.models.editorStateModel.isLoaded) return;
     const { activeTool } = this.models.toolManagerModel;
     if (!activeTool) {
       return;
     }
+    console.log(activeTool, this.models.toolManagerModel);
     console.log("executeInteraction", activeTool);
     switch (activeTool) {
       case ToolType.IMAGE_CREATE:
@@ -317,48 +326,34 @@ export class Editor {
     this.views.frameLayerView.render();
   }
 
-  private _getPoint(e: React.MouseEvent<HTMLCanvasElement>): Point {
-    const rect = this.models.frameLayerModel.element.getBoundingClientRect();
+  getCursor(e: React.MouseEvent<Element>): string {
+    if (!this.models.editorStateModel.isLoaded) return "default";
 
-    return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    };
-  }
+    const tool = this.models.toolManagerModel.candidateTool;
+    const handle = this.models.imageTransformToolModel.candidateHandle;
+    const dragStart = this.models.dragInteractionModel.dragStartWorldPosition;
 
-  getCursor(e: React.MouseEvent<HTMLCanvasElement>): string {
-    const mode = this.models.editorStateModel.mode;
-
-    // CREATE mode: always crosshair
-    if (mode === EditorMode.CREATE) {
+    if (!tool) {
+      if (dragStart) {
+        return "grabbing";
+      }
+      return "grab";
+    }
+    if (tool === ToolType.IMAGE_CREATE) {
       return "crosshair";
     }
-
-    // VIEW mode: default cursor (let map handle it)
-    if (mode === EditorMode.VIEW) {
-      return "default";
+    if (tool === ToolType.IMAGE_MOVE) {
+      return "move";
     }
-
-    // EDIT mode: cursor based on what's under the mouse
-    if (mode === EditorMode.EDIT) {
-      // If dragging, use the cursor for the active handle
-      if (this.models.mouseControlModel.isDown) {
-        return this._getCursorForHandle(
-          this.models.imageTransformToolModel.activeHandle || HandleType.NONE
-        );
-      }
-
-      // Otherwise, check what's under the cursor
-      const point = this._getPoint(e);
-      // Temporarily update mouse position for detection
-      const prevPos = this.models.mouseInteractionModel.mouseMoveWorldPosition;
-      this.models.mouseInteractionModel.mouseMoveWorldPosition = point;
-      const handle = this.controllers.toolManagerController.detectHandle();
-      this.models.mouseInteractionModel.mouseMoveWorldPosition = prevPos;
+    if (tool === ToolType.IMAGE_RESIZE) {
+      if (!handle) return "grab";
       return this._getCursorForHandle(handle);
     }
-
-    return "default";
+    if (tool === ToolType.IMAGE_ROTATE) {
+      if (!handle) return "grab";
+      return this._getCursorForHandle(handle);
+    }
+    return "grab";
   }
 
   private _getCursorForHandle(handle: HandleType): string {
@@ -413,10 +408,6 @@ export class Editor {
     return this.models.editorStateModel.isInitialized;
   }
 
-  get mode(): EditorMode {
-    return this.models.editorStateModel.mode;
-  }
-
   get corners() {
     return this.models.imageTransformToolModel.corners;
   }
@@ -446,7 +437,26 @@ export class Editor {
     this.models.imageTransformToolModel.corners = screenCorners;
     this.models.imageTransformToolModel.geoCorners = geoCorners;
     this.models.editorStateModel.isInitialized = true;
-    this.controllers.modeController.execute(EditorMode.EDIT);
+  }
+
+  /**
+   * Compute the screen corners of the image as currently displayed on the canvas.
+   * Derives from buffer dimensions, leftTop position, navigation offset and scale.
+   */
+  getScreenCorners(): ScreenCorners | null {
+    const { width, height, leftTop } = this.models.imageBufferModel;
+    if (!width || !height) return null;
+
+    const { offset, scale } = this.models.navigationModel;
+    const toScreen = (worldPoint: Point): Point =>
+      getCanvasRelativePositionFromWorldPoint(worldPoint, offset, scale);
+
+    return {
+      corner1: toScreen({ x: leftTop.x, y: leftTop.y }),                  // top-left
+      corner2: toScreen({ x: leftTop.x + width, y: leftTop.y }),           // top-right
+      corner3: toScreen({ x: leftTop.x, y: leftTop.y + height }),          // bottom-left
+      corner4: toScreen({ x: leftTop.x + width, y: leftTop.y + height }), // bottom-right
+    };
   }
 
   getImageDataUrl(): string | null {

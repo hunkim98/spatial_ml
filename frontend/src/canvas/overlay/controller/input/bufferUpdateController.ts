@@ -1,13 +1,23 @@
 import { CanvasEventListeners } from "../../events";
 import { CanvasModel } from "../../model";
+import {
+  getInitialOffsetForImage,
+  preprocessImageForCanvas,
+} from "../../utils/image";
 import { CanvasView } from "../../view";
 import { BaseController } from "../base";
 
-type Models = Pick<CanvasModel, "imageBufferModel" | "editorStateModel">;
+type Models = Pick<
+  CanvasModel,
+  | "imageBufferModel"
+  | "editorStateModel"
+  | "imageLayerModel"
+  | "navigationModel"
+>;
 type Views = Pick<CanvasView, "imageLayerView" | "frameLayerView">;
 
 type ExecuteParams = {
-  buffer: HTMLCanvasElement;
+  buffer: HTMLCanvasElement | null;
 };
 
 export class BufferUpdateController extends BaseController<
@@ -26,15 +36,66 @@ export class BufferUpdateController extends BaseController<
   execute(params: ExecuteParams): void {
     const { buffer } = params;
 
-    this.models.imageBufferModel.buffer = buffer;
-    this.models.imageBufferModel.width = buffer.width;
-    this.models.imageBufferModel.height = buffer.height;
-    this.models.editorStateModel.isLoaded = true;
+    if (!buffer) {
+      this.models.imageBufferModel.reset();
+      this.models.navigationModel.reset();
+      this.models.editorStateModel.isLoaded = false;
+      this.views.imageLayerView.clear();
+      return;
+    }
 
-    // Re-render with new content
+    // Mark as loaded, default opacity to 0 (hidden until explicitly shown)
+    this.models.editorStateModel.isLoaded = true;
+    this.models.imageBufferModel.opacity = 0;
+    this.models.imageLayerModel.element.style.opacity = "0";
+    const canvasWidth = this.models.imageLayerModel.width;
+    const canvasHeight = this.models.imageLayerModel.height;
+
+    const { resizedImageWidth, resizedImageHeight, resizeRatio } =
+      preprocessImageForCanvas(
+        canvasWidth / 2,
+        canvasHeight / 2,
+        buffer.width,
+        buffer.height
+      );
+    const { x, y } = getInitialOffsetForImage(
+      resizedImageWidth,
+      resizedImageHeight,
+      canvasWidth,
+      canvasHeight,
+      1
+    );
+    console.log("buffer update controller", {
+      canvasWidth,
+      canvasHeight,
+      bufferWidth: buffer.width,
+      bufferHeight: buffer.height,
+      resizedImageWidth,
+      resizedImageHeight,
+      resizeRatio,
+      offsetX: x,
+      offsetY: y,
+      navScaleBefore: this.models.navigationModel.scale,
+      navOffsetBefore: this.models.navigationModel.offset,
+    });
+    this.models.imageBufferModel.update({
+      buffer: buffer,
+      width: buffer.width,
+      height: buffer.height,
+      leftTop: { x: 0, y: 0 },
+    });
+    this.models.navigationModel.update({
+      scale: resizeRatio,
+      offset: { x: x, y: y },
+    });
+
+    console.log("buffer update controller AFTER", {
+      navScale: this.models.navigationModel.scale,
+      navOffset: this.models.navigationModel.offset,
+    });
+
+    // Trigger render
     this.views.imageLayerView.clear();
     this.views.imageLayerView.render();
-    this.views.frameLayerView.clear();
-    this.views.frameLayerView.render();
   }
 }

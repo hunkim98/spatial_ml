@@ -1,5 +1,4 @@
 import { ModeController } from "./modeController";
-import { ImageUploadController } from "./imageUploadController";
 import { MouseInteractionController } from "./mouseInteractionController";
 import { DragInteractionController } from "./dragInteractionController";
 import { ToolManagerController } from "./tools/toolManagerController";
@@ -10,10 +9,12 @@ import { ImageRotateToolController } from "./tools/imageRotateToolController";
 import { PdfUpdateController } from "./input/pdfUpdateController";
 import { ImageUpdateController } from "./input/imageUpdateController";
 import { BufferUpdateController } from "./input/bufferUpdateController";
+import { CanvasSizeScaleController } from "./settings/canvasSizeScaleController";
+import { ImagePropertyController } from "./imagePropertyController";
 
 export type CanvasController = {
   modeController: ModeController;
-  imageUploadController: ImageUploadController;
+  imageUpdateController: ImageUpdateController;
   mouseInteractionController: MouseInteractionController;
   dragInteractionController: DragInteractionController;
   toolManagerController: ToolManagerController;
@@ -22,6 +23,7 @@ export type CanvasController = {
   imageResizeToolController: ImageResizeToolController;
   imageRotateToolController: ImageRotateToolController;
   pdfUpdateController: PdfUpdateController;
-  imageUpdateController: ImageUpdateController;
   bufferUpdateController: BufferUpdateController;
+  canvasSizeScaleController: CanvasSizeScaleController;
+  imagePropertyController: ImagePropertyController;
 };

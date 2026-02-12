@@ -4,13 +4,10 @@ import { IModel } from "./base";
 export type NavigationModelType = {
   scale: number;
   offset: Point;
-  maxScale: number;
-  minScale: number;
 };
 
 /**
  * NavigationModel - stores canvas pan/zoom state
- * Similar to clipper's NavigationModel
  */
 export class NavigationModel
   extends IModel<NavigationModelType>
@@ -18,15 +15,11 @@ export class NavigationModel
 {
   private _scale: number;
   private _offset: Point;
-  private _maxScale: number;
-  private _minScale: number;
 
   constructor(props: NavigationModelType) {
     super();
     this._scale = props.scale;
     this._offset = props.offset;
-    this._maxScale = props.maxScale;
-    this._minScale = props.minScale;
   }
 
   get scale(): number {
@@ -37,24 +30,7 @@ export class NavigationModel
     return this._offset;
   }
 
-  get maxScale(): number {
-    return this._maxScale;
-  }
-
-  get minScale(): number {
-    return this._minScale;
-  }
-
   set scale(f: number) {
-    // Clamp scale value
-    if (f > this.maxScale) {
-      this._scale = this.maxScale;
-      return;
-    }
-    if (f < this.minScale) {
-      this._scale = this.minScale;
-      return;
-    }
     this._scale = f;
   }
 
@@ -62,18 +38,8 @@ export class NavigationModel
     this._offset = offset;
   }
 
-  set maxScale(maxScale: number) {
-    this._maxScale = maxScale;
-  }
-
-  set minScale(minScale: number) {
-    this._minScale = minScale;
-  }
-
   reset() {
     this._scale = 1;
     this._offset = { x: 0, y: 0 };
-    this._maxScale = 10;
-    this._minScale = 0.1;
   }
 }
