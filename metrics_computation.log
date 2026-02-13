@@ -1,0 +1,132 @@
+Loading test data...
+  Extractor: 17806 train, 5269 test
+  Validator: 4606 train, 941 test
+
+============================================================
+COMPUTING EXTRACTOR METRICS
+============================================================
+Loading extractor model from /Users/devraj/Documents/Development/spatial_ml/model/zoning_codes_extract/artifacts/models/extractor...
+Running inference on 5269 examples...
+  Processed 100/5269
+  Processed 200/5269
+  Processed 300/5269
+  Processed 400/5269
+  Processed 500/5269
+  Processed 600/5269
+  Processed 700/5269
+  Processed 800/5269
+  Processed 900/5269
+  Processed 1000/5269
+  Processed 1100/5269
+  Processed 1200/5269
+  Processed 1300/5269
+  Processed 1400/5269
+  Processed 1500/5269
+  Processed 1600/5269
+  Processed 1700/5269
+  Processed 1800/5269
+  Processed 1900/5269
+  Processed 2000/5269
+  Processed 2100/5269
+  Processed 2200/5269
+  Processed 2300/5269
+  Processed 2400/5269
+  Processed 2500/5269
+  Processed 2600/5269
+  Processed 2700/5269
+  Processed 2800/5269
+  Processed 2900/5269
+  Processed 3000/5269
+  Processed 3100/5269
+  Processed 3200/5269
+  Processed 3300/5269
+  Processed 3400/5269
+  Processed 3500/5269
+  Processed 3600/5269
+  Processed 3700/5269
+  Processed 3800/5269
+  Processed 3900/5269
+  Processed 4000/5269
+  Processed 4100/5269
+  Processed 4200/5269
+  Processed 4300/5269
+  Processed 4400/5269
+  Processed 4500/5269
+  Processed 4600/5269
+  Processed 4700/5269
+  Processed 4800/5269
+  Processed 4900/5269
+  Processed 5000/5269
+  Processed 5100/5269
+  Processed 5200/5269
+
+============================================================
+COMPUTING VALIDATOR METRICS
+============================================================
+Loading validator model from /Users/devraj/Documents/Development/spatial_ml/model/zoning_codes_extract/artifacts/models/validator...
+Running inference on 941 examples...
+  Processed 50/941
+  Processed 100/941
+  Processed 150/941
+  Processed 200/941
+  Processed 250/941
+  Processed 300/941
+  Processed 350/941
+  Processed 400/941
+  Processed 450/941
+  Processed 500/941
+  Processed 550/941
+  Processed 600/941
+  Processed 650/941
+  Processed 700/941
+  Processed 750/941
+  Processed 800/941
+  Processed 850/941
+  Processed 900/941
+
+============================================================
+COMPUTING CITY COMPARISON
+============================================================
+Loading models for city comparison...
+Processing 27 cities...
+  Processing montgomery, al...
+  Processing scottsboro, al...
+  Processing gadsden, al...
+  Processing weaver, al...
+  Processing brewton, al...
+  Processing sylacauga, al...
+  Processing dothan, al...
+  Processing selma, al...
+  Processing oxford, al...
+  Processing greenville, al...
+  Processing brockton, ma...
+  Processing kingsburg, ca...
+  Processing portola, ca...
+  Processing soledad, ca...
+  Processing rocklin, ca...
+  Processing woodside, ca...
+  Processing farmersville, ca...
+  Processing carpinteria, ca...
+  Processing richmond, ca...
+  Processing belmont, ca...
+  Processing sanger, ca...
+  Processing windsor, ca...
+  Processing blythe, ca...
+  Processing merced, ca...
+  Processing montebello, ca...
+  Processing ceres, ca...
+  Processing banning, ca...
+
+Saving metrics to /Users/devraj/Documents/Development/spatial_ml/model/zoning_codes_extract/artifacts/models/cached_metrics.json...
+Saving extractor examples to /Users/devraj/Documents/Development/spatial_ml/model/zoning_codes_extract/artifacts/models/cached_extractor_examples.json...
+Saving validator examples to /Users/devraj/Documents/Development/spatial_ml/model/zoning_codes_extract/artifacts/models/cached_validator_examples.json...
+Saving city comparison to /Users/devraj/Documents/Development/spatial_ml/model/zoning_codes_extract/artifacts/models/cached_city_comparison.json...
+
+============================================================
+METRICS COMPUTATION COMPLETE
+============================================================
+
+Extractor: P=0.81, R=0.77, F1=0.79
+Validator: A=0.97, P=0.95, R=0.97, F1=0.96
+
+Cached files saved to: /Users/devraj/Documents/Development/spatial_ml/model/zoning_codes_extract/artifacts/models

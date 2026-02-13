@@ -26,9 +26,15 @@ Usage:
     )
 """
 
-from .city_matcher import CityMatcher, CityMatch
-from .ordinance_parser import OrdinanceParser, OrdinanceDocument, Section
-from .text_aligner import (
+from .src import (
+    # City matching
+    CityMatcher,
+    CityMatch,
+    # Ordinance parsing
+    OrdinanceParser,
+    OrdinanceDocument,
+    Section,
+    # Text alignment
     TextAligner,
     AlignedDistrict,
     ZoningDistrict,
@@ -36,22 +42,30 @@ from .text_aligner import (
     align_city,
     find_all_zone_codes_in_text,
     normalize_zone_code,
+    # Stage 1: Extraction
+    ZoneExtractor,
+    ExtractedSpan,
+    # Stage 2: Validation
+    ZoneValidator,
+    CandidateZone,
+    ValidationResult,
+    # Stage 3: Categorization
+    ZoneCategorizer,
+    CategorizedZone,
+    ZoneCategory,
+    # Pipeline
+    ZoningCodePipeline,
+    ExtractedZoneCode,
 )
-from .extractor import ZoneExtractor, ExtractedSpan
-from .validator import ZoneValidator, CandidateZone, ValidationResult
-from .categorizer import ZoneCategorizer, CategorizedZone, ZoneCategory
-from .pipeline import ZoningCodePipeline, ExtractedZoneCode
 
 __all__ = [
     # City matching
     "CityMatcher",
     "CityMatch",
-
     # Ordinance parsing
     "OrdinanceParser",
     "OrdinanceDocument",
     "Section",
-
     # Text alignment
     "TextAligner",
     "AlignedDistrict",
@@ -60,21 +74,17 @@ __all__ = [
     "align_city",
     "find_all_zone_codes_in_text",
     "normalize_zone_code",
-
     # Stage 1: Extraction
     "ZoneExtractor",
     "ExtractedSpan",
-
     # Stage 2: Validation
     "ZoneValidator",
     "CandidateZone",
     "ValidationResult",
-
     # Stage 3: Categorization
     "ZoneCategorizer",
     "CategorizedZone",
     "ZoneCategory",
-
     # Pipeline
     "ZoningCodePipeline",
     "ExtractedZoneCode",

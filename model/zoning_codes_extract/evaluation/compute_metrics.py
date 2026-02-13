@@ -25,8 +25,9 @@ from transformers import (
 
 # Paths
 SCRIPT_DIR = Path(__file__).parent.resolve()
-DATA_DIR = SCRIPT_DIR / "training" / "data_full"  # Use full dataset
-TRAINED_MODELS_DIR = SCRIPT_DIR / "trained_models"
+PROJECT_DIR = SCRIPT_DIR.parent
+DATA_DIR = PROJECT_DIR / "artifacts" / "data" / "full"  # Use full dataset
+TRAINED_MODELS_DIR = PROJECT_DIR / "artifacts" / "models"
 
 # Label mappings
 EXTRACTOR_LABELS = ['O', 'B-ZONE', 'I-ZONE']

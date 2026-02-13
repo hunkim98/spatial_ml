@@ -23,8 +23,8 @@ app = Flask(__name__)
 # Paths
 BASE_DIR = Path(__file__).parent.parent
 MODEL_DIR = BASE_DIR / "model" / "zoning_codes_extract"
-TRAINED_MODELS_DIR = MODEL_DIR / "trained_models"
-DATA_DIR = MODEL_DIR / "training" / "data_full"
+TRAINED_MODELS_DIR = MODEL_DIR / "artifacts" / "models"
+DATA_DIR = MODEL_DIR / "artifacts" / "data" / "full"  # Use 'full' dataset
 
 # Cached metrics files
 CACHED_METRICS_FILE = TRAINED_MODELS_DIR / "cached_metrics.json"

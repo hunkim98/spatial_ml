@@ -5,13 +5,18 @@ This script:
 1. Loads zoneomics CSVs (ground truth zone codes)
 2. Parses municode ordinances
 3. Uses TextAligner to find zone codes in text
-4. Creates BIO tags for each token
+4. Creates BIO tags for each token using CSV-based detection
 5. Splits by city into train/val/test
 6. Exports in HuggingFace datasets format
+
+IMPORTANT: Uses CSV zone codes to tag patterns in context windows.
+Only zone codes from the zoneomics CSV are tagged, ensuring we only label
+confirmed zone codes for each city.
 """
 
 import json
 import random
+import re
 from pathlib import Path
 from dataclasses import dataclass, asdict
 from typing import List, Dict, Tuple, Optional, Set
@@ -32,6 +37,168 @@ from zoning_codes_extract import (
 )
 
 from city_splits import get_or_create_splits, get_city_key
+
+
+# Common English words that should NOT be matched as zone code prefixes
+# These are words that might appear before numbers but aren't zone codes
+EXCLUDED_WORDS = frozenset([
+    'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'had',
+    'her', 'was', 'one', 'our', 'out', 'has', 'his', 'how', 'its', 'may',
+    'new', 'now', 'old', 'see', 'way', 'who', 'did', 'get', 'let', 'put',
+    'say', 'she', 'too', 'use', 'per', 'any', 'each', 'from', 'have', 'been',
+    'call', 'come', 'could', 'than', 'them', 'then', 'into', 'only', 'over',
+    'such', 'take', 'than', 'that', 'their', 'them', 'this', 'will', 'with',
+    'about', 'after', 'being', 'could', 'every', 'first', 'found', 'great',
+    'under', 'where', 'which', 'while', 'would', 'these', 'there', 'other',
+    # Common words that appear before numbers in text
+    'page', 'pages', 'section', 'chapter', 'part', 'item', 'number', 'no',
+    'table', 'figure', 'fig', 'exhibit', 'appendix', 'article', 'title',
+    'year', 'years', 'day', 'days', 'week', 'weeks', 'month', 'months',
+    'to', 'of', 'in', 'on', 'at', 'by', 'up', 'or', 'as', 'if', 'so',
+    'an', 'be', 'we', 'us', 'it', 'is', 'am', 'no', 'do', 'go', 'he', 'me',
+])
+
+# Regex pattern to detect zone-code-like patterns in text
+# This ensures consistent tagging across all cities
+#
+# Pattern requirements:
+# - 1-4 letters followed by 1-4 digits
+# - Optional separator: hyphen, slash, or space (but space only if 2+ letters)
+# - Optional decimal suffix (e.g., RM-2.5)
+# - Optional letter suffix (e.g., R-1A)
+#
+# To avoid false positives like "a 150" or "the 200":
+# - Single letter + space + number is NOT matched
+# - Single letter requires hyphen/slash/nothing as separator
+# - Common English words are filtered out after matching
+ZONE_CODE_PATTERN = re.compile(
+    r'\b'
+    r'(?:'
+    # Option 1: Single letter + hyphen/slash (NO space) + digits
+    r'([A-Z])[-/](\d{1,4})'
+    r'|'
+    # Option 2: Single letter + digits (no separator)
+    r'([A-Z])(\d{1,4})'
+    r'|'
+    # Option 3: 2-4 letters + optional separator (hyphen/slash/space) + digits
+    r'([A-Z]{2,4})[-/\s]?(\d{1,4})'
+    r')'
+    r'(\.\d+)?'               # optional decimal (RM2.5)
+    r'([A-Z]{1,2})?'          # optional suffix (R-1A)
+    r'\b',
+    re.IGNORECASE
+)
+
+
+def find_zone_code_spans(text: str) -> List[Tuple[int, int]]:
+    """
+    Find all zone-code-like patterns in text, excluding common English words.
+
+    NOTE: This function is kept for reference but is no longer used in the
+    main data preparation pipeline. We now use find_csv_zone_code_spans()
+    which only tags confirmed zone codes from the CSV.
+
+    Returns:
+        List of (start, end) tuples for each zone code span
+    """
+    spans = []
+    for match in ZONE_CODE_PATTERN.finditer(text):
+        # Extract the letter prefix from the match
+        # The prefix is in one of the capture groups (1, 3, or 5)
+        matched_text = match.group(0)
+
+        # Extract the letter prefix (before any digits)
+        prefix_match = re.match(r'^([A-Za-z]+)', matched_text)
+        if prefix_match:
+            prefix = prefix_match.group(1).lower()
+            # Skip if the prefix is a common English word
+            if prefix in EXCLUDED_WORDS:
+                continue
+
+        spans.append((match.start(), match.end()))
+
+    return spans
+
+
+def _create_zone_code_pattern(zone_code: str) -> str:
+    """
+    Create regex pattern for a zone code that handles variations.
+
+    E.g., "R-1" -> pattern matching "R-1", "R 1", "R1"
+
+    Reuses logic from TextAligner._find_by_code() in text_aligner.py
+
+    Args:
+        zone_code: Normalized zone code (e.g., "R-1")
+
+    Returns:
+        Regex pattern string with word boundaries
+    """
+    # Split on separators
+    parts = re.split(r'([\-\s])', zone_code)
+    pattern_parts = []
+
+    for part in parts:
+        if part in ['-', ' ', '']:
+            pattern_parts.append(r'[\s\-]?')
+        else:
+            pattern_parts.append(re.escape(part))
+
+    pattern = ''.join(pattern_parts)
+    pattern = r'\b' + pattern + r'\b'
+
+    return pattern
+
+
+def find_csv_zone_code_spans(
+    text: str,
+    csv_zone_codes: List[str]
+) -> List[Tuple[int, int]]:
+    """
+    Find all occurrences of CSV zone codes in text.
+
+    Handles variations:
+    - "R-1" in CSV matches "R-1", "R 1", "R1" in text
+    - Case insensitive
+    - Word boundaries prevent partial matches
+
+    Args:
+        text: Text to search in
+        csv_zone_codes: List of normalized zone codes from CSV
+
+    Returns:
+        Sorted list of (start, end) tuples
+    """
+    all_spans = []
+
+    for zone_code in csv_zone_codes:
+        # Generate flexible pattern (reuse TextAligner pattern logic)
+        pattern = _create_zone_code_pattern(zone_code)
+
+        # Find all matches
+        for match in re.finditer(pattern, text, re.IGNORECASE):
+            all_spans.append((match.start(), match.end()))
+
+    # Sort and merge overlapping spans
+    if not all_spans:
+        return []
+
+    all_spans = sorted(all_spans, key=lambda x: x[0])
+
+    # Use existing _merge_spans logic (will be available via self in class methods)
+    # For now, inline merge logic
+    merged_spans = []
+    if all_spans:
+        merged_spans = [all_spans[0]]
+        for start, end in all_spans[1:]:
+            last_start, last_end = merged_spans[-1]
+            if start <= last_end:
+                # Overlapping, merge
+                merged_spans[-1] = (last_start, max(last_end, end))
+            else:
+                merged_spans.append((start, end))
+
+    return merged_spans
 
 
 @dataclass
@@ -304,10 +471,12 @@ class TrainingDataPreparator:
         Create BIO-tagged examples for a specific zone code.
 
         Finds all mentions of the zone code in text and creates training
-        examples with context around each mention. Tags ALL zone codes
-        from all_zone_codes that appear in the context window.
+        examples with context around each mention. Uses CSV codes to tag ONLY
+        confirmed zone codes from the zoneomics CSV, not all zone-code-like patterns.
+
+        This ensures zero false positives: only zone codes present in the CSV
+        for this city are tagged as zone codes.
         """
-        import re
         examples = []
 
         # Normalize zone code for matching
@@ -327,31 +496,18 @@ class TrainingDataPreparator:
             context_start = max(0, start_char - self.context_window)
             context_end = min(len(full_text), end_char + self.context_window)
             context_text = full_text[context_start:context_end]
-            
+
             # Skip if we've already processed this context (avoid duplicates)
             context_key = (context_start, context_end)
             if context_key in seen_contexts:
                 continue
             seen_contexts.add(context_key)
 
-            # Find ALL zone code occurrences in this context window
-            zone_spans = []  # List of (start, end) tuples for all zone codes
+            # Find ONLY zone codes from the CSV in this context
+            # Handles variations like "R-1", "R 1", "R1"
+            zone_spans = find_csv_zone_code_spans(context_text, all_zone_codes)
 
-            for zc in all_zone_codes:
-                # Skip zone codes that are too short (already filtered in prepare_city,
-                # but double-check here for safety)
-                if len(zc) < 2:
-                    continue
-
-                zc_pattern = re.escape(zc)
-                zc_pattern = zc_pattern.replace(r'\-', r'[-\s]?')
-                zc_pattern = r'\b' + zc_pattern + r'\b'  # Word boundaries
-
-                for zc_match in re.finditer(zc_pattern, context_text, re.IGNORECASE):
-                    zone_spans.append((zc_match.start(), zc_match.end()))
-            
-            # Merge overlapping spans
-            zone_spans = self._merge_spans(zone_spans)
+            # Spans are already merged in find_csv_zone_code_spans
 
             # Tokenize context
             encoding = self.tokenizer(

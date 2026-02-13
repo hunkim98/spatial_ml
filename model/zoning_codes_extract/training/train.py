@@ -67,15 +67,16 @@ WANDB_PROJECT = "zoning-code-extraction"
 
 # Get the script's directory for relative paths
 SCRIPT_DIR = Path(__file__).parent.resolve()
-DATA_DIR = SCRIPT_DIR / "training" / "data_full"
-OUTPUT_DIR = SCRIPT_DIR / "trained_models"
+PROJECT_DIR = SCRIPT_DIR.parent
+DATA_DIR = PROJECT_DIR / "artifacts" / "data" / "full"
+OUTPUT_DIR = PROJECT_DIR / "artifacts" / "models"
 MODEL_NAME = "bert-base-uncased"
 SEED = 42
 
 # Training hyperparameters
 NUM_EPOCHS = 3
-BATCH_SIZE = 4  # Smaller batch to reduce per-step memory
-GRADIENT_ACCUMULATION_STEPS = 4  # Effective batch size = 4 * 4 = 16
+BATCH_SIZE = 2  # Smaller batch to reduce per-step memory for MPS
+GRADIENT_ACCUMULATION_STEPS = 8  # Effective batch size = 2 * 8 = 16
 LEARNING_RATE = 3e-5
 WARMUP_STEPS = 50
 
@@ -89,17 +90,36 @@ random.seed(SEED)
 # Extractor Training
 # ============================================================================
 
+def load_examples_from_jsonl(file_path: Path, tokenizer, label_to_id: Dict[str, int]) -> List[Dict]:
+    """Load examples from a JSONL file."""
+    examples = []
+    with open(file_path) as f:
+        for line in f:
+            ex = json.loads(line)
+            # Convert tokens back to input_ids
+            input_ids = tokenizer.convert_tokens_to_ids(ex['tokens'])
+            labels = [label_to_id[tag] for tag in ex['tags']]
+            examples.append({
+                'input_ids': input_ids,
+                'labels': labels,
+                'city': ex.get('city', ''),
+                'state': ex.get('state', ''),
+                'tokens': ex['tokens']  # Keep for analysis
+            })
+    return examples
+
+
 def train_extractor():
     """Train the zone code extractor (token classification) model."""
     print("\n" + "="*60)
     print("TRAINING EXTRACTOR MODEL (Token Classification)")
     print("="*60)
-    
+
     # Label mapping
     LABEL_LIST = ['O', 'B-ZONE', 'I-ZONE']
     LABEL_TO_ID = {label: i for i, label in enumerate(LABEL_LIST)}
     ID_TO_LABEL = {i: label for label, i in LABEL_TO_ID.items()}
-    
+
     # Load tokenizer and model
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     model = AutoModelForTokenClassification.from_pretrained(
@@ -108,30 +128,32 @@ def train_extractor():
         id2label=ID_TO_LABEL,
         label2id=LABEL_TO_ID
     )
-    
+
     # Load data
     datasets = {}
     for split in ['train', 'test']:
         file_path = DATA_DIR / f"{split}.jsonl"
         if not file_path.exists():
             continue
-        
-        examples = []
-        with open(file_path) as f:
-            for line in f:
-                ex = json.loads(line)
-                # Convert tokens back to input_ids
-                input_ids = tokenizer.convert_tokens_to_ids(ex['tokens'])
-                labels = [LABEL_TO_ID[tag] for tag in ex['tags']]
-                examples.append({
-                    'input_ids': input_ids,
-                    'labels': labels,
-                    'city': ex.get('city', ''),
-                    'state': ex.get('state', ''),
-                    'tokens': ex['tokens']  # Keep for analysis
-                })
-        
+
+        examples = load_examples_from_jsonl(file_path, tokenizer, LABEL_TO_ID)
         datasets[split] = Dataset.from_list(examples)
+
+    # Load negative examples and add to training data
+    negative_file = DATA_DIR / "negative.jsonl"
+    if negative_file.exists():
+        print(f"\nLoading negative examples from {negative_file}...")
+        negative_examples = load_examples_from_jsonl(negative_file, tokenizer, LABEL_TO_ID)
+        print(f"  Loaded {len(negative_examples)} negative examples")
+
+        # Merge with training data
+        train_examples = list(datasets['train'])
+        train_examples.extend(negative_examples)
+        random.shuffle(train_examples)
+        datasets['train'] = Dataset.from_list(train_examples)
+        print(f"  Training set now has {len(datasets['train'])} examples")
+    else:
+        print(f"\nNo negative examples found at {negative_file}")
     
     # Use a portion of train as val
     train_ds = datasets['train']
