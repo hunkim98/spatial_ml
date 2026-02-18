@@ -32,5 +32,8 @@ export class ImagePropertyController extends BaseController<
         ? "1"
         : "0";
     }
+    // Re-render so the updated opacity takes effect on the canvas content
+    this.views.imageLayerView.clear();
+    this.views.imageLayerView.render();
   }
 }

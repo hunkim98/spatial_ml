@@ -31,28 +31,30 @@ export default function StudioPage() {
   const [selectedPdf, setSelectedPdf] = useState<PdfFile | null>(null);
   const [pageNumber, setPageNumber] = useState(1); // we will default to page 1
   const [saving, setSaving] = useState(false);
-  const [imageGeoCorners, setImageGeoCorners] = useState<GeoCorners | null>(null);
+  const [imageGeoCorners, setImageGeoCorners] = useState<GeoCorners | null>(
+    null
+  );
   const [clippedImageBuffer, setClippedImageBuffer] =
     useState<HTMLCanvasElement | null>(null);
 
   // ========== Effects ==========
   // TEMPORARY: Use test image for overlay editor testing
-  useEffect(() => {
-    if (!selectedPdf) {
-      // Create a mock PDF entry for the test image
-      setSelectedPdf({
-        hash: "test-anniston",
-        path: "test/anniston-test.png",
-        name: "anniston-test.png",
-        state: "Alabama",
-        city: "Anniston",
-      });
-    }
-  }, [selectedPdf]);
+  // useEffect(() => {
+  //   if (!selectedPdf) {
+  //     // Create a mock PDF entry for the test image
+  //     setSelectedPdf({
+  //       hash: "test-anniston",
+  //       path: "2024-Zoning-Map.pdf",
+  //       name: "2024-Zoning-Map.pdf",
+  //       state: "Alabama",
+  //       city: "Anniston",
+  //     });
+  //   }
+  // }, [selectedPdf]);
 
   // ========== Derived Values ==========
-  // TEMPORARY: Use direct image URL for testing
-  const pdfUrl = selectedPdf ? "/anniston-test.png" : null;
+  // const pdfUrl = selectedPdf ? `/${selectedPdf.path}` : null; // TEMP: mock from public/
+  const pdfUrl = selectedPdf ? `/api/pdf/${selectedPdf.path}` : null;
   const isLoadingResources = isFetchingAllPDFs || isFetchingAllLabels;
 
   // ========== Callbacks ==========
@@ -109,6 +111,8 @@ export default function StudioPage() {
     <Layout
       sidebar={
         <EditorSidebar
+          pdfs={pdfs}
+          onPdfSelect={handlePdfSelect}
           clippedImageBuffer={clippedImageBuffer}
           setClippedImageBuffer={setClippedImageBuffer}
           isLoadingResources={isLoadingResources}
@@ -121,7 +125,14 @@ export default function StudioPage() {
         />
       }
     >
-      <Box style={{ width: "100%", height: "100%", backgroundColor: "red" }}>
+      <Box
+        style={{
+          width: "100%",
+          height: "100%",
+          backgroundColor: "#f0f0f0",
+          //  backgroundColor: "red"
+        }}
+      >
         <EditorComponent
           clippedImageBuffer={clippedImageBuffer}
           setClippedImageBuffer={setClippedImageBuffer}

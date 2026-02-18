@@ -7,6 +7,7 @@ import { ToolManagerModel } from "./tools/toolManagerModel";
 import { ImageTransformToolModel } from "./tools/imageTransformToolModel";
 import { ImageLayerModel } from "./layers/imageLayerModel";
 import { FrameLayerModel } from "./layers/frameLayerModel";
+import { KeyboardInteractionModel } from "./keyboardInteractionModel";
 import { TransformSessionModel } from "./transformSessionModel";
 
 export type CanvasModel = {
@@ -19,5 +20,6 @@ export type CanvasModel = {
   dragInteractionModel: DragInteractionModel;
   toolManagerModel: ToolManagerModel;
   imageTransformToolModel: ImageTransformToolModel;
+  keyboardInteractionModel: KeyboardInteractionModel;
   transformSessionModel: TransformSessionModel;
 };

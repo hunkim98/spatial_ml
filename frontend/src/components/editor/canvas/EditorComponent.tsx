@@ -40,23 +40,27 @@ export default function EditorComponent({
   onImageGeoCornersChange,
 }: EditorComponentProps) {
   // TEMPORARY: Load test image directly for overlay editor testing
-  useEffect(() => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.drawImage(img, 0, 0);
-        setClippedImageBuffer(canvas);
-      }
-    };
-    img.src = "/anniston-test.png";
-  }, []);
+  // useEffect(() => {
+  //   const img = new Image();
+  //   img.onload = () => {
+  //     const canvas = document.createElement("canvas");
+  //     canvas.width = img.naturalWidth;
+  //     canvas.height = img.naturalHeight;
+  //     const ctx = canvas.getContext("2d");
+  //     if (ctx) {
+  //       ctx.drawImage(img, 0, 0);
+  //       setClippedImageBuffer(canvas);
+  //     }
+  //   };
+  //   img.src = "/anniston-test.png";
+  // }, []);
 
   if (isLoadingResources) {
-    return <Loader size="xl" />;
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <Loader size="xl" />
+      </div>
+    );
   }
 
   if (!pdfUrl) {

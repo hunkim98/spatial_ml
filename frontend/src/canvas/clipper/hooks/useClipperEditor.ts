@@ -1,4 +1,4 @@
-import { ClipperEditor } from "@/canvas/clipper/editor";
+import { ClipperEditor } from "../editor";
 import { RefObject, useCallback, useEffect, useState } from "react";
 
 export function useClipperEditor(

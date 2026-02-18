@@ -146,20 +146,24 @@ export const OverlayEditorComponent = forwardRef<
     setCanvasInteractive(false);
   }, [editor, mapRef, onImageGeoCornersChange]);
 
-  // ========== Space key: toggle map panning during transform ==========
+  // ========== Keyboard events: delegate to editor + toggle canvas ==========
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.code !== "Space" || !canvasInteractive) return;
-      e.preventDefault();
-      setCanvasInteractive(false);
+      if (e.code === "Space") {
+        e.preventDefault();
+        setMapCursor(undefined);
+        if (canvasInteractive) {
+          setCanvasInteractive(false);
+        }
+      }
+      editor?.onKeyDown(e);
     };
     const onKeyUp = (e: KeyboardEvent) => {
-      if (e.code !== "Space") return;
-      // Only re-enable canvas if a transform session is active
-      if (editor?.isTransformActive) {
+      if (e.code === "Space" && editor?.isTransformActive) {
         setCanvasInteractive(true);
       }
+      editor?.onKeyUp(e);
     };
 
     window.addEventListener("keydown", onKeyDown);
@@ -205,7 +209,12 @@ export const OverlayEditorComponent = forwardRef<
       }}
       onMouseDownCapture={(e) => {
         // Capture phase: intercept BEFORE the map sees the event
-        if (!canvasInteractive && resolveGeoCursor(e)) {
+        // Skip when space is held so the map can be navigated freely
+        if (
+          !canvasInteractive &&
+          !editor?.isSpaceHeld &&
+          resolveGeoCursor(e)
+        ) {
           e.stopPropagation();
           liftImageToCanvas(e);
           editor?.onMouseDown(
@@ -227,7 +236,7 @@ export const OverlayEditorComponent = forwardRef<
             e as unknown as React.MouseEvent<HTMLCanvasElement>
           );
           editor?.render();
-        } else {
+        } else if (!editor?.isSpaceHeld) {
           setMapCursor(resolveGeoCursor(e));
         }
       }}

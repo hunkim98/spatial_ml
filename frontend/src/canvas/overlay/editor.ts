@@ -15,6 +15,7 @@ import { TransformSessionModel } from "./model/transformSessionModel";
 import { DragInteractionModel } from "./model/dragInteractionModel";
 import { ToolManagerModel, ToolType } from "./model/tools/toolManagerModel";
 import { ImageTransformToolModel } from "./model/tools/imageTransformToolModel";
+import { KeyboardInteractionModel } from "./model/keyboardInteractionModel";
 
 // Views
 import { ImageLayerView } from "./view/imageLayerView";
@@ -38,6 +39,7 @@ import {
   getWorldPointFromEvent,
 } from "./utils/project";
 import { ImagePropertyController } from "./controller/imagePropertyController";
+import { KeyboardInteractionController } from "./controller/keyboardInteractionController";
 import { TransformSessionController } from "./controller/transformSessionController";
 
 export class Editor {
@@ -100,6 +102,7 @@ export class Editor {
       dragInteractionModel: new DragInteractionModel({}),
       toolManagerModel: new ToolManagerModel({}),
       imageTransformToolModel: new ImageTransformToolModel({}),
+      keyboardInteractionModel: new KeyboardInteractionModel(),
       transformSessionModel: new TransformSessionModel(),
     };
   }
@@ -174,6 +177,11 @@ export class Editor {
         this.listeners
       ),
       imagePropertyController: new ImagePropertyController(
+        this.models,
+        this.views,
+        this.listeners
+      ),
+      keyboardInteractionController: new KeyboardInteractionController(
         this.models,
         this.views,
         this.listeners
@@ -282,17 +290,11 @@ export class Editor {
   }
 
   onKeyDown(e: KeyboardEvent): void {
-    if (e.code === "Space") {
-      // null means the grab tool is active
-      this.models.toolManagerModel.activeTool = null;
-    }
+    this.controllers.keyboardInteractionController.execute({ e });
   }
 
   onKeyUp(e: KeyboardEvent): void {
-    if (!this.models.editorStateModel.isLoaded) return;
-    if (e.code === "Space") {
-      this.models.mouseInteractionModel.reset();
-    }
+    this.controllers.keyboardInteractionController.execute({ e });
   }
 
   onWheel(e: WheelEvent): void {
@@ -332,51 +334,6 @@ export class Editor {
     this.views.frameLayerView.render();
   }
 
-  getCursor(e: React.MouseEvent<Element>): string {
-    if (!this.models.editorStateModel.isLoaded) return "default";
-
-    const tool = this.models.toolManagerModel.candidateTool;
-    const handle = this.models.imageTransformToolModel.candidateHandle;
-    const dragStart = this.models.dragInteractionModel.dragStartWorldPosition;
-
-    if (!tool) {
-      if (dragStart) {
-        return "grabbing";
-      }
-      return "grab";
-    }
-    if (tool === ToolType.IMAGE_CREATE) {
-      return "crosshair";
-    }
-    if (tool === ToolType.IMAGE_MOVE) {
-      return "move";
-    }
-    if (tool === ToolType.IMAGE_RESIZE) {
-      if (!handle) return "grab";
-      return this._getCursorForHandle(handle);
-    }
-    if (tool === ToolType.IMAGE_ROTATE) {
-      if (!handle) return "grab";
-      return this._getCursorForHandle(handle);
-    }
-    return "grab";
-  }
-
-  private _getCursorForHandle(handle: HandleType): string {
-    switch (handle) {
-      case HandleType.BODY:
-        return "move";
-      case HandleType.TOP_LEFT:
-      case HandleType.BOTTOM_RIGHT:
-        return "nwse-resize";
-      case HandleType.TOP_RIGHT:
-      case HandleType.BOTTOM_LEFT:
-        return "nesw-resize";
-      default:
-        return "default";
-    }
-  }
-
   addEventListener(
     type: CanvasEvent,
     listener: (args: Partial<CanvasModel>) => void
@@ -405,6 +362,41 @@ export class Editor {
     delete this.listeners[type];
   }
 
+  getCursor(): string {
+    if (!this.models.editorStateModel.isLoaded) return "default";
+
+    const tool = this.models.toolManagerModel.candidateTool;
+    const handle = this.models.imageTransformToolModel.candidateHandle;
+    const dragStart = this.models.dragInteractionModel.dragStartWorldPosition;
+
+    if (!tool) {
+      if (dragStart) return "grabbing";
+      return "grab";
+    }
+    if (tool === ToolType.IMAGE_CREATE) return "crosshair";
+    if (tool === ToolType.IMAGE_MOVE) return "move";
+    if (tool === ToolType.IMAGE_RESIZE || tool === ToolType.IMAGE_ROTATE) {
+      if (!handle) return "grab";
+      return this._getCursorForHandle(handle);
+    }
+    return "grab";
+  }
+
+  private _getCursorForHandle(handle: HandleType): string {
+    switch (handle) {
+      case HandleType.BODY:
+        return "move";
+      case HandleType.TOP_LEFT:
+      case HandleType.BOTTOM_RIGHT:
+        return "nwse-resize";
+      case HandleType.TOP_RIGHT:
+      case HandleType.BOTTOM_LEFT:
+        return "nesw-resize";
+      default:
+        return "default";
+    }
+  }
+
   // Getters for external access
   get isLoaded(): boolean {
     return this.models.editorStateModel.isLoaded;
@@ -412,6 +404,10 @@ export class Editor {
 
   get isInitialized(): boolean {
     return this.models.editorStateModel.isInitialized;
+  }
+
+  get isSpaceHeld(): boolean {
+    return this.models.keyboardInteractionModel.spaceHeld;
   }
 
   get isTransformActive(): boolean {

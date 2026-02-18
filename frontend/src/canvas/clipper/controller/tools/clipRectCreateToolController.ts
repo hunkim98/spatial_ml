@@ -1,7 +1,7 @@
 import { BaseController } from "../base";
 import { ClipperModel } from "../../model";
 import { ClipperView } from "../../view";
-import { ClipperEventListeners } from "../../events";
+import { ClipperEvent, ClipperEventListeners } from "../../events";
 
 type Models = Pick<
   ClipperModel,
@@ -69,5 +69,6 @@ export class ClipRectCreateToolController extends BaseController<
 
   onMouseUpExecute(): void {
     this.models.clipRectToolModel.isCreating = false;
+    this.dispatchEvent(ClipperEvent.CLIP_CHANGED);
   }
 }

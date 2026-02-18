@@ -1,5 +1,5 @@
 import { getPdfPageAsBlob } from "@/lib/pdf";
-import { ClipperEventListeners } from "../events";
+import { ClipperEvent, ClipperEventListeners } from "../events";
 import { ClipperModel } from "../model";
 import { ClipperView } from "../view";
 import { BaseController } from "./base";
@@ -72,6 +72,8 @@ export class PdfUpdateController extends BaseController<
     this.views.pdfLayerView.clear();
     this.views.pdfLayerView.render();
     this.views.maskLayerView.render();
+
+    this.dispatchEvent(ClipperEvent.PDF_LOADED);
   }
   private _loadImage(url: string): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {

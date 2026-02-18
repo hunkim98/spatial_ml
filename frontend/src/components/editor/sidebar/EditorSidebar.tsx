@@ -2,12 +2,15 @@ import { ClipperEditorComponentHandle } from "../canvas/ClipperEditorComponent";
 import { OverlayEditorComponentHandle } from "../canvas/OverlayEditorComponent";
 import { MapEditorComponentHandle } from "../canvas/MapEditorComponent";
 import { GeoCorners } from "@/canvas/overlay/types";
+import { PdfFile } from "@/types/pdf";
 import LoadingSidebar from "./LoadingSidebar";
 import PdfSelectSidebar from "./PdfSelectSidebar";
 import ClipperSidebar from "./ClipperSidebar";
 import OverlaySidebar from "./OverlaySidebar";
 
 interface EditorSidebarProps {
+  pdfs: PdfFile[];
+  onPdfSelect: (hash: string | null) => void;
   isLoadingResources: boolean;
   pdfUrl: string | null;
   clippedImageBuffer: HTMLCanvasElement | null;
@@ -22,6 +25,8 @@ interface EditorSidebarProps {
 }
 
 export default function EditorSidebar({
+  pdfs,
+  onPdfSelect,
   clippedImageBuffer,
   setClippedImageBuffer,
   isLoadingResources,
@@ -37,10 +42,15 @@ export default function EditorSidebar({
   }
 
   if (!pdfUrl) {
-    return <PdfSelectSidebar />;
+    return <PdfSelectSidebar pdfs={pdfs} onPdfSelect={onPdfSelect} />;
   }
   if (!clippedImageBuffer) {
-    return <ClipperSidebar />;
+    return (
+      <ClipperSidebar
+        clipperRef={clipperRef}
+        setClippedImageBuffer={setClippedImageBuffer}
+      />
+    );
   }
   return (
     <OverlaySidebar

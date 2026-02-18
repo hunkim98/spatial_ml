@@ -65,6 +65,8 @@ export class ToolManagerController extends BaseController<
     }
 
     const handle = this.detectHandle();
+    this.models.imageTransformToolModel.candidateHandle =
+      handle === HandleType.NONE ? null : handle;
 
     // Check what handle we're near
     if (handle !== HandleType.NONE) {
@@ -93,6 +95,8 @@ export class ToolManagerController extends BaseController<
   private applyCandidateToActive() {
     this.models.toolManagerModel.activeTool =
       this.models.toolManagerModel.candidateTool;
+    this.models.imageTransformToolModel.activeHandle =
+      this.models.imageTransformToolModel.candidateHandle;
   }
 
   /**

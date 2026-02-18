@@ -11,6 +11,7 @@ import { ImageUpdateController } from "./input/imageUpdateController";
 import { BufferUpdateController } from "./input/bufferUpdateController";
 import { CanvasSizeScaleController } from "./settings/canvasSizeScaleController";
 import { ImagePropertyController } from "./imagePropertyController";
+import { KeyboardInteractionController } from "./keyboardInteractionController";
 import { TransformSessionController } from "./transformSessionController";
 
 export type CanvasController = {
@@ -27,5 +28,6 @@ export type CanvasController = {
   bufferUpdateController: BufferUpdateController;
   canvasSizeScaleController: CanvasSizeScaleController;
   imagePropertyController: ImagePropertyController;
+  keyboardInteractionController: KeyboardInteractionController;
   transformSessionController: TransformSessionController;
 };

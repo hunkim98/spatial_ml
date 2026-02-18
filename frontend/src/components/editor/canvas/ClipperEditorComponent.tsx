@@ -1,13 +1,21 @@
-import { ClipperEditor } from "@/canvas/clipper/editor";
 import { ExportResult } from "@/canvas/clipper/controller/exportController";
-import { GeoCorners } from "@/canvas/overlay/types";
-import { useClipperEditor } from "@/hooks/useClipperEditor";
-import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { ClipperEvent, ClipperEventHandler } from "@/canvas/clipper/events";
+import { useClipperEditor } from "@/canvas/clipper/hooks/useClipperEditor";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+} from "react";
 
 export interface ClipperEditorComponentHandle {
   exportClippedImage: () => ExportResult | null;
-  extractFrame: (corners: GeoCorners) => Promise<string>;
-  exportImage: (image: string) => Promise<string>;
+  addEventListener: (event: ClipperEvent, handler: ClipperEventHandler) => void;
+  removeEventListener: (
+    event: ClipperEvent,
+    handler: ClipperEventHandler
+  ) => void;
 }
 
 interface ClipperEditorComponentProps {
@@ -30,21 +38,52 @@ export const ClipperEditorComponent = forwardRef<
     pdfUrl
   );
 
+  // Buffer listeners added before editor is ready
+  const pendingListeners = useRef<
+    Array<{ event: ClipperEvent; handler: ClipperEventHandler }>
+  >([]);
+
+  // Flush pending listeners synchronously when editor becomes available.
+  // useLayoutEffect runs before any async callbacks (like PDF fetch completing),
+  // so listeners are guaranteed to be attached before events fire.
+  useLayoutEffect(() => {
+    if (!editor) return;
+    for (const { event, handler } of pendingListeners.current) {
+      editor.addEventListener(event, handler);
+    }
+    pendingListeners.current = [];
+  }, [editor]);
+
   // Expose methods via ref
-  useImperativeHandle(ref, () => ({
-    exportClippedImage: () => {
-      if (!editor) return null;
-      return editor.exportClippedImage();
-    },
-    extractFrame: async (corners: GeoCorners) => {
-      // TODO: implement if needed
-      throw new Error("Not implemented");
-    },
-    exportImage: async (image: string) => {
-      // TODO: implement if needed
-      throw new Error("Not implemented");
-    },
-  }));
+  useImperativeHandle(
+    ref,
+    () => ({
+      exportClippedImage: () => {
+        if (!editor) return null;
+        return editor.exportClippedImage();
+      },
+      addEventListener: (event: ClipperEvent, handler: ClipperEventHandler) => {
+        if (editor) {
+          editor.addEventListener(event, handler);
+        } else {
+          pendingListeners.current.push({ event, handler });
+        }
+      },
+      removeEventListener: (
+        event: ClipperEvent,
+        handler: ClipperEventHandler
+      ) => {
+        if (editor) {
+          editor.removeEventListener(event, handler);
+        } else {
+          pendingListeners.current = pendingListeners.current.filter(
+            (l) => !(l.event === event && l.handler === handler)
+          );
+        }
+      },
+    }),
+    [editor]
+  );
 
   useEffect(() => {
     const el = containerRef.current;
