@@ -10,7 +10,7 @@ import Map, {
   MapLayerMouseEvent,
   MapRef,
 } from "react-map-gl/maplibre";
-import { Corner } from "@/types/db";
+import { Corner } from "@/types/labels";
 import { SATELLITE_STYLE } from "@/map/config";
 import { GeoCorners, ScreenCorners } from "@/canvas/overlay/types";
 

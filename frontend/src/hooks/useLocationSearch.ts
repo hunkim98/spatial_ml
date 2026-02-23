@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import axios from "axios";
-import { Corner } from "@/types/db";
+import { Corner } from "@/types/labels";
 
 interface SearchResult {
   displayName: string;

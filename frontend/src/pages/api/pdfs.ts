@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { PdfFile } from "@/types/pdf";
-import { getManifest } from "@/lib/manifest";
+import { getManifest } from "@/server/manifest";
 
 /**
  * PDFs API - reads from DVC manifest fetched from GCS.

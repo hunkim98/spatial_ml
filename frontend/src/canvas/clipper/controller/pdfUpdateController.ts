@@ -1,4 +1,4 @@
-import { getPdfPageAsBlob } from "@/lib/pdf";
+import { getPdfPageAsBlob } from "@/server/pdf";
 import { ClipperEvent, ClipperEventListeners } from "../events";
 import { ClipperModel } from "../model";
 import { ClipperView } from "../view";

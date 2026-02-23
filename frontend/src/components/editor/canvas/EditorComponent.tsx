@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { NoEditorComponent } from "./NoEditorComponent";
 import {
   ClipperEditorComponent,
@@ -11,15 +11,13 @@ import {
 import { Loader } from "@mantine/core";
 import { MapEditorComponentHandle } from "./MapEditorComponent";
 import { GeoCorners } from "@/canvas/overlay/types";
+import { ExportResult } from "@/canvas/clipper/controller/exportController";
 
 interface EditorComponentProps {
   isLoadingResources: boolean;
   pdfUrl: string | null;
   pageNumber: number;
-  clippedImageBuffer: HTMLCanvasElement | null;
-  setClippedImageBuffer: React.Dispatch<
-    React.SetStateAction<HTMLCanvasElement | null>
-  >;
+  clipResult: ExportResult | null;
   clipperRef: React.RefObject<ClipperEditorComponentHandle | null>;
   overlayRef: React.RefObject<OverlayEditorComponentHandle | null>;
   mapRef: React.RefObject<MapEditorComponentHandle | null>;
@@ -31,30 +29,13 @@ export default function EditorComponent({
   isLoadingResources,
   pdfUrl,
   pageNumber,
-  clippedImageBuffer,
-  setClippedImageBuffer,
+  clipResult,
   clipperRef,
   overlayRef,
   mapRef,
   imageGeoCorners,
   onImageGeoCornersChange,
 }: EditorComponentProps) {
-  // TEMPORARY: Load test image directly for overlay editor testing
-  // useEffect(() => {
-  //   const img = new Image();
-  //   img.onload = () => {
-  //     const canvas = document.createElement("canvas");
-  //     canvas.width = img.naturalWidth;
-  //     canvas.height = img.naturalHeight;
-  //     const ctx = canvas.getContext("2d");
-  //     if (ctx) {
-  //       ctx.drawImage(img, 0, 0);
-  //       setClippedImageBuffer(canvas);
-  //     }
-  //   };
-  //   img.src = "/anniston-test.png";
-  // }, []);
-
   if (isLoadingResources) {
     return (
       <div className="w-full h-full flex items-center justify-center">
@@ -68,7 +49,7 @@ export default function EditorComponent({
   }
 
   // Clipping phase
-  if (!clippedImageBuffer) {
+  if (!clipResult) {
     return (
       <ClipperEditorComponent
         ref={clipperRef}
@@ -82,7 +63,7 @@ export default function EditorComponent({
   return (
     <OverlayEditorComponent
       ref={overlayRef}
-      imageBuffer={clippedImageBuffer}
+      imageBuffer={clipResult.buffer}
       mapRef={mapRef}
       imageGeoCorners={imageGeoCorners}
       onImageGeoCornersChange={onImageGeoCornersChange}

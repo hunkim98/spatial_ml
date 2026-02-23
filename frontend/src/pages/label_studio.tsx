@@ -13,7 +13,7 @@ import { MapEditorComponentHandle } from "@/components/editor/canvas/MapEditorCo
 import { Box } from "@mantine/core";
 import { useCallback, useRef, useState } from "react";
 
-export default function StudioPage() {
+export default function LabelStudioPage() {
   // ========== Hooks ==========
   const { pdfs, loading: isFetchingAllPDFs } = usePdfs();
   const {
@@ -123,4 +123,4 @@ export default function StudioPage() {
   );
 }
 
-StudioPage.getLayout = (page: React.ReactElement) => page;
+LabelStudioPage.getLayout = (page: React.ReactElement) => page;

@@ -20,7 +20,7 @@ import {
 } from "@tabler/icons-react";
 import { useDebouncedCallback } from "@mantine/hooks";
 import { PdfFile } from "@/types/pdf";
-import { GeoLabel } from "@/types/db";
+import { GeoLabel } from "@/types/labels";
 import { useLocationSearch } from "@/hooks/useLocationSearch";
 import { GeoCorners } from "@/canvas/overlay/types";
 

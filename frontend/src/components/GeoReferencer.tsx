@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import { Loader } from "@mantine/core";
-import { Corner } from "@/types/db";
+import { Corner } from "@/types/labels";
 import { MapManager } from "@/map";
 import { Editor } from "@/canvas/overlay/editor";
 import { GeoCorners } from "@/canvas/overlay/types";
@@ -182,7 +182,7 @@ export const GeoReferencer = forwardRef<
 
       editor.onMouseMove(e);
 
-      const cursorStyle = editor.getCursor(e);
+      const cursorStyle = editor.getCursor();
       setCursor(cursorStyle);
 
       // Track if mouse is over the overlay (for pointer events)
@@ -375,11 +375,7 @@ export const GeoReferencer = forwardRef<
         handleTransformChanged
       );
     };
-  }, [
-    isEditorReady,
-    handleBoundsCreated,
-    handleTransformChanged,
-  ]);
+  }, [isEditorReady, handleBoundsCreated, handleTransformChanged]);
 
   // Apply initial corners when both map and editor are ready
   useEffect(() => {
@@ -400,8 +396,9 @@ export const GeoReferencer = forwardRef<
     // Initialize editor with pre-set corners
     editor.initializeWithCorners(screenCorners, initialCorners);
 
-    // Show on map
+    // Show on map, then clear the canvas overlay (image is now on MapLibre)
     showImageOnMapLibre();
+    editor.clearCanvas();
   }, [isMapReady, isEditorReady, initialCorners, showImageOnMapLibre]);
 
   // Sync screen corners when map moves (when not interacting)
@@ -570,32 +567,6 @@ export const GeoReferencer = forwardRef<
 
       {/* Opacity slider (only when initialized) */}
       {isInitialized && <OpacitySlider />}
-
-      {/* Instructions for drawing bounds */}
-      {pdfUrl && isEditorReady && !isInitialized && (
-        <div style={instructionStyle}>
-          Click and drag to draw the PDF overlay bounds
-        </div>
-      )}
-
-      {/* Instructions when interacting */}
-      {pdfUrl && isEditorReady && isInitialized && isInteracting && (
-        <div style={instructionStyle}>
-          Drag to move | Drag corners to resize
-        </div>
-      )}
-
-      {/* Instructions when not interacting (hide in readOnly mode) */}
-      {pdfUrl && isInitialized && !isInteracting && !readOnly && (
-        <div style={instructionStyle}>
-          Click on overlay to edit | Scroll to zoom
-        </div>
-      )}
-
-      {/* Preview notice for readOnly demo */}
-      {readOnly && isInitialized && (
-        <div style={previewNoticeStyle}>Preview — Tool in development</div>
-      )}
     </div>
   );
 });

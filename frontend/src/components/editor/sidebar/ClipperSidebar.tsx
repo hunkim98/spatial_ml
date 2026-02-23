@@ -3,17 +3,16 @@ import { IconCrop } from "@tabler/icons-react";
 import { useCallback, useEffect, useState } from "react";
 import { ClipperEditorComponentHandle } from "../canvas/ClipperEditorComponent";
 import { ClipperEvent } from "@/canvas/clipper/events";
+import { ExportResult } from "@/canvas/clipper/controller/exportController";
 
 interface ClipperSidebarProps {
   clipperRef: React.RefObject<ClipperEditorComponentHandle | null>;
-  setClippedImageBuffer: React.Dispatch<
-    React.SetStateAction<HTMLCanvasElement | null>
-  >;
+  setClipResult: React.Dispatch<React.SetStateAction<ExportResult | null>>;
 }
 
 function ClipperSidebar({
   clipperRef,
-  setClippedImageBuffer,
+  setClipResult,
 }: ClipperSidebarProps) {
   const [pdfLoaded, setPdfLoaded] = useState(false);
   const [hasClipRect, setHasClipRect] = useState(false);
@@ -40,7 +39,7 @@ function ClipperSidebar({
   const handleClip = () => {
     const result = clipperRef.current?.exportClippedImage();
     if (result) {
-      setClippedImageBuffer(result.buffer);
+      setClipResult(result);
     }
   };
 

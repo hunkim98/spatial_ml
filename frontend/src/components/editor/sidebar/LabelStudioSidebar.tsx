@@ -1,15 +1,15 @@
+import { PdfFile } from "@/types/pdf";
 import { ClipperEditorComponentHandle } from "../canvas/ClipperEditorComponent";
 import { OverlayEditorComponentHandle } from "../canvas/OverlayEditorComponent";
 import { MapEditorComponentHandle } from "../canvas/MapEditorComponent";
 import { GeoCorners } from "@/canvas/overlay/types";
-import { PdfFile } from "@/types/pdf";
 import { ExportResult } from "@/canvas/clipper/controller/exportController";
 import LoadingSidebar from "./LoadingSidebar";
 import PdfSelectSidebar from "./PdfSelectSidebar";
 import ClipperSidebar from "./ClipperSidebar";
 import OverlaySidebar from "./OverlaySidebar";
 
-interface EditorSidebarProps {
+interface LabelStudioSidebarProps {
   pdfs: PdfFile[];
   onPdfSelect: (hash: string | null) => void;
   isLoadingResources: boolean;
@@ -23,7 +23,7 @@ interface EditorSidebarProps {
   setImageGeoCorners: React.Dispatch<React.SetStateAction<GeoCorners | null>>;
 }
 
-export default function EditorSidebar({
+export default function LabelStudioSidebar({
   pdfs,
   onPdfSelect,
   clipResult,
@@ -35,7 +35,7 @@ export default function EditorSidebar({
   mapRef,
   imageGeoCorners,
   setImageGeoCorners,
-}: EditorSidebarProps) {
+}: LabelStudioSidebarProps) {
   if (isLoadingResources) {
     return <LoadingSidebar />;
   }

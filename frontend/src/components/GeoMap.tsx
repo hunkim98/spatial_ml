@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import Map, { Marker, NavigationControl, MapLayerMouseEvent } from "react-map-gl/maplibre";
-import { Corner } from "@/types/db";
+import { Corner } from "@/types/labels";
 
 interface MarkerData {
   id: string;

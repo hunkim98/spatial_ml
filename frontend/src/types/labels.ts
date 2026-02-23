@@ -18,10 +18,20 @@ export interface GeoLabelCorners {
   bottomLeft: Corner;
 }
 
+export interface ClipRect {
+  offsetX: number;
+  offsetY: number;
+  width: number;
+  height: number;
+}
+
 export interface GeoLabel {
   pdfHash: string;
   pdfPath: string;
   corners: GeoLabelCorners;
+  clipRect: ClipRect;
+  pageNumber: number;
+  clippedImageUrl: string;
   createdAt?: string;
   updatedAt?: string;
 }

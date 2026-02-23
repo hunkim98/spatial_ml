@@ -1,5 +1,5 @@
 import { GeoCorners, HandleType, ScreenCorners } from "@/canvas/overlay/types";
-import { Corner } from "@/types/db";
+import { Corner } from "@/types/labels";
 import {
   forwardRef,
   useCallback,

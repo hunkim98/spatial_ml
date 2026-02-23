@@ -17,13 +17,12 @@ import React, { useEffect, useMemo, useState } from "react";
 import { OverlayEditorComponentHandle } from "../canvas/OverlayEditorComponent";
 import { MapEditorComponentHandle } from "../canvas/MapEditorComponent";
 import { GeoCorners } from "@/canvas/overlay/types";
+import { ExportResult } from "@/canvas/clipper/controller/exportController";
 import { useLocationSearch } from "@/hooks/useLocationSearch";
 
 interface OverlaySidebarProps {
-  clippedImageBuffer: HTMLCanvasElement | null;
-  setClippedImageBuffer: React.Dispatch<
-    React.SetStateAction<HTMLCanvasElement | null>
-  >;
+  clippedImageBuffer: HTMLCanvasElement;
+  setClipResult: React.Dispatch<React.SetStateAction<ExportResult | null>>;
   overlayRef: React.RefObject<OverlayEditorComponentHandle | null>;
   mapRef: React.RefObject<MapEditorComponentHandle | null>;
   imageGeoCorners: GeoCorners | null;
@@ -32,7 +31,7 @@ interface OverlaySidebarProps {
 
 function OverlaySidebar({
   clippedImageBuffer,
-  setClippedImageBuffer,
+  setClipResult,
   overlayRef,
   mapRef,
   imageGeoCorners,
