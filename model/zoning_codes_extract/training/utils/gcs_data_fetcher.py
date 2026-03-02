@@ -112,17 +112,42 @@ class GCSDataFetcher:
         local_dir = self.cache_dir / "zoneomics"
 
         if local_dir.exists() and not force_download:
-            print(f"Using cached zoneomics data: {local_dir}")
-            return local_dir
+            if states:
+                requested_states = [s.lower().replace(' ', '-') for s in states]
+                cached_states = {d.name for d in local_dir.iterdir() if d.is_dir()}
+                missing_states = [s for s in requested_states if s not in cached_states]
+                if not missing_states:
+                    print(f"Using cached zoneomics data: {local_dir}")
+                    return local_dir
+                print(
+                    f"Cache missing {len(missing_states)} requested zoneomics states; "
+                    f"downloading missing: {', '.join(missing_states)}"
+                )
+            else:
+                # Heuristic: if cache has most states, treat as complete.
+                cached_state_count = sum(1 for d in local_dir.iterdir() if d.is_dir())
+                if cached_state_count >= 45:
+                    print(f"Using cached zoneomics data: {local_dir}")
+                    return local_dir
+                print(
+                    f"Zoneomics cache appears incomplete ({cached_state_count} states). "
+                    f"Re-downloading all states."
+                )
 
         if states:
             print(f"Downloading zoneomics for states: {', '.join(states)}")
             print(f"  From: gs://{self.storage.bucket.name}/{gcs_prefix}/")
             local_dir.mkdir(parents=True, exist_ok=True)
 
+            requested_states = [s.lower().replace(' ', '-') for s in states]
+            if local_dir.exists() and not force_download:
+                cached_states = {d.name for d in local_dir.iterdir() if d.is_dir()}
+                states_to_download = [s for s in requested_states if s not in cached_states]
+            else:
+                states_to_download = requested_states
+
             # Download each state directory separately
-            for state in states:
-                state_lower = state.lower().replace(' ', '-')
+            for state_lower in states_to_download:
                 state_prefix = f"{gcs_prefix}/{state_lower}"
                 state_local_dir = local_dir / state_lower
 
@@ -171,8 +196,27 @@ class GCSDataFetcher:
         local_dir = self.cache_dir / "zoning_ordinance_md"
 
         if local_dir.exists() and not force_download:
-            print(f"Using cached municode ordinances: {local_dir}")
-            return local_dir
+            if states:
+                requested_abbrevs = self._normalize_states_to_abbrev(states)
+                cached_abbrevs = {d.name for d in local_dir.iterdir() if d.is_dir()}
+                missing_abbrevs = [s for s in requested_abbrevs if s not in cached_abbrevs]
+                if not missing_abbrevs:
+                    print(f"Using cached municode ordinances: {local_dir}")
+                    return local_dir
+                print(
+                    f"Cache missing {len(missing_abbrevs)} requested municode states; "
+                    f"downloading missing: {', '.join(missing_abbrevs)}"
+                )
+            else:
+                # Heuristic: if cache has most states, treat as complete.
+                cached_state_count = sum(1 for d in local_dir.iterdir() if d.is_dir())
+                if cached_state_count >= 45:
+                    print(f"Using cached municode ordinances: {local_dir}")
+                    return local_dir
+                print(
+                    f"Municode cache appears incomplete ({cached_state_count} states). "
+                    f"Re-downloading all states."
+                )
 
         if states:
             # Convert state names to abbreviations (municode uses abbreviations)
@@ -181,8 +225,14 @@ class GCSDataFetcher:
             print(f"  From: gs://{self.storage.bucket.name}/{gcs_prefix}/")
             local_dir.mkdir(parents=True, exist_ok=True)
 
+            if local_dir.exists() and not force_download:
+                cached_abbrevs = {d.name for d in local_dir.iterdir() if d.is_dir()}
+                states_to_download = [s for s in state_abbrevs if s not in cached_abbrevs]
+            else:
+                states_to_download = state_abbrevs
+
             # Download each state directory separately
-            for state_abbrev in state_abbrevs:
+            for state_abbrev in states_to_download:
                 state_prefix = f"{gcs_prefix}/{state_abbrev}"
                 state_local_dir = local_dir / state_abbrev
 
