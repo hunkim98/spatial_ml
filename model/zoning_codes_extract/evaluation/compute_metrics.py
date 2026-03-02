@@ -28,6 +28,10 @@ from transformers import (
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from zoning_extract.utils import normalize_zone_code, extract_zones_from_bio, normalize_zone_code_for_comparison
 
+# Device detection
+DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+print(f"Using device for inference: {DEVICE}")
+
 # Paths
 SCRIPT_DIR = Path(__file__).parent.resolve()
 PROJECT_DIR = SCRIPT_DIR.parent
@@ -67,13 +71,14 @@ def compute_extractor_metrics(
     print(f"Loading extractor model from {model_path}...")
     tokenizer = AutoTokenizer.from_pretrained(str(model_path))
     model = AutoModelForTokenClassification.from_pretrained(str(model_path))
+    model.to(DEVICE)
     model.eval()
 
     all_true_labels = []
     all_pred_labels = []
     examples_with_predictions = []
 
-    print(f"Running inference on {len(test_data)} examples...")
+    print(f"Running inference on {len(test_data)} examples on {DEVICE}...")
 
     for i, ex in enumerate(test_data):
         if (i + 1) % 100 == 0:
@@ -84,7 +89,7 @@ def compute_extractor_metrics(
 
         # Run prediction
         input_ids = tokenizer.convert_tokens_to_ids(tokens)
-        inputs = torch.tensor([input_ids])
+        inputs = torch.tensor([input_ids]).to(DEVICE)
 
         with torch.no_grad():
             outputs = model(inputs)
@@ -182,12 +187,13 @@ def compute_validator_metrics(
     print(f"Loading validator model from {model_path}...")
     tokenizer = AutoTokenizer.from_pretrained(str(tokenizer_path))
     model = AutoModelForSequenceClassification.from_pretrained(str(model_path))
+    model.to(DEVICE)
     model.eval()
 
     tp = tn = fp = fn = 0
     examples_with_predictions = []
 
-    print(f"Running inference on {len(test_data)} examples...")
+    print(f"Running inference on {len(test_data)} examples on {DEVICE}...")
 
     for i, ex in enumerate(test_data):
         if (i + 1) % 50 == 0:
@@ -207,6 +213,8 @@ def compute_validator_metrics(
             max_length=512,
             return_tensors="pt"
         )
+        # Move inputs to device
+        inputs = {k: v.to(DEVICE) for k, v in inputs.items()}
 
         with torch.no_grad():
             outputs = model(**inputs)
@@ -284,10 +292,12 @@ def compute_city_comparison(
     test_data: List[dict],
 ) -> Dict:
     """Compute city-level zone code comparison."""
-    print(f"Loading models for city comparison...")
+    print(f"Loading models for city comparison on {DEVICE}...")
     tokenizer = AutoTokenizer.from_pretrained(str(extractor_path))
     extractor = AutoModelForTokenClassification.from_pretrained(str(extractor_path))
     validator = AutoModelForSequenceClassification.from_pretrained(str(validator_path))
+    extractor.to(DEVICE)
+    validator.to(DEVICE)
     extractor.eval()
     validator.eval()
 
@@ -331,7 +341,7 @@ def compute_city_comparison(
 
             # Extractor prediction
             input_ids = tokenizer.convert_tokens_to_ids(tokens)
-            inputs = torch.tensor([input_ids])
+            inputs = torch.tensor([input_ids]).to(DEVICE)
 
             with torch.no_grad():
                 outputs = extractor(inputs)
@@ -355,6 +365,8 @@ def compute_city_comparison(
                     max_length=512,
                     return_tensors="pt"
                 )
+                # Move inputs to device
+                val_inputs = {k: v.to(DEVICE) for k, v in val_inputs.items()}
 
                 with torch.no_grad():
                     val_outputs = validator(**val_inputs)
