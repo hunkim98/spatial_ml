@@ -65,6 +65,7 @@ class ValidatorDataPreparator:
         zoneomics_dir: str = "data/zoneomics",
         municode_dir: str = "tmp/zoning_ordinance",
         extractor_model_path: Optional[str] = None,
+        extractor_device: str = "auto",
         context_window: int = 500,
         max_passages_per_code: int = 10,
         min_passages_per_code: int = 2,
@@ -77,6 +78,7 @@ class ValidatorDataPreparator:
             zoneomics_dir: Directory with ground truth CSVs
             municode_dir: Directory with scraped ordinances
             extractor_model_path: Path to trained extractor model for negative generation
+            extractor_device: Device for extractor inference ('auto', 'cuda', 'cpu')
             context_window: Characters of context around each code mention
             max_passages_per_code: Maximum passages to collect per code
             min_passages_per_code: Minimum passages required to include a code
@@ -98,12 +100,14 @@ class ValidatorDataPreparator:
         # Initialize extractor for negative generation
         self.extractor = None
         if extractor_model_path and Path(extractor_model_path).exists():
+            resolved_device = None if extractor_device == "auto" else extractor_device
             print(f"Loading extractor from {extractor_model_path}")
             self.extractor = ZoneExtractor(
                 model_path=extractor_model_path,
                 min_score=0.3,  # Lower threshold to catch more potential FPs
-                device="cpu"
+                device=resolved_device
             )
+            print(f"Extractor inference device: {self.extractor.device}")
         else:
             print("WARNING: No extractor model provided. Will skip negative generation.")
 
@@ -717,6 +721,9 @@ def main():
     parser.add_argument("--extractor-model",
                         default=str(script_dir.parent.parent / "artifacts" / "models" / "extractor"),
                         help="Path to trained extractor model for negative generation")
+    parser.add_argument("--extractor-device", type=str, default="auto",
+                        choices=["auto", "cuda", "cpu"],
+                        help="Device for extractor inference when generating negatives (default: auto)")
     parser.add_argument("--no-extractor-negatives", action="store_true",
                         help="Skip extractor-based negative generation (positives only)")
 
@@ -813,6 +820,7 @@ def main():
         zoneomics_dir=args.zoneomics_dir,
         municode_dir=args.municode_dir,
         extractor_model_path=args.extractor_model,
+        extractor_device=args.extractor_device,
         negative_positive_ratio=args.neg_pos_ratio
     )
 
