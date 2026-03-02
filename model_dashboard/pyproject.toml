@@ -8,4 +8,5 @@ dependencies = [
     "transformers>=4.30.0",
     "torch>=2.0.0",
     "seqeval>=1.2.2",
+    "dotenv>=0.9.9",
 ]

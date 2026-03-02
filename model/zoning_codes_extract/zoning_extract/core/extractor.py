@@ -14,6 +14,18 @@ from transformers import (
     pipeline
 )
 
+# Import post-processing (will gracefully handle if not available)
+try:
+    import sys
+    from pathlib import Path
+    training_dir = Path(__file__).parent.parent / 'training'
+    if training_dir.exists():
+        sys.path.insert(0, str(training_dir))
+    from post_processing import ZoneCodePostProcessor
+    POST_PROCESSING_AVAILABLE = True
+except ImportError:
+    POST_PROCESSING_AVAILABLE = False
+
 
 @dataclass
 class ExtractedSpan:
@@ -32,10 +44,24 @@ class ZoneExtractor:
     Handles chunking for long documents and aggregates predictions.
     """
 
-    # BIO tag labels
+    # Standard BIO tag labels
     TAG_LABELS = ['O', 'B-ZONE', 'I-ZONE']
-    TAG_TO_ID = {tag: idx for idx, tag in enumerate(TAG_LABELS)}
-    ID_TO_TAG = {idx: tag for tag, idx in TAG_TO_ID.items()}
+
+    # Enhanced BIO tag labels (same as training)
+    ENHANCED_TAG_LABELS = [
+        'O',
+        'B-ZONE',
+        'I-ZONE-LETTER',
+        'I-ZONE-DIGIT',
+        'I-ZONE-HYPHEN',
+        'I-ZONE-SUFFIX',
+        'I-ZONE-DOT',
+        'I-ZONE-SLASH',
+    ]
+
+    # Will be set during initialization based on model config
+    TAG_TO_ID = {}
+    ID_TO_TAG = {}
 
     def __init__(
         self,
@@ -44,7 +70,9 @@ class ZoneExtractor:
         max_length: int = 512,
         overlap: int = 128,
         min_score: float = 0.5,
-        device: Optional[str] = None
+        device: Optional[str] = None,
+        enable_post_processing: bool = True,
+        use_enhanced_tags: bool = False
     ):
         """
         Initialize the zone extractor.
@@ -56,10 +84,19 @@ class ZoneExtractor:
             overlap: Number of tokens to overlap between chunks
             min_score: Minimum confidence score to keep a prediction
             device: Device to run model on ('cuda', 'cpu', or None for auto)
+            enable_post_processing: Whether to apply post-processing rules
+            use_enhanced_tags: Whether model was trained with enhanced tags
         """
         self.max_length = max_length
         self.overlap = overlap
         self.min_score = min_score
+        self.enable_post_processing = enable_post_processing and POST_PROCESSING_AVAILABLE
+        self.use_enhanced_tags = use_enhanced_tags
+
+        # Set tag mappings based on model type
+        tag_labels = self.ENHANCED_TAG_LABELS if use_enhanced_tags else self.TAG_LABELS
+        self.TAG_TO_ID = {tag: idx for idx, tag in enumerate(tag_labels)}
+        self.ID_TO_TAG = {idx: tag for tag, idx in self.TAG_TO_ID.items()}
 
         # Set device
         if device is None:
@@ -69,6 +106,11 @@ class ZoneExtractor:
 
         # Load tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+
+        # Initialize post-processor
+        self.post_processor = None
+        if self.enable_post_processing:
+            self.post_processor = ZoneCodePostProcessor()
 
         # Load model if path provided
         self.model = None
@@ -91,12 +133,13 @@ class ZoneExtractor:
             aggregation_strategy="simple"  # Aggregates B- and I- tags
         )
 
-    def extract(self, text: str) -> List[ExtractedSpan]:
+    def extract(self, text: str, return_raw_codes: bool = False) -> List[ExtractedSpan]:
         """
         Extract zone code mentions from text.
 
         Args:
             text: Input ordinance text
+            return_raw_codes: If True, return raw codes without post-processing
 
         Returns:
             List of ExtractedSpan objects with zone code candidates
@@ -115,6 +158,10 @@ class ZoneExtractor:
 
         # Merge overlapping spans
         merged_spans = self._merge_spans(all_spans)
+
+        # Apply post-processing if enabled
+        if self.enable_post_processing and not return_raw_codes and self.post_processor:
+            merged_spans = self._apply_post_processing(merged_spans, text)
 
         return merged_spans
 
@@ -257,3 +304,45 @@ class ZoneExtractor:
     def get_tag_label(cls, tag_id: int) -> str:
         """Convert ID to tag."""
         return cls.ID_TO_TAG.get(tag_id, 'O')
+
+    def _apply_post_processing(
+        self,
+        spans: List[ExtractedSpan],
+        original_text: str
+    ) -> List[ExtractedSpan]:
+        """
+        Apply post-processing rules to complete fragmented codes.
+
+        Args:
+            spans: Extracted spans from model
+            original_text: Original text for context
+
+        Returns:
+            Updated spans with completed codes
+        """
+        if not self.post_processor:
+            return spans
+
+        # Extract code texts
+        raw_codes = [span.text for span in spans]
+
+        # Apply post-processing
+        completed = self.post_processor.post_process_extracted_codes(raw_codes, original_text)
+
+        # Create new spans with completed codes
+        updated_spans = []
+        for i, span in enumerate(spans):
+            if i < len(completed):
+                comp = completed[i]
+                # Update span with completed code
+                updated_span = ExtractedSpan(
+                    text=comp.completed,
+                    start=span.start,
+                    end=span.end,
+                    score=span.score * comp.confidence  # Adjust score by completion confidence
+                )
+                updated_spans.append(updated_span)
+            else:
+                updated_spans.append(span)
+
+        return updated_spans

@@ -9,10 +9,10 @@ from pathlib import Path
 from typing import List, Optional, Dict
 from collections import defaultdict
 
-from .extractor import ZoneExtractor, ExtractedSpan
-from .validator import ZoneValidator, CandidateZone, ValidationResult
-from .categorizer import ZoneCategorizer, CategorizedZone
-from .ordinance_parser import OrdinanceParser, OrdinanceDocument
+from .core.extractor import ZoneExtractor, ExtractedSpan
+from .core.validator import ZoneValidator, CandidateZone, ValidationResult
+from .core.categorizer import ZoneCategorizer, CategorizedZone
+from .parsers.ordinance_parser import OrdinanceParser, OrdinanceDocument
 
 
 @dataclass
@@ -220,9 +220,24 @@ class ZoningCodePipeline:
         self,
         text: str,
         spans: List[ExtractedSpan],
-        context_window: int = 250
+        context_window: Optional[int] = None
     ) -> List[str]:
-        """Extract text passages around each span."""
+        """
+        Extract text passages around each span.
+
+        Args:
+            text: Source text
+            spans: List of extracted spans
+            context_window: Size of context window (defaults to half of CONTEXT_WINDOW from config)
+
+        Returns:
+            List of passage strings
+        """
+        # Default to 250 (half of typical 500 context window)
+        # This can be overridden by passing context_window explicitly
+        if context_window is None:
+            context_window = 250
+
         passages = []
         for span in spans:
             start = max(0, span.start - context_window)

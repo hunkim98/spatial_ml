@@ -26,9 +26,9 @@ from transformers import AutoTokenizer
 
 # Import from parent module
 import sys
-sys.path.append(str(Path(__file__).parent.parent.parent))
+sys.path.append(str(Path(__file__).parent.parent.parent.parent))
 
-from zoning_codes_extract import (
+from zoning_extract import (
     CityMatcher,
     OrdinanceParser,
     TextAligner,
@@ -36,7 +36,15 @@ from zoning_codes_extract import (
     normalize_zone_code
 )
 
-from city_splits import get_or_create_splits, get_city_key
+from .city_splits import get_or_create_splits, get_city_key
+
+# Import custom tokenization
+try:
+    from ..utils.custom_tokenization import create_zone_aware_tokenizer
+    CUSTOM_TOKENIZATION_AVAILABLE = True
+except ImportError:
+    CUSTOM_TOKENIZATION_AVAILABLE = False
+    print("WARNING: Custom tokenization module not available")
 
 
 # Common English words that should NOT be matched as zone code prefixes
@@ -218,7 +226,20 @@ class TrainingDataPreparator:
     mentions in the municode ordinances to create labeled training data.
     """
 
+    # Standard BIO tags
     BIO_TAGS = ['O', 'B-ZONE', 'I-ZONE']
+
+    # Enhanced BIO tags with token type information
+    ENHANCED_BIO_TAGS = [
+        'O',
+        'B-ZONE',
+        'I-ZONE-LETTER',   # Letter token inside zone
+        'I-ZONE-DIGIT',    # Digit token inside zone
+        'I-ZONE-HYPHEN',   # Hyphen token inside zone
+        'I-ZONE-SUFFIX',   # Suffix letter after hyphen+digit
+        'I-ZONE-DOT',      # Dot in decimal zones
+        'I-ZONE-SLASH',    # Slash in compound zones
+    ]
 
     def __init__(
         self,
@@ -226,7 +247,9 @@ class TrainingDataPreparator:
         municode_dir: str = "tmp/zoning_ordinance",
         tokenizer_name: str = "bert-base-uncased",
         max_seq_length: int = 512,
-        context_window: int = 500
+        context_window: int = 500,
+        use_custom_tokenization: bool = True,
+        use_enhanced_tags: bool = False
     ):
         """
         Initialize preparator.
@@ -237,41 +260,55 @@ class TrainingDataPreparator:
             tokenizer_name: Tokenizer to use for tokenization
             max_seq_length: Maximum sequence length
             context_window: Characters of context around each zone code
+            use_custom_tokenization: Whether to use custom zone-aware tokenization
+            use_enhanced_tags: Whether to use enhanced BIO tags with token types
         """
         self.zoneomics_dir = Path(zoneomics_dir)
         self.municode_dir = Path(municode_dir)
         self.max_seq_length = max_seq_length
         self.context_window = context_window
+        self.use_custom_tokenization = use_custom_tokenization and CUSTOM_TOKENIZATION_AVAILABLE
+        self.use_enhanced_tags = use_enhanced_tags
+
+        # Set tag set based on mode
+        self.tag_set = self.ENHANCED_BIO_TAGS if use_enhanced_tags else self.BIO_TAGS
 
         # Initialize components
         self.city_matcher = CityMatcher(
             str(self.zoneomics_dir),
             str(self.municode_dir)
         )
-        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
 
-        print(f"Initialized with tokenizer: {tokenizer_name}")
+        # Initialize tokenizer (with or without custom protection)
+        if self.use_custom_tokenization:
+            self.tokenizer = create_zone_aware_tokenizer(
+                tokenizer_name=tokenizer_name,
+                use_protection=True
+            )
+            print(f"Initialized with zone-protected tokenizer: {tokenizer_name}")
+        else:
+            self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+            print(f"Initialized with standard tokenizer: {tokenizer_name}")
+
+        if self.use_enhanced_tags:
+            print(f"Enhanced BIO tagging enabled ({len(self.tag_set)} tags)")
 
     def prepare_all(
         self,
         output_dir: str = "model/zoning_codes_extract/training/data",
-        train_ratio: float = 0.8,
-        val_ratio: float = 0.1,
-        test_ratio: float = 0.1,
+        train_ratio: float = 0.85,
+        test_ratio: float = 0.15,
         states: Optional[List[str]] = None,
-        max_cities: Optional[int] = None,
         force_new_splits: bool = False
     ) -> Dict[str, int]:
         """
-        Prepare training data from all matched cities.
+        Prepare training data from all matched cities using 2-way splitting (train/test).
 
         Args:
-            output_dir: Where to save train/val/test files
-            train_ratio: Proportion for training
-            val_ratio: Proportion for validation
-            test_ratio: Proportion for testing
+            output_dir: Where to save train/test files
+            train_ratio: Proportion for training (default: 0.85)
+            test_ratio: Proportion for testing (default: 0.15)
             states: Specific states to process (None for all)
-            max_cities: Maximum cities to process (None for all)
             force_new_splits: If True, regenerate city splits even if file exists
 
         Returns:
@@ -290,30 +327,12 @@ class TrainingDataPreparator:
             matches = [m for m in matches if m.state.lower() in states_lower]
             print(f"Filtered to {len(matches)} cities in states: {states}")
 
-        # Limit number of cities if specified
-        if max_cities and len(matches) > max_cities:
-            matches = matches[:max_cities]
-            print(f"Limited to {max_cities} cities")
-
-        # Generate city keys for splitting
-        city_keys = [get_city_key(m.state, m.city_name) for m in matches]
-
-        # Get or create shared city splits
-        city_splits = get_or_create_splits(
-            cities=city_keys,
-            output_dir=output_dir,
-            train_ratio=train_ratio,
-            val_ratio=val_ratio,
-            test_ratio=test_ratio,
-            force_regenerate=force_new_splits
-        )
-
-        # Create lookup from city key to match
-        key_to_match = {get_city_key(m.state, m.city_name): m for m in matches}
-
-        # Process each city
+        # Process all cities
         all_examples = []
         city_example_map = {}  # Map city_key -> list of examples
+        cities_with_data = []  # Track cities that produced examples
+
+        print(f"\nProcessing all {len(matches)} cities...")
 
         for i, match in enumerate(matches):
             city_key = get_city_key(match.state, match.city_name)
@@ -324,14 +343,26 @@ class TrainingDataPreparator:
                 if examples:
                     all_examples.extend(examples)
                     city_example_map[city_key] = examples
-                    print(f"  Generated {len(examples)} examples")
+                    cities_with_data.append(city_key)
+                    print(f"  ✓ Generated {len(examples)} examples")
                 else:
-                    print(f"  No examples generated")
+                    print(f"  ✗ No examples generated (skipping)")
             except Exception as e:
-                print(f"  Error: {e}")
+                print(f"  ✗ Error: {e} (skipping)")
                 continue
 
-        print(f"\nTotal examples: {len(all_examples)}")
+        print(f"\n✓ Successfully processed {len(cities_with_data)} cities with valid training data")
+
+        print(f"\nTotal examples: {len(all_examples)} from {len(cities_with_data)} cities")
+
+        # Generate city splits from cities that have data
+        city_splits = get_or_create_splits(
+            cities=cities_with_data,
+            output_dir=output_dir,
+            train_ratio=train_ratio,
+            test_ratio=test_ratio,
+            force_regenerate=force_new_splits
+        )
 
         # Split examples using the shared city splits
         splits = self._split_by_city_splits(city_example_map, city_splits)
@@ -339,7 +370,7 @@ class TrainingDataPreparator:
         # Save splits
         counts = {}
         for split_name, examples in splits.items():
-            output_file = output_path / f"{split_name}.jsonl"
+            output_file = output_path / f"{split_name}_extractor.jsonl"
             self._save_examples(examples, str(output_file))
             counts[split_name] = len(examples)
             print(f"Saved {len(examples)} examples to {output_file}")
@@ -348,12 +379,16 @@ class TrainingDataPreparator:
         stats = {
             'total_examples': len(all_examples),
             'splits': counts,
-            'num_cities': len(matches),
-            'train_cities': city_splits['train'],
-            'val_cities': city_splits['val'],
-            'test_cities': city_splits['test'],
+            'num_cities': len(cities_with_data),
+            'cities_processed': i + 1,  # Total cities checked
+            'train_extractor_cities': city_splits.get('train_extractor', []),
+            'val_extractor_cities': city_splits.get('val_extractor', []),
+            'train_validator_cities': city_splits.get('train_validator', []),
+            'val_validator_cities': city_splits.get('val_validator', []),
+            'test_cities': city_splits.get('test', []),
         }
-        stats_file = output_path / "stats.json"
+
+        stats_file = output_path / "extractor_stats.json"
         with open(stats_file, 'w') as f:
             json.dump(stats, f, indent=2)
 
@@ -521,23 +556,15 @@ class TrainingDataPreparator:
             offsets = encoding['offset_mapping']
 
             # Create BIO tags - tag ALL zone codes in the context
-            tags = []
-            for i, (token_start, token_end) in enumerate(offsets):
-                if token_start is None or token_end is None:
-                    # Special token
-                    tags.append('O')
-                else:
-                    # Check if this token overlaps with any zone code span
-                    tag = 'O'
-                    for span_start, span_end in zone_spans:
-                        if token_start >= span_start and token_end <= span_end:
-                            # Token is inside a zone code span
-                            if token_start == span_start:
-                                tag = 'B-ZONE'
-                            else:
-                                tag = 'I-ZONE'
-                            break
-                    tags.append(tag)
+            if self.use_enhanced_tags:
+                tags = self._create_enhanced_tags(
+                    tokens, offsets, context_text, zone_spans
+                )
+            else:
+                tags = self._create_standard_tags(
+                    tokens, offsets, zone_spans
+                )
+
 
             # Filter out examples with no zone tags (can happen with truncation)
             if 'B-ZONE' not in tags:
@@ -553,7 +580,117 @@ class TrainingDataPreparator:
             examples.append(example)
 
         return examples
-    
+
+    def _create_standard_tags(
+        self,
+        tokens: List[str],
+        offsets: List[Tuple[int, int]],
+        zone_spans: List[Tuple[int, int]]
+    ) -> List[str]:
+        """
+        Create standard BIO tags (O, B-ZONE, I-ZONE).
+
+        Args:
+            tokens: List of tokens
+            offsets: Token offsets in text
+            zone_spans: Spans of zone codes
+
+        Returns:
+            List of BIO tags
+        """
+        tags = []
+        for i, (token_start, token_end) in enumerate(offsets):
+            if token_start is None or token_end is None:
+                # Special token
+                tags.append('O')
+            else:
+                # Check if this token overlaps with any zone code span
+                tag = 'O'
+                for span_start, span_end in zone_spans:
+                    if token_start >= span_start and token_end <= span_end:
+                        # Token is inside a zone code span
+                        if token_start == span_start:
+                            tag = 'B-ZONE'
+                        else:
+                            tag = 'I-ZONE'
+                        break
+                tags.append(tag)
+
+        return tags
+
+    def _create_enhanced_tags(
+        self,
+        tokens: List[str],
+        offsets: List[Tuple[int, int]],
+        text: str,
+        zone_spans: List[Tuple[int, int]]
+    ) -> List[str]:
+        """
+        Create enhanced BIO tags with token type information.
+
+        Tags like I-ZONE-DIGIT, I-ZONE-HYPHEN help the model learn
+        patterns specific to zone code structure.
+
+        Args:
+            tokens: List of tokens
+            offsets: Token offsets in text
+            text: Original text
+            zone_spans: Spans of zone codes
+
+        Returns:
+            List of enhanced BIO tags
+        """
+        tags = []
+        for i, (token_start, token_end) in enumerate(offsets):
+            if token_start is None or token_end is None:
+                # Special token
+                tags.append('O')
+            else:
+                # Check if this token overlaps with any zone code span
+                tag = 'O'
+                for span_start, span_end in zone_spans:
+                    if token_start >= span_start and token_end <= span_end:
+                        # Token is inside a zone code span
+                        if token_start == span_start:
+                            tag = 'B-ZONE'
+                        else:
+                            # Determine token type for enhanced tag
+                            token = tokens[i]
+                            token_text = text[token_start:token_end]
+
+                            # Remove BERT subword marker
+                            clean_token = token.replace('##', '')
+
+                            # Classify token type
+                            if clean_token == '-':
+                                tag = 'I-ZONE-HYPHEN'
+                            elif clean_token == '/':
+                                tag = 'I-ZONE-SLASH'
+                            elif clean_token == '.':
+                                tag = 'I-ZONE-DOT'
+                            elif clean_token.isdigit():
+                                tag = 'I-ZONE-DIGIT'
+                            elif clean_token.isalpha():
+                                # Check if suffix (letter after digit+hyphen)
+                                # Look at previous tokens in zone
+                                if i >= 2:
+                                    prev_token = tokens[i-1].replace('##', '')
+                                    prev_prev = tokens[i-2].replace('##', '') if i >= 2 else ''
+                                    if prev_token == '-' and prev_prev.isdigit():
+                                        tag = 'I-ZONE-SUFFIX'
+                                    else:
+                                        tag = 'I-ZONE-LETTER'
+                                else:
+                                    tag = 'I-ZONE-LETTER'
+                            else:
+                                # Default to generic I-ZONE
+                                tag = 'I-ZONE-LETTER'
+
+                        break
+                tags.append(tag)
+
+        return tags
+
     def _merge_spans(self, spans: List[Tuple[int, int]]) -> List[Tuple[int, int]]:
         """Merge overlapping spans."""
         if not spans:
@@ -638,18 +775,17 @@ class TrainingDataPreparator:
         city_splits: Dict[str, List[str]]
     ) -> Dict[str, List[TokenClassificationExample]]:
         """
-        Split examples using pre-defined city splits.
+        Split examples using pre-defined city splits (train/test only).
 
         Args:
             city_example_map: Map of city_key -> list of examples
-            city_splits: Pre-defined splits with 'train', 'val', 'test' city lists
+            city_splits: Pre-defined splits with city lists
 
         Returns:
-            Dict with 'train', 'val', 'test' keys containing examples
+            Dict with 'train' and 'test' keys containing examples
         """
         splits = {
             'train': [],
-            'val': [],
             'test': []
         }
 
@@ -657,17 +793,12 @@ class TrainingDataPreparator:
             if city_key in city_example_map:
                 splits['train'].extend(city_example_map[city_key])
 
-        for city_key in city_splits.get('val', []):
-            if city_key in city_example_map:
-                splits['val'].extend(city_example_map[city_key])
-
         for city_key in city_splits.get('test', []):
             if city_key in city_example_map:
                 splits['test'].extend(city_example_map[city_key])
 
-        print(f"\nSplit using shared city_splits.json:")
+        print(f"\nSplitting examples:")
         print(f"  Train: {len(city_splits.get('train', []))} cities, {len(splits['train'])} examples")
-        print(f"  Val: {len(city_splits.get('val', []))} cities, {len(splits['val'])} examples")
         print(f"  Test: {len(city_splits.get('test', []))} cities, {len(splits['test'])} examples")
 
         return splits
@@ -705,39 +836,92 @@ class TrainingDataPreparator:
 def main():
     """Main entry point."""
     import argparse
+    from dotenv import load_dotenv
+
+    # Compute paths relative to this script
+    script_dir = Path(__file__).parent
+    project_root = script_dir.parent.parent.parent.parent
 
     parser = argparse.ArgumentParser(description="Prepare training data for zone code extraction")
-    parser.add_argument("--output-dir", default="model/zoning_codes_extract/training/data",
+    parser.add_argument("--output-dir",
+                        default=str(script_dir.parent / "data"),
                         help="Output directory for training data")
-    parser.add_argument("--states", nargs="+", default=["alabama"],
-                        help="States to process")
-    parser.add_argument("--max-cities", type=int, default=None,
-                        help="Maximum number of cities to process")
+    parser.add_argument("--states", nargs="+", default=None,
+                        help="States to process (default: all states)")
     parser.add_argument("--tokenizer", default="bert-base-uncased",
                         help="Tokenizer to use")
-    parser.add_argument("--zoneomics-dir", default="data/zoneomics",
-                        help="Directory with zoneomics CSVs")
-    parser.add_argument("--municode-dir", default="tmp/zoning_ordinance",
-                        help="Directory with municode ordinances")
+    parser.add_argument("--zoneomics-dir",
+                        default=str(project_root / "data" / "zoneomics"),
+                        help="Directory with zoneomics CSVs (ignored if --use-gcs is set)")
+    parser.add_argument("--municode-dir",
+                        default=str(project_root / "collector" / "tmp" / "zoning_ordinance_md"),
+                        help="Directory with municode ordinances (ignored if --use-gcs is set)")
+    parser.add_argument("--no-custom-tokenization", action="store_true",
+                        help="Disable custom zone-aware tokenization")
+    parser.add_argument("--enhanced-tags", action="store_true",
+                        help="Use enhanced BIO tagging with token types")
+
+    # GCS data fetching arguments
+    parser.add_argument("--use-gcs", action="store_true",
+                        help="Fetch data from GCS bucket instead of using local paths")
+    parser.add_argument("--gcs-cache-dir", type=str, default=None,
+                        help="Local directory to cache GCS data (default: temporary directory)")
+    parser.add_argument("--gcs-force-download", action="store_true",
+                        help="Force re-download from GCS even if cache exists")
+
+    # Split ratio arguments
+    parser.add_argument("--train-ratio", type=float, default=0.85,
+                        help="Train ratio (default: 0.85)")
+    parser.add_argument("--test-ratio", type=float, default=0.15,
+                        help="Test ratio (default: 0.15)")
+    parser.add_argument("--force-new-splits", action="store_true",
+                        help="Force regeneration of city splits even if file exists")
 
     args = parser.parse_args()
+
+    # Load environment variables for GCS if needed
+    if args.use_gcs:
+        env_file = project_root / "secrets" / "teamspatially-project.env"
+        if env_file.exists():
+            load_dotenv(env_file)
+
+        # Import and fetch data from GCS
+        sys.path.append(str(script_dir.parent / "utils"))
+        from gcs_data_fetcher import fetch_training_data_from_gcs
+
+        print("\n" + "=" * 60)
+        print("FETCHING DATA FROM GCS")
+        print("=" * 60 + "\n")
+
+        zoneomics_dir, municode_dir = fetch_training_data_from_gcs(
+            cache_dir=Path(args.gcs_cache_dir) if args.gcs_cache_dir else None,
+            force_download=args.gcs_force_download,
+            states=args.states  # Pass states filter to GCS fetcher
+        )
+
+        # Override the directory arguments
+        args.zoneomics_dir = str(zoneomics_dir)
+        args.municode_dir = str(municode_dir)
 
     preparator = TrainingDataPreparator(
         zoneomics_dir=args.zoneomics_dir,
         municode_dir=args.municode_dir,
-        tokenizer_name=args.tokenizer
+        tokenizer_name=args.tokenizer,
+        use_custom_tokenization=not args.no_custom_tokenization,
+        use_enhanced_tags=args.enhanced_tags
     )
 
     counts = preparator.prepare_all(
         output_dir=args.output_dir,
+        train_ratio=args.train_ratio,
+        test_ratio=args.test_ratio,
         states=args.states,
-        max_cities=args.max_cities
+        force_new_splits=args.force_new_splits
     )
 
     print("\n=== Training Data Preparation Complete ===")
-    print(f"Train: {counts['train']} examples")
-    print(f"Val: {counts['val']} examples")
-    print(f"Test: {counts['test']} examples")
+    print(f"Train: {counts.get('train', 0)} examples")
+    print(f"Test: {counts.get('test', 0)} examples")
 
 
 if __name__ == "__main__":

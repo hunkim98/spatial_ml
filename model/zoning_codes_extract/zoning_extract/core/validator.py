@@ -14,6 +14,8 @@ from transformers import (
     pipeline
 )
 
+from ..utils import normalize_zone_code, check_zone_code_format
+
 
 @dataclass
 class CandidateZone:
@@ -106,8 +108,10 @@ class ZoneValidator:
             ValidationResult with decision and confidence score
         """
         if self.classifier is None:
-            # Fallback to simple rule-based validation
-            return self._validate_rule_based(candidate)
+            raise ValueError(
+                "No validator model loaded. Please provide a model_path when initializing ZoneValidator. "
+                "Rule-based validation has been removed - a trained model is required."
+            )
 
         # Prepare input for model
         input_text = self._prepare_input(candidate)
@@ -147,7 +151,10 @@ class ZoneValidator:
     def validate_batch(self, candidates: List[CandidateZone]) -> List[ValidationResult]:
         """Validate multiple candidates."""
         if self.classifier is None:
-            return [self._validate_rule_based(c) for c in candidates]
+            raise ValueError(
+                "No validator model loaded. Please provide a model_path when initializing ZoneValidator. "
+                "Rule-based validation has been removed - a trained model is required."
+            )
 
         # Prepare batch inputs
         inputs = [self._prepare_input(c) for c in candidates]
@@ -194,71 +201,7 @@ class ZoneValidator:
 
         return input_text
 
-    def _validate_rule_based(self, candidate: CandidateZone) -> ValidationResult:
-        """
-        Simple rule-based fallback validation when no model is loaded.
-
-        Checks:
-        1. Code format matches common patterns
-        2. Appears in multiple passages
-        3. Contains zoning-related keywords
-        """
-        reasons = []
-        confidence = 0.0
-
-        # 1. Format check
-        if self._check_format(candidate.code):
-            confidence += 0.4
-            reasons.append("Matches zone code pattern")
-        else:
-            return ValidationResult(
-                code=candidate.code,
-                is_valid=False,
-                confidence=0.0,
-                reasons=["Does not match zone code pattern"]
-            )
-
-        # 2. Frequency check
-        if len(candidate.passages) >= 2:
-            confidence += 0.3
-            reasons.append(f"Appears {len(candidate.passages)} times")
-
-        # 3. Context check
-        has_zone_keywords = any(
-            any(kw in p.lower() for kw in ['zone', 'district', 'zoning'])
-            for p in candidate.passages
-        )
-        if has_zone_keywords:
-            confidence += 0.3
-            reasons.append("Contains zoning keywords")
-
-        is_valid = confidence >= self.min_confidence
-
-        return ValidationResult(
-            code=candidate.code,
-            is_valid=is_valid,
-            confidence=confidence,
-            reasons=reasons
-        )
 
     def _check_format(self, code: str) -> bool:
         """Check if code matches common zone code patterns."""
-        patterns = [
-            r'^[A-Z]{1,3}-?\d{1,2}$',           # R-1, C-2, I-1
-            r'^[A-Z]{2,4}$',                     # AG, MU, RMU
-            r'^[A-Z]-[A-Z]{1,2}$',              # R-SF, C-GC
-            r'^[A-Z]{1,2}/[A-Z]{1,2}$',         # M/H, R/O
-            r'^[A-Z]{1,2}-[A-Z]{2,4}$',         # R-MH, C-OFC
-        ]
-        code_clean = code.strip().upper()
-        return any(re.match(p, code_clean) for p in patterns)
-
-    def normalize_zone_code(self, code: str) -> str:
-        """
-        Normalize zone code to canonical form.
-        E.g., "R 1" -> "R-1", "r-1" -> "R-1"
-        """
-        code = code.strip().upper()
-        # Add hyphen between letter and number if missing
-        code = re.sub(r'([A-Z]+)\s+(\d+)', r'\1-\2', code)
-        return code
+        return check_zone_code_format(code)

@@ -15,7 +15,7 @@ from collections import defaultdict
 import sys
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from zoning_codes_extract import (
+from zoning_extract import (
     ZoningCodePipeline,
     CityMatcher,
     load_zoneomics_csv,

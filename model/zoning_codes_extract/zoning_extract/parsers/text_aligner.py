@@ -13,6 +13,8 @@ from typing import Optional
 
 from rapidfuzz import fuzz, process
 
+from ..utils import normalize_zone_code, find_all_zone_codes_in_text
+
 
 @dataclass
 class ZoningDistrict:
@@ -103,42 +105,7 @@ def normalize_for_matching(text: str) -> str:
     return text
 
 
-def normalize_zone_code(code: str) -> str:
-    """Normalize a zone code for comparison (e.g., 'B 1' -> 'B-1')."""
-    code = code.upper().strip()
-    # Replace spaces with hyphens
-    code = re.sub(r'\s+', '-', code)
-    # Ensure hyphen between letter and number if missing (e.g., B1 -> B-1)
-    code = re.sub(r'([A-Z]+)(\d)', r'\1-\2', code)
-    return code
-
-
-def find_all_zone_codes_in_text(text: str) -> list[str]:
-    """
-    Find all zone code patterns in text (e.g., R-1, B-2, MU-1).
-    
-    Matches patterns like:
-    - R-1, R1, R 1
-    - B-2A, B2A
-    - MU-1, MU1
-    - PRD, HZD (letter-only codes)
-    
-    Returns:
-        List of normalized, deduplicated zone codes found in text.
-    """
-    # Pattern matches:
-    # - 1-3 letters followed by optional separator and 1-2 digits and optional letter
-    # - Or 2-4 letter codes (like PRD, HZD, MUD)
-    pattern = r'\b([A-Z]{1,3}[\-\s]?\d{1,2}[A-Z]?)\b'
-    
-    matches = re.findall(pattern, text, re.IGNORECASE)
-    
-    # Normalize and deduplicate
-    normalized = set()
-    for m in matches:
-        normalized.add(normalize_zone_code(m))
-    
-    return sorted(normalized)
+# normalize_zone_code and find_all_zone_codes_in_text are now imported from utils
 
 
 class TextAligner:

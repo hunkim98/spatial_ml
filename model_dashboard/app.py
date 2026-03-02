@@ -8,6 +8,7 @@ for instant loading. Run `python compute_metrics.py` after training to regenerat
 
 import csv
 import json
+import os
 from pathlib import Path
 from flask import Flask, render_template, jsonify, request
 import torch
@@ -17,6 +18,12 @@ from transformers import (
     AutoModelForTokenClassification,
     AutoModelForSequenceClassification,
 )
+from dotenv import load_dotenv
+
+# Load environment variables
+ENV_FILE = Path(__file__).parent.parent / "model" / "zoning_codes_extract" / ".env"
+if ENV_FILE.exists():
+    load_dotenv(ENV_FILE)
 
 app = Flask(__name__)
 
@@ -24,13 +31,48 @@ app = Flask(__name__)
 BASE_DIR = Path(__file__).parent.parent
 MODEL_DIR = BASE_DIR / "model" / "zoning_codes_extract"
 TRAINED_MODELS_DIR = MODEL_DIR / "artifacts" / "models"
-DATA_DIR = MODEL_DIR / "artifacts" / "data" / "full"  # Use 'full' dataset
+DATA_DIR = MODEL_DIR / "training" / "data"  # New data location
 
 # Cached metrics files
 CACHED_METRICS_FILE = TRAINED_MODELS_DIR / "cached_metrics.json"
 CACHED_EXTRACTOR_EXAMPLES_FILE = TRAINED_MODELS_DIR / "cached_extractor_examples.json"
 CACHED_VALIDATOR_EXAMPLES_FILE = TRAINED_MODELS_DIR / "cached_validator_examples.json"
 CACHED_CITY_COMPARISON_FILE = TRAINED_MODELS_DIR / "cached_city_comparison.json"
+
+
+def ensure_cache_files():
+    """Download cache files from GCS if USE_GCS_MODELS is enabled and files don't exist locally."""
+    use_gcs = os.getenv("USE_GCS_MODELS", "0") == "1"
+
+    if not use_gcs:
+        return
+
+    # Check if any cache files are missing
+    cache_files = [
+        CACHED_METRICS_FILE,
+        CACHED_EXTRACTOR_EXAMPLES_FILE,
+        CACHED_VALIDATOR_EXAMPLES_FILE,
+        CACHED_CITY_COMPARISON_FILE,
+    ]
+
+    missing_files = [f for f in cache_files if not f.exists()]
+
+    if missing_files:
+        try:
+            print("Downloading cache files from GCS...")
+            # Import GCS model manager
+            import sys
+            sys.path.append(str(MODEL_DIR / "training" / "utils"))
+            from gcs_model_manager import GCSModelManager
+
+            manager = GCSModelManager()
+            manager.download_cache_files(
+                cache_dir=TRAINED_MODELS_DIR,
+                force_download=False
+            )
+        except Exception as e:
+            print(f"Warning: Failed to download cache files from GCS: {e}")
+            print("Dashboard will use local cache files if available")
 
 # Label mappings
 EXTRACTOR_LABELS = ['O', 'B-ZONE', 'I-ZONE']
@@ -102,9 +144,54 @@ models = {
     'tokenizer': None,
 }
 
-# Current model names
-current_extractor_model = "extractor"
-current_validator_model = "validator"
+# Current model names (can be overridden by environment variables)
+current_extractor_model = os.getenv("EXTRACTOR_MODEL_NAME", "extractor_20260221_162851")
+current_validator_model = os.getenv("VALIDATOR_MODEL_NAME", "validator_20260221_191608")
+
+
+def get_model_path(model_type: str, model_name: str) -> Path:
+    """
+    Get path to model, downloading from GCS if USE_GCS_MODELS is enabled.
+
+    Args:
+        model_type: 'extractor' or 'validator'
+        model_name: Model name (e.g., 'extractor_20260221_162851')
+
+    Returns:
+        Path to local model directory
+    """
+    # Check if GCS models are enabled
+    use_gcs = os.getenv("USE_GCS_MODELS", "0") == "1"
+
+    if use_gcs:
+        try:
+            # Import GCS model manager
+            import sys
+            sys.path.append(str(MODEL_DIR / "training" / "utils"))
+            from gcs_model_manager import download_model_from_gcs
+
+            # Extract timestamp from model name
+            timestamp = model_name.split('_', 1)[-1] if '_' in model_name else None
+
+            # Download from GCS
+            print(f"Downloading {model_type} model from GCS...")
+            model_path = download_model_from_gcs(
+                model_type=model_type,
+                timestamp=timestamp,
+                cache_dir=TRAINED_MODELS_DIR
+            )
+
+            if model_path:
+                return model_path
+            else:
+                print(f"Failed to download from GCS, falling back to local model")
+
+        except Exception as e:
+            print(f"Error downloading from GCS: {e}")
+            print("Falling back to local model")
+
+    # Use local model
+    return TRAINED_MODELS_DIR / model_name
 
 
 def load_models(extractor_name=None, validator_name=None, force_reload=False):
@@ -123,8 +210,9 @@ def load_models(extractor_name=None, validator_name=None, force_reload=False):
         current_validator_model = validator_name
 
     if models['tokenizer'] is None or force_reload:
-        extractor_path = TRAINED_MODELS_DIR / current_extractor_model
-        validator_path = TRAINED_MODELS_DIR / current_validator_model
+        # Get model paths (potentially from GCS)
+        extractor_path = get_model_path('extractor', current_extractor_model)
+        validator_path = get_model_path('validator', current_validator_model)
 
         if extractor_path.exists():
             models['tokenizer'] = AutoTokenizer.from_pretrained(str(extractor_path))
@@ -144,15 +232,15 @@ def load_test_data():
     validator_data = []
     
     # Load extractor test data
-    extractor_test_file = DATA_DIR / "test.jsonl"
+    extractor_test_file = DATA_DIR / "test_extractor.jsonl"
     if extractor_test_file.exists():
         with open(extractor_test_file) as f:
             for line in f:
                 ex = json.loads(line)
                 extractor_data.append(ex)
-    
+
     # Load validator test data
-    validator_test_file = DATA_DIR / "validator_test.jsonl"
+    validator_test_file = DATA_DIR / "test_validator.jsonl"
     if validator_test_file.exists():
         with open(validator_test_file) as f:
             for line in f:
@@ -182,8 +270,8 @@ def extract_zones_from_bio(tokens, labels):
     if current_zone:
         zones.append(''.join(current_zone).replace('##', '').strip())
     
-    # Clean up special tokens
-    zones = [z for z in zones if z not in ['[CLS]', '[SEP]', '[PAD]', '']]
+    # Clean up special tokens and artifacts
+    zones = [z for z in zones if z not in ['[CLS]', '[SEP]', '[PAD]', '[UNK]', '']]
     return zones
 
 
@@ -529,18 +617,18 @@ def get_metrics():
         extractor_source = 'Computed from test data'
 
     # Count examples from data files
-    train_examples = count_jsonl_lines(DATA_DIR / "train.jsonl")
-    test_examples = count_jsonl_lines(DATA_DIR / "test.jsonl")
-    validator_train = count_jsonl_lines(DATA_DIR / "validator_train.jsonl")
-    validator_test = count_jsonl_lines(DATA_DIR / "validator_test.jsonl")
+    train_examples = count_jsonl_lines(DATA_DIR / "train_extractor.jsonl")
+    test_examples = count_jsonl_lines(DATA_DIR / "test_extractor.jsonl")
+    validator_train = count_jsonl_lines(DATA_DIR / "train_validator.jsonl")
+    validator_test = count_jsonl_lines(DATA_DIR / "test_validator.jsonl")
 
     # Get cities from extractor data files
-    extractor_train_cities = get_cities_from_jsonl(DATA_DIR / "train.jsonl")
-    extractor_test_cities = get_cities_from_jsonl(DATA_DIR / "test.jsonl")
+    extractor_train_cities = get_cities_from_jsonl(DATA_DIR / "train_extractor.jsonl")
+    extractor_test_cities = get_cities_from_jsonl(DATA_DIR / "test_extractor.jsonl")
 
     # Get cities from validator data files
-    validator_train_cities = get_cities_from_jsonl(DATA_DIR / "validator_train.jsonl")
-    validator_test_cities = get_cities_from_jsonl(DATA_DIR / "validator_test.jsonl")
+    validator_train_cities = get_cities_from_jsonl(DATA_DIR / "train_validator.jsonl")
+    validator_test_cities = get_cities_from_jsonl(DATA_DIR / "test_validator.jsonl")
 
     # Compute validator confusion matrix dynamically
     confusion_matrix = compute_validator_confusion_matrix()
@@ -563,6 +651,8 @@ def get_metrics():
             'test_city': format_city_list(extractor_test_cities),
             'train_city_count': len(extractor_train_cities),
             'test_city_count': len(extractor_test_cities),
+            'train_cities_list': extractor_train_cities,
+            'test_cities_list': extractor_test_cities,
             'metrics_source': extractor_source,
             'model_name': current_extractor_model,
         },
@@ -577,6 +667,8 @@ def get_metrics():
             'test_city': format_city_list(validator_test_cities),
             'train_city_count': len(validator_train_cities),
             'test_city_count': len(validator_test_cities),
+            'train_cities_list': validator_train_cities,
+            'test_cities_list': validator_test_cities,
             'confusion_matrix': confusion_matrix,
             'metrics_source': validator_source,
             'model_name': current_validator_model,
@@ -845,7 +937,26 @@ def get_city_comparison():
         recall_raw = len(common_raw) / len(true_set) if true_set else 0
         f1_raw = 2 * precision_raw * recall_raw / (precision_raw + recall_raw) if (precision_raw + recall_raw) > 0 else 0
 
-        # Calculate metrics for VALIDATED predictions (extractor + validator)
+        # Calculate VALIDATOR metrics (how well validator filters extractor outputs)
+        # Validator's job: accept correct predictions, reject incorrect predictions
+        correct_extractor_preds = pred_set_raw & true_set  # Extractor got these right
+        incorrect_extractor_preds = pred_set_raw - true_set  # Extractor got these wrong (false positives)
+
+        # TP: Correct predictions that validator kept
+        validator_tp = pred_set_validated & correct_extractor_preds
+        # TN: Incorrect predictions that validator rejected
+        validator_tn = incorrect_extractor_preds - pred_set_validated
+        # FP: Incorrect predictions that validator kept (validator's mistakes)
+        validator_fp = pred_set_validated & incorrect_extractor_preds
+        # FN: Correct predictions that validator rejected (validator's mistakes)
+        validator_fn = correct_extractor_preds - pred_set_validated
+
+        # Calculate validator P/R/F1
+        validator_precision = len(validator_tp) / (len(validator_tp) + len(validator_fp)) if (len(validator_tp) + len(validator_fp)) > 0 else 0
+        validator_recall = len(validator_tp) / (len(validator_tp) + len(validator_fn)) if (len(validator_tp) + len(validator_fn)) > 0 else 0
+        validator_f1 = 2 * validator_precision * validator_recall / (validator_precision + validator_recall) if (validator_precision + validator_recall) > 0 else 0
+
+        # Calculate metrics for VALIDATED predictions (extractor + validator pipeline)
         common_validated = true_set & pred_set_validated
         precision_validated = len(common_validated) / len(pred_set_validated) if pred_set_validated else 0
         recall_validated = len(common_validated) / len(true_set) if true_set else 0
@@ -869,7 +980,15 @@ def get_city_comparison():
             'precision_raw': round(precision_raw, 2),
             'recall_raw': round(recall_raw, 2),
             'f1_raw': round(f1_raw, 2),
-            # Validated predictions (extractor + validator)
+            # Validator-only metrics (filtering performance)
+            'validator_precision': round(validator_precision, 2),
+            'validator_recall': round(validator_recall, 2),
+            'validator_f1': round(validator_f1, 2),
+            'validator_tp': len(validator_tp),
+            'validator_tn': len(validator_tn),
+            'validator_fp': len(validator_fp),
+            'validator_fn': len(validator_fn),
+            # Validated predictions (extractor + validator pipeline)
             'pred_zones_validated': sorted(pred_set_validated),
             'pred_count_validated': len(pred_set_validated),
             'common_zones_validated': sorted(common_validated),
@@ -906,6 +1025,8 @@ def get_city_comparison():
 
 
 if __name__ == '__main__':
+    print("Ensuring cache files are available...")
+    ensure_cache_files()
     print("Loading models...")
     load_models()
     print("Starting server...")

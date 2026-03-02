@@ -14,6 +14,7 @@ import json
 from pathlib import Path
 from typing import List, Dict
 from datetime import datetime
+import sys
 
 import numpy as np
 import torch
@@ -23,44 +24,21 @@ from transformers import (
     AutoModelForSequenceClassification,
 )
 
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from zoning_extract.utils import normalize_zone_code, extract_zones_from_bio, normalize_zone_code_for_comparison
+
 # Paths
 SCRIPT_DIR = Path(__file__).parent.resolve()
 PROJECT_DIR = SCRIPT_DIR.parent
-DATA_DIR = PROJECT_DIR / "artifacts" / "data" / "full"  # Use full dataset
+DATA_DIR = PROJECT_DIR / "training" / "data"  # Training data location
 TRAINED_MODELS_DIR = PROJECT_DIR / "artifacts" / "models"
 
 # Label mappings
 EXTRACTOR_LABELS = ['O', 'B-ZONE', 'I-ZONE']
 EXTRACTOR_ID_TO_LABEL = {i: l for i, l in enumerate(EXTRACTOR_LABELS)}
 
-
-def normalize_zone_code(code: str) -> str:
-    """Normalize zone code by removing hyphens/spaces and uppercasing."""
-    return code.replace('-', '').replace(' ', '').upper()
-
-
-def extract_zones_from_bio(tokens: List[str], labels: List[str]) -> List[str]:
-    """Extract zone code strings from BIO-tagged sequence."""
-    zones = []
-    current_zone = []
-
-    for token, label in zip(tokens, labels):
-        if label == 'B-ZONE':
-            if current_zone:
-                zones.append(''.join(current_zone).replace('##', '').strip())
-            current_zone = [token]
-        elif label == 'I-ZONE' and current_zone:
-            current_zone.append(token)
-        else:
-            if current_zone:
-                zones.append(''.join(current_zone).replace('##', '').strip())
-                current_zone = []
-
-    if current_zone:
-        zones.append(''.join(current_zone).replace('##', '').strip())
-
-    zones = [z for z in zones if z not in ['[CLS]', '[SEP]', '[PAD]', '']]
-    return zones
+# normalize_zone_code and extract_zones_from_bio are now imported from shared utils
 
 
 def load_jsonl(file_path: Path) -> List[dict]:
@@ -158,18 +136,21 @@ def compute_extractor_metrics(
         })
 
     # Compute seqeval metrics
-    try:
-        from seqeval.metrics import precision_score, recall_score, f1_score
-        precision = precision_score(all_true_labels, all_pred_labels)
-        recall = recall_score(all_true_labels, all_pred_labels)
-        f1 = f1_score(all_true_labels, all_pred_labels)
-    except ImportError:
-        # Fallback
-        flat_true = sum(all_true_labels, [])
-        flat_pred = sum(all_pred_labels, [])
-        correct = sum(1 for t, p in zip(flat_true, flat_pred) if t == p)
-        total = len(flat_true)
-        precision = recall = f1 = correct / total if total > 0 else 0
+    if not all_true_labels:
+        precision = recall = f1 = 0.0
+    else:
+        try:
+            from seqeval.metrics import precision_score, recall_score, f1_score
+            precision = precision_score(all_true_labels, all_pred_labels)
+            recall = recall_score(all_true_labels, all_pred_labels)
+            f1 = f1_score(all_true_labels, all_pred_labels)
+        except ImportError:
+            # Fallback
+            flat_true = sum(all_true_labels, [])
+            flat_pred = sum(all_pred_labels, [])
+            correct = sum(1 for t, p in zip(flat_true, flat_pred) if t == p)
+            total = len(flat_true)
+            precision = recall = f1 = correct / total if total > 0 else 0
 
     # Summary stats
     correct_count = sum(1 for e in examples_with_predictions if e['status'] == 'correct')
@@ -328,7 +309,7 @@ def compute_city_comparison(
         # Extract true zones
         true_zones = extract_zones_from_bio(ex['tokens'], ex['tags'])
         for z in true_zones:
-            city_data[city_key]['true_zones'].add(normalize_zone_code(z))
+            city_data[city_key]['true_zones'].add(normalize_zone_code_for_comparison(z))
 
         city_data[city_key]['example_count'] += 1
         city_data[city_key]['examples'].append(ex)
@@ -363,7 +344,7 @@ def compute_city_comparison(
             passage_text = ' '.join(tokens).replace(' ##', '').replace('##', '')
 
             for z in pred_zones:
-                normalized = normalize_zone_code(z)
+                normalized = normalize_zone_code_for_comparison(z)
                 data['pred_zones_raw'].add(normalized)
 
                 # Validator prediction
@@ -444,15 +425,41 @@ def compute_city_comparison(
     }
 
 
+def find_latest_model(models_dir: Path, prefix: str) -> Path | None:
+    """Return the most recently created model directory matching a prefix."""
+    candidates = sorted(
+        [d for d in models_dir.iterdir() if d.is_dir() and d.name.startswith(prefix)],
+        key=lambda d: d.stat().st_mtime,
+        reverse=True,
+    )
+    return candidates[0] if candidates else None
+
+
 def main():
     parser = argparse.ArgumentParser(description='Pre-compute metrics for dashboard')
-    parser.add_argument('--extractor', default='extractor', help='Extractor model name')
-    parser.add_argument('--validator', default='validator', help='Validator model name')
-    parser.add_argument('--skip-city-comparison', action='store_true', help='Skip city comparison (slow)')
+    parser.add_argument('--extractor', default=None, help='Extractor model name (auto-detected if omitted)')
+    parser.add_argument('--validator', default=None, help='Validator model name (auto-detected if omitted)')
     args = parser.parse_args()
 
-    extractor_path = TRAINED_MODELS_DIR / args.extractor
-    validator_path = TRAINED_MODELS_DIR / args.validator
+    if args.extractor:
+        extractor_path = TRAINED_MODELS_DIR / args.extractor
+    else:
+        extractor_path = TRAINED_MODELS_DIR / 'extractor'
+        if not extractor_path.exists():
+            latest = find_latest_model(TRAINED_MODELS_DIR, 'extractor')
+            if latest:
+                print(f"Auto-detected extractor model: {latest.name}")
+                extractor_path = latest
+
+    if args.validator:
+        validator_path = TRAINED_MODELS_DIR / args.validator
+    else:
+        validator_path = TRAINED_MODELS_DIR / 'validator'
+        if not validator_path.exists():
+            latest = find_latest_model(TRAINED_MODELS_DIR, 'validator')
+            if latest:
+                print(f"Auto-detected validator model: {latest.name}")
+                validator_path = latest
 
     if not extractor_path.exists():
         print(f"Error: Extractor model not found at {extractor_path}")
@@ -463,10 +470,10 @@ def main():
 
     # Load test data
     print("Loading test data...")
-    extractor_test = load_jsonl(DATA_DIR / "test.jsonl")
-    validator_test = load_jsonl(DATA_DIR / "validator_test.jsonl")
-    extractor_train = load_jsonl(DATA_DIR / "train.jsonl")
-    validator_train = load_jsonl(DATA_DIR / "validator_train.jsonl")
+    extractor_test = load_jsonl(DATA_DIR / "test_extractor.jsonl")
+    validator_test = load_jsonl(DATA_DIR / "test_validator.jsonl")
+    extractor_train = load_jsonl(DATA_DIR / "train_extractor.jsonl")
+    validator_train = load_jsonl(DATA_DIR / "train_validator.jsonl")
 
     print(f"  Extractor: {len(extractor_train)} train, {len(extractor_test)} test")
     print(f"  Validator: {len(validator_train)} train, {len(validator_test)} test")
@@ -483,13 +490,11 @@ def main():
     print("="*60)
     validator_results = compute_validator_metrics(validator_path, extractor_path, validator_test)
 
-    # Compute city comparison (optional, slow)
-    city_comparison = None
-    if not args.skip_city_comparison:
-        print("\n" + "="*60)
-        print("COMPUTING CITY COMPARISON")
-        print("="*60)
-        city_comparison = compute_city_comparison(extractor_path, validator_path, extractor_test)
+    # Compute city comparison
+    print("\n" + "="*60)
+    print("COMPUTING CITY COMPARISON")
+    print("="*60)
+    city_comparison = compute_city_comparison(extractor_path, validator_path, extractor_test)
 
     # Get city lists
     extractor_train_cities = get_cities_from_data(extractor_train)
@@ -556,11 +561,10 @@ def main():
         }, f, indent=2)
 
     # Save city comparison
-    if city_comparison:
-        city_comparison_file = TRAINED_MODELS_DIR / "cached_city_comparison.json"
-        print(f"Saving city comparison to {city_comparison_file}...")
-        with open(city_comparison_file, 'w') as f:
-            json.dump(city_comparison, f, indent=2)
+    city_comparison_file = TRAINED_MODELS_DIR / "cached_city_comparison.json"
+    print(f"Saving city comparison to {city_comparison_file}...")
+    with open(city_comparison_file, 'w') as f:
+        json.dump(city_comparison, f, indent=2)
 
     print("\n" + "="*60)
     print("METRICS COMPUTATION COMPLETE")
@@ -568,6 +572,42 @@ def main():
     print(f"\nExtractor: P={metrics['extractor']['precision']:.2f}, R={metrics['extractor']['recall']:.2f}, F1={metrics['extractor']['f1']:.2f}")
     print(f"Validator: A={metrics['validator']['accuracy']:.2f}, P={metrics['validator']['precision']:.2f}, R={metrics['validator']['recall']:.2f}, F1={metrics['validator']['f1']:.2f}")
     print(f"\nCached files saved to: {TRAINED_MODELS_DIR}")
+
+    # Upload cache files to GCS if enabled
+    import os
+    from dotenv import load_dotenv
+
+    # Load environment variables
+    env_file = PROJECT_DIR / ".env"
+    if env_file.exists():
+        load_dotenv(env_file)
+
+    upload_to_gcs = os.getenv("UPLOAD_TO_GCS", "0") == "1"
+
+    if upload_to_gcs:
+        try:
+            print("\n" + "="*60)
+            print("UPLOADING CACHE FILES TO GCS")
+            print("="*60)
+
+            # Import GCS model manager
+            sys.path.append(str(PROJECT_DIR / "training" / "utils"))
+            from gcs_model_manager import GCSModelManager
+
+            manager = GCSModelManager()
+            uploaded_paths = manager.upload_cache_files(
+                cache_dir=TRAINED_MODELS_DIR
+            )
+
+            print(f"\n✓ Uploaded {len(uploaded_paths)} cache files to GCS")
+            for path in uploaded_paths:
+                print(f"  {path}")
+
+        except Exception as e:
+            print(f"\nWarning: Failed to upload cache files to GCS: {e}")
+            print("Cache files are still available locally")
+    else:
+        print("\nSkipping GCS upload (UPLOAD_TO_GCS=0)")
 
 
 def format_city_list(cities: list) -> str:

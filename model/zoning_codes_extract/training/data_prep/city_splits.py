@@ -1,13 +1,10 @@
 """
-City Splits Manager - Ensures consistent train/val/test splits across models.
+City Splits Manager - Ensures consistent train/test splits across extractor and validator models.
 
 This module provides utilities to:
-1. Generate city splits once
+1. Generate 2-way city splits (train/test)
 2. Save splits to a JSON file
 3. Load existing splits for reuse
-
-Both the extractor and validator data preparation scripts use this
-to ensure they train/test on the same cities.
 """
 
 import json
@@ -32,8 +29,7 @@ def load_splits(output_dir: str) -> Optional[Dict[str, List[str]]]:
         output_dir: Directory containing the splits file
 
     Returns:
-        Dictionary with 'train', 'val', 'test' keys mapping to city lists,
-        or None if file doesn't exist
+        Dictionary with 'train', 'test' keys mapping to city lists, or None if file doesn't exist
     """
     splits_path = get_splits_path(output_dir)
 
@@ -44,9 +40,8 @@ def load_splits(output_dir: str) -> Optional[Dict[str, List[str]]]:
         splits = json.load(f)
 
     print(f"Loaded existing city splits from {splits_path}")
-    print(f"  Train: {len(splits['train'])} cities")
-    print(f"  Val: {len(splits['val'])} cities")
-    print(f"  Test: {len(splits['test'])} cities")
+    print(f"  Train: {len(splits.get('train', []))} cities")
+    print(f"  Test: {len(splits.get('test', []))} cities")
 
     return splits
 
@@ -56,7 +51,7 @@ def save_splits(splits: Dict[str, List[str]], output_dir: str) -> Path:
     Save city splits to file.
 
     Args:
-        splits: Dictionary with 'train', 'val', 'test' keys
+        splits: Dictionary with split keys
         output_dir: Directory to save the splits file
 
     Returns:
@@ -77,58 +72,46 @@ def save_splits(splits: Dict[str, List[str]], output_dir: str) -> Path:
 
 def generate_splits(
     cities: List[str],
-    train_ratio: float = 0.8,
-    val_ratio: float = 0.1,
-    test_ratio: float = 0.1,
+    train_ratio: float = 0.85,
+    test_ratio: float = 0.15,
     seed: int = 42
 ) -> Dict[str, List[str]]:
     """
-    Generate new city splits.
+    Generate new 2-way city splits (train/test).
 
     Args:
-        cities: List of city identifiers (e.g., "birmingham_alabama")
-        train_ratio: Proportion for training
-        val_ratio: Proportion for validation
-        test_ratio: Proportion for testing
-        seed: Random seed for reproducibility
+        cities: List of city identifiers
+        train_ratio: Proportion for training (default: 0.85)
+        test_ratio: Proportion for testing (default: 0.15)
+        seed: Random seed
 
     Returns:
-        Dictionary with 'train', 'val', 'test' keys mapping to city lists
+        Dictionary with 'train', 'test' keys
     """
-    # Set seed for reproducibility
     random.seed(seed)
-
-    # Shuffle cities
-    cities = list(cities)  # Make a copy
+    cities = list(cities)
     random.shuffle(cities)
 
-    # Calculate split indices
-    n_cities = len(cities)
-    n_train = int(n_cities * train_ratio)
-    n_val = int(n_cities * val_ratio)
+    n = len(cities)
+    n_test = int(n * test_ratio)
 
-    # Split
-    train_cities = sorted(cities[:n_train])
-    val_cities = sorted(cities[n_train:n_train + n_val])
-    test_cities = sorted(cities[n_train + n_val:])
+    test_cities = sorted(cities[:n_test])
+    train_cities = sorted(cities[n_test:])
 
     splits = {
         'train': train_cities,
-        'val': val_cities,
         'test': test_cities,
         'metadata': {
             'seed': seed,
             'train_ratio': train_ratio,
-            'val_ratio': val_ratio,
             'test_ratio': test_ratio,
-            'total_cities': n_cities,
+            'total_cities': n
         }
     }
 
     print(f"Generated new city splits (seed={seed}):")
-    print(f"  Train: {len(train_cities)} cities")
-    print(f"  Val: {len(val_cities)} cities")
-    print(f"  Test: {len(test_cities)} cities")
+    print(f"  Train: {len(train_cities)} cities ({len(train_cities)/n:.1%})")
+    print(f"  Test: {len(test_cities)} cities ({test_ratio:.1%})")
 
     return splits
 
@@ -136,9 +119,8 @@ def generate_splits(
 def get_or_create_splits(
     cities: List[str],
     output_dir: str,
-    train_ratio: float = 0.8,
-    val_ratio: float = 0.1,
-    test_ratio: float = 0.1,
+    train_ratio: float = 0.85,
+    test_ratio: float = 0.15,
     seed: int = 42,
     force_regenerate: bool = False
 ) -> Dict[str, List[str]]:
@@ -152,23 +134,21 @@ def get_or_create_splits(
     Args:
         cities: List of all available city identifiers
         output_dir: Directory for the splits file
-        train_ratio: Proportion for training (used only if generating)
-        val_ratio: Proportion for validation (used only if generating)
-        test_ratio: Proportion for testing (used only if generating)
+        train_ratio: Proportion for training (default: 0.85)
+        test_ratio: Proportion for testing (default: 0.15)
         seed: Random seed (used only if generating)
         force_regenerate: If True, regenerate splits even if file exists
 
     Returns:
-        Dictionary with 'train', 'val', 'test' keys mapping to city lists
+        Dictionary with 'train', 'test' keys mapping to city lists
     """
     if not force_regenerate:
         existing_splits = load_splits(output_dir)
         if existing_splits is not None:
             # Validate that existing splits are compatible with current cities
             all_split_cities = set(
-                existing_splits['train'] +
-                existing_splits['val'] +
-                existing_splits['test']
+                existing_splits.get('train', []) +
+                existing_splits.get('test', [])
             )
             current_cities = set(cities)
 
@@ -181,7 +161,12 @@ def get_or_create_splits(
                 print(f"  Regenerating splits...")
 
     # Generate new splits
-    splits = generate_splits(cities, train_ratio, val_ratio, test_ratio, seed)
+    splits = generate_splits(
+        cities=cities,
+        train_ratio=train_ratio,
+        test_ratio=test_ratio,
+        seed=seed
+    )
 
     # Save for future use
     save_splits(splits, output_dir)

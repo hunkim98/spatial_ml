@@ -1,0 +1,43 @@
+# Ignore temporary files and downloaded data
+collector/tmp/
+collector/.venv/
+collector/__pycache__/
+collector/**/__pycache__/
+collector/**/*.pyc
+
+# Ignore model directories
+model/
+model_dashboard/
+
+# Ignore workflow build outputs
+workflow/pipeline_outputs/
+workflow/.venv/
+workflow/__pycache__/
+workflow/**/__pycache__/
+
+# Ignore Python artifacts
+*.pyc
+*.pyo
+*.egg-info/
+__pycache__/
+.venv/
+venv/
+*.so
+
+# Ignore data directories
+data/
+tmp/
+wandb/
+
+# Ignore IDE and OS files
+.DS_Store
+.vscode/
+.idea/
+*.swp
+.git/
+.dvc/
+
+# Ignore secrets
+secrets/
+*.json
+*.env

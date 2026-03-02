@@ -1,428 +1,424 @@
-# Zoning Code Extraction Pipeline
+# Zoning Code Extraction System
 
-A 3-stage token classification pipeline for automatically extracting zoning codes from municipal ordinance documents.
+A machine learning pipeline for automatically extracting zoning codes from municipal ordinance documents using BERT-based models.
 
-## Overview
+## 🎯 Overview
 
-This system extracts zone codes (like R-1, C-2, I-1, etc.) from ordinance text using a three-stage approach:
+This system extracts zone codes (like R-1, C-2, I-1) from ordinance text using a three-stage ML pipeline:
 
-1. **Extractor** (Stage 1): Token classification model (BERT) that identifies potential zone code mentions in text
-2. **Validator** (Stage 2): Binary classification model (BERT) that distinguishes real zone codes from false positives
-3. **Categorizer** (Stage 3): Keyword-based category assignment (Residential, Commercial, Industrial, etc.)
+1. **Extractor** - Token classification model (BERT) that identifies zone code mentions in text
+2. **Validator** - Binary classification model (BERT) that filters false positives
+3. **Categorizer** - Rule-based system that assigns categories (Residential, Commercial, etc.)
 
-## Architecture
+## 📦 Installation
 
-```
-Ordinance Text
-     ↓
-[Extractor: BERT Token Classification]
-  → Identifies candidate zone codes with BIO tags
-  → Examples: "R-1", "C-2", "I-1" + their passages
-     ↓
-[Validator: BERT Binary Classification]
-  → Input: Candidate code + all passages where it appears
-  → Output: Real zone code vs. false positive (e.g., section reference)
-  → Examples: ✓ "R-1 Zone permits..." vs. ✗ "See Appendix R-1"
-     ↓
-[Categorizer: Keyword Matching]
-  → Assigns category and subtype
-     ↓
-Extracted Zone Codes (CSV)
-```
-
-## Installation
-
-1. Install dependencies:
 ```bash
 cd model/zoning_codes_extract
 pip install -e .
 ```
 
-This will install:
-- `transformers` (BERT models)
-- `torch` (PyTorch)
-- `datasets` (HuggingFace datasets)
-- `seqeval` (NER metrics)
-- `pandas`, `scikit-learn`
-- Existing dependencies: `python-docx`, `rapidfuzz`
+**Dependencies:**
+- `transformers` - BERT models
+- `torch` - PyTorch
+- `datasets` - HuggingFace datasets
+- `seqeval` - NER metrics
+- `pandas`, `scikit-learn`, `python-docx`, `rapidfuzz`
 
-## Quick Start
+## 🚀 Quick Start
 
-### 1. Prepare Training Data for Extractor
-
-Generate BIO-tagged training data from zoneomics CSVs and municode ordinances:
-
-```bash
-cd model/zoning_codes_extract
-python training/prepare_token_classification_data.py \
-    --states alabama \
-    --output-dir training/data
-```
-
-This will:
-- Match cities between zoneomics (ground truth) and municode (ordinances)
-- Find zone codes in ordinance text
-- Create BIO tags for each token
-- Split into train/val/test by city
-- Save to JSONL files
-
-**Output:**
-- `training/data/train.jsonl`
-- `training/data/val.jsonl`
-- `training/data/test.jsonl`
-- `training/data/stats.json`
-
-### 2. Prepare Training Data for Validator
-
-Generate binary classification data (real zone codes vs. false positives):
-
-```bash
-python training/prepare_validator_data.py \
-    --states alabama \
-    --output-dir training/data \
-    --neg-pos-ratio 1.0
-```
-
-This will:
-- Find all candidate codes matching zone code patterns in ordinances
-- Label as positive (in ground truth) or negative (false positive)
-- Balance negative and positive examples
-- Split by city
-
-**Output:**
-- `training/data/validator_train.jsonl`
-- `training/data/validator_val.jsonl`
-- `training/data/validator_test.jsonl`
-- `training/data/validator_stats.json`
-
-### 3. Train the Extractor Model
-
-Fine-tune BERT on the BIO-tagged data:
-
-```bash
-python training/train_extractor.py \
-    --model-name bert-base-uncased \
-    --data-dir training/data \
-    --output-dir trained_models/extractor \
-    --epochs 3 \
-    --batch-size 16
-```
-
-This will:
-- Load BIO-tagged training data
-- Fine-tune BERT for token classification
-- Evaluate on validation set each epoch
-- Save best model based on F1 score
-
-**Output:**
-- `trained_models/extractor/` (trained model)
-- `trained_models/extractor/test_results.json`
-- `trained_models/extractor/detailed_report.json`
-
-### 4. Train the Validator Model
-
-Fine-tune BERT for binary classification:
-
-```bash
-python training/train_validator.py \
-    --model-name bert-base-uncased \
-    --data-dir training/data \
-    --output-dir trained_models/validator \
-    --epochs 3 \
-    --batch-size 16
-```
-
-This will:
-- Load validator training data
-- Fine-tune BERT for binary classification
-- Evaluate on validation set each epoch
-- Save best model based on F1 score
-
-**Output:**
-- `trained_models/validator/` (trained model)
-- `trained_models/validator/test_results.json`
-- `trained_models/validator/detailed_report.json`
-
-### 5. Evaluate the Pipeline
-
-Test the full pipeline on the test set:
-
-```bash
-python evaluation/evaluate.py \
-    --extractor-model trained_models/extractor \
-    --validator-model trained_models/validator \
-    --data-dir training/data \
-    --output-dir evaluation/results
-```
-
-This will:
-- Load test cities
-- Run full 3-stage pipeline (Extractor + Validator + Categorizer)
-- Compare predictions to ground truth
-- Compute precision, recall, F1
-
-**Output:**
-- `evaluation/results/per_city_metrics.json`
-- `evaluation/results/aggregate_metrics.json`
-- `evaluation/results/summary.csv`
-
-### 6. Use the Pipeline
-
-Extract zone codes from a new city's ordinances:
+### Using Pre-trained Models
 
 ```python
-from model.zoning_codes_extract import ZoningCodePipeline
+from zoning_extract import ZoningCodePipeline
 
-# Initialize pipeline with both trained models
+# Initialize pipeline with trained models
 pipeline = ZoningCodePipeline(
-    extractor_model_path="model/zoning_codes_extract/trained_models/extractor",
-    validator_model_path="model/zoning_codes_extract/trained_models/validator"
+    extractor_model_path="artifacts/models/extractor",
+    validator_model_path="artifacts/models/validator"
 )
 
 # Extract from ordinance directory
-results = pipeline.extract_from_ordinances(
-    "tmp/zoning_ordinance/az/phoenix",
-    zoning_only=True
-)
+results = pipeline.extract_from_ordinances("path/to/ordinances")
 
-# Save to CSV (zoneomics format)
-pipeline.save_to_csv(results, "output/phoenix.csv")
+# Save to CSV
+pipeline.save_to_csv(results, "output/zones.csv")
 ```
 
-**Note:** If you don't have a trained validator model, you can omit `validator_model_path` and it will use a rule-based fallback validation.
+### Training New Models
 
-## File Structure
+See [Training Guide](training/README.md) for complete training documentation.
+
+**Quick training:**
+```bash
+# Show configuration
+python -m training.train config
+
+# Train both models
+python -m training.train pipeline
+
+# Or train individually
+python -m training.train extractor
+python -m training.train validator
+```
+
+## 📁 Project Structure
 
 ```
-model/zoning_codes_extract/
-├── README.md                    # This file
-├── pyproject.toml               # Dependencies
-├── __init__.py                  # Public API
+zoning_codes_extract/
+├── README.md                       # This file
+├── REFACTORING_SUMMARY.md          # Recent changes and migration guide
+├── .env.example                    # Configuration template
+├── pyproject.toml                  # Dependencies
 │
-├── Core Pipeline Components:
-├── extractor.py                 # Stage 1: Token classification model
-├── validator.py                 # Stage 2: Binary classification model
-├── categorizer.py               # Stage 3: Category assignment (rule-based)
-├── pipeline.py                  # End-to-end orchestration
+├── zoning_extract/                 # Main package
+│   ├── __init__.py                 # Public API
+│   ├── utils.py                    # Shared utilities
+│   ├── pipeline.py                 # End-to-end orchestration
+│   ├── city_matcher.py             # City matching logic
+│   │
+│   ├── core/                       # ML models
+│   │   ├── extractor.py            # Token classification
+│   │   ├── validator.py            # Sequence classification
+│   │   └── categorizer.py          # Rule-based categorizer
+│   │
+│   └── parsers/                    # Document parsing
+│       ├── ordinance_parser.py     # DOCX parsing
+│       └── text_aligner.py         # Text alignment
 │
-├── Utilities (kept from old system):
-├── city_matcher.py              # Match zoneomics ↔ municode
-├── ordinance_parser.py          # Parse DOCX files
-├── text_aligner.py              # Fuzzy text matching
+├── training/                       # Training infrastructure
+│   ├── README.md                   # Training guide
+│   ├── train.py                    # Unified CLI entry point
+│   ├── .env.training               # Training hyperparameters
+│   │
+│   ├── trainers/                   # Model training
+│   │   ├── base.py                 # Shared training logic
+│   │   ├── extractor.py            # Extractor trainer
+│   │   └── validator.py            # Validator trainer
+│   │
+│   ├── data_prep/                  # Data preparation
+│   │   ├── prepare_extractor.py
+│   │   ├── prepare_validator.py
+│   │   └── city_splits.py
+│   │
+│   ├── utils/                      # Training utilities
+│   │   ├── config.py               # Configuration loader
+│   │   ├── custom_tokenization.py
+│   │   ├── post_processing.py
+│   │   ├── gcs_data_fetcher.py
+│   │   └── gcs_model_manager.py
+│   │
+│   └── scripts/                    # GCP deployment
+│       ├── launch_gcp_training.sh
+│       └── gcp_vm_startup.sh
 │
-├── training/
-│   ├── prepare_token_classification_data.py  # Generate BIO tags for extractor
-│   ├── prepare_validator_data.py             # Generate binary labels for validator
-│   ├── train_extractor.py                    # Train extractor BERT model
-│   ├── train_validator.py                    # Train validator BERT model
-│   └── data/                                  # Training data (generated)
-│       ├── train.jsonl                        # Extractor training
-│       ├── val.jsonl                          # Extractor validation
-│       ├── test.jsonl                         # Extractor test
-│       ├── validator_train.jsonl              # Validator training
-│       ├── validator_val.jsonl                # Validator validation
-│       ├── validator_test.jsonl               # Validator test
-│       ├── stats.json
-│       └── validator_stats.json
+├── evaluation/                     # Model evaluation
+│   └── compute_metrics.py          # Metrics and dashboard cache
 │
-├── evaluation/
-│   ├── evaluate.py              # Pipeline evaluation
-│   └── results/                 # Evaluation results (generated)
+├── tests/                          # Unit tests
 │
-└── trained_models/              # Trained models (generated)
-    ├── extractor/               # Token classification model
-    └── validator/               # Binary classification model
+└── artifacts/                      # Generated outputs (gitignored)
+    ├── models/                     # Trained models
+    └── data/                       # Training data
 ```
 
-## Training Data Formats
+## 🔧 Usage
 
-### Extractor Training Data (BIO-tagged)
-
-For token classification:
-
-```json
-{
-  "tokens": ["The", "R", "-", "1", "Zone", "is", "for", "residential", "..."],
-  "tags": ["O", "B-ZONE", "I-ZONE", "I-ZONE", "O", "O", "O", "O", "..."],
-  "city": "birmingham",
-  "state": "alabama"
-}
-```
-
-**Tags:**
-- `O`: Outside (not a zone code)
-- `B-ZONE`: Begin zone code
-- `I-ZONE`: Inside zone code (continuation)
-
-### Validator Training Data (Binary Classification)
-
-For distinguishing real zone codes from false positives:
-
-```json
-{
-  "code": "R-1",
-  "passages": [
-    "The purpose of the R-1 Zone is to provide for single family residences...",
-    "R-1 zoning district regulations are set forth in this section..."
-  ],
-  "label": 1,
-  "city": "birmingham",
-  "state": "alabama"
-}
-```
-
-**Labels:**
-- `1`: Valid zone code (exists in ground truth)
-- `0`: False positive (pattern match but not a real zone code)
-
-**Examples of False Positives:**
-- Section references: "See Appendix R-1"
-- Table labels: "Table C-2 shows..."
-- Form numbers: "File Form I-1"
-
-## Output Format
-
-Matches zoneomics CSV format:
-
-```csv
-zone_code,zone_subtype,area_acres,description
-R-1,Single Family Residential,null,"The purpose of the R-1 Zone is to provide..."
-C-2,General Business,null,"The purpose of the C-2 Zone is to provide..."
-I-1,Light Industrial,null,"The purpose of the I-1 Zone is to provide..."
-```
-
-## Configuration Options
-
-### Pipeline Parameters
+### Python API
 
 ```python
+from zoning_extract import ZoneExtractor, ZoneValidator, ZoningCodePipeline
+
+# Use individual components
+extractor = ZoneExtractor(model_path="artifacts/models/extractor")
+spans = extractor.extract("The R-1 Zone permits single-family dwellings...")
+
+validator = ZoneValidator(model_path="artifacts/models/validator")
+result = validator.validate(candidate)
+
+# Or use full pipeline
 pipeline = ZoningCodePipeline(
-    extractor_model_path="path/to/model",      # Trained model
-    min_validation_confidence=0.5,              # Validator threshold
-    min_extraction_score=0.5,                   # Extractor threshold
-    max_sample_passages=3                       # Passages to keep per zone
-)
-```
-
-### Training Parameters
-
-```python
-config = TrainingConfig(
-    model_name="bert-base-uncased",            # Base model
-    num_epochs=3,                               # Training epochs
-    batch_size=16,                              # Batch size
-    learning_rate=2e-5,                         # Learning rate
-    max_seq_length=512                          # Max sequence length
-)
-```
-
-### Validation Rules
-
-The validator checks:
-1. **Format**: Matches zone code patterns (R-1, C-2, AG, etc.)
-2. **Frequency**: Appears at least N times (default: 2)
-3. **Context**: Near zoning keywords ("zone", "district", etc.)
-4. **Definitional**: Has purpose statement (optional)
-
-## Performance Metrics
-
-Success criteria (from plan):
-- **F1 > 0.80** on test set
-- **Precision > 0.85** (minimize false positives)
-
-Evaluation metrics:
-- **Precision**: % of extracted codes that are correct
-- **Recall**: % of ground truth codes extracted
-- **F1**: Harmonic mean of precision and recall
-- **Micro-averaged**: Aggregate TP/FP/FN across all cities
-- **Macro-averaged**: Average metrics across cities
-
-## Advanced Usage
-
-### Extract from Raw Text
-
-```python
-from model.zoning_codes_extract import ZoningCodePipeline
-
-pipeline = ZoningCodePipeline(extractor_model_path="...")
-
-text = """
-The R-1 Residential Zone is intended for single family homes.
-The C-2 Commercial Zone allows retail and service uses.
-"""
-
-zones = pipeline.extract_from_text(text)
-
-for zone in zones:
-    print(f"{zone.zone_code}: {zone.zone_subtype}")
-    print(f"Confidence: {zone.confidence:.2f}")
-    print(f"Description: {zone.description[:100]}...")
-```
-
-### Use Individual Components
-
-```python
-from model.zoning_codes_extract import (
-    ZoneExtractor,
-    ZoneValidator,
-    ZoneCategorizer
+    extractor_model_path="artifacts/models/extractor",
+    validator_model_path="artifacts/models/validator",
+    min_validation_confidence=0.5,
+    min_extraction_score=0.5
 )
 
-# Stage 1: Extract candidates
-extractor = ZoneExtractor(model_path="...")
-spans = extractor.extract(text)
-
-# Stage 2: Validate
-validator = ZoneValidator()
-# ... (create CandidateZone objects)
-results = validator.validate_batch(candidates)
-
-# Stage 3: Categorize
-categorizer = ZoneCategorizer()
-categorized = categorizer.categorize("R-1", description)
+zones = pipeline.extract_from_text(ordinance_text)
 ```
 
-## Troubleshooting
+### Command Line Interface
 
-### Low Precision (too many false positives)
-- Increase `min_validation_confidence` in pipeline
-- Set `require_definitional=True` in validator
-- Increase `min_occurrences` in validator
+```bash
+# Training
+python -m training.train extractor
+python -m training.train validator
+python -m training.train pipeline
 
-### Low Recall (missing codes)
-- Decrease `min_extraction_score` in extractor
-- Set `require_definitional=False` in validator
-- Train on more diverse data
+# Data preparation
+python -m training.train prepare extractor --cities 100
+python -m training.train prepare validator --cities 100
 
-### Training Issues
-- Check that training data exists in `training/data/`
-- Verify GPU availability: `torch.cuda.is_available()`
-- Reduce batch size if OOM errors occur
-- Use `bert-base-uncased` instead of larger models
+# Evaluation
+python -m training.train evaluate
 
-## Next Steps
+# Configuration
+python -m training.train config
+```
 
-1. **Expand training data**: Add more states beyond Alabama
-2. **Tune hyperparameters**: Experiment with learning rates, epochs
-3. **Error analysis**: Review false positives/negatives manually
-4. **Deploy**: Create API or batch processing script
-5. **Monitor**: Track performance on new cities
+## ⚙️ Configuration
 
-## Comparison to Old Approach
+### Environment Variables
 
-| Aspect | Old (LLM Fine-tuning) | New (Token Classification) |
-|--------|----------------------|---------------------------|
-| Model | GPT-4o-mini | BERT-base |
-| Task | Text generation | Token classification |
-| Training | OpenAI API | Local PyTorch |
-| Explainability | Black box | Interpretable stages |
-| Cost | Per-token API costs | One-time training |
-| Inference | Slow (API calls) | Fast (local) |
-| Validation | Implicit | Explicit rules |
+Create `.env` from `.env.example`:
 
-## References
+```bash
+# Infrastructure (NOT committed)
+GCP_PROJECT=your-project
+GCS_BUCKET_NAME=your-bucket
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json
+WANDB_API_KEY=your-key
+```
 
-- [BERT Paper](https://arxiv.org/abs/1810.04805)
-- [HuggingFace Transformers](https://huggingface.co/docs/transformers)
-- [Token Classification Guide](https://huggingface.co/docs/transformers/tasks/token_classification)
-- [Seqeval Metrics](https://github.com/chakki-works/seqeval)
+### Training Hyperparameters
+
+Edit `training/.env.training`:
+
+```bash
+# Model
+MODEL_NAME=bert-base-uncased
+MAX_SEQ_LENGTH=512
+
+# Training
+NUM_EPOCHS=3
+BATCH_SIZE=2
+LEARNING_RATE=3e-5
+
+# Inference
+MIN_EXTRACTION_SCORE=0.5
+MIN_VALIDATION_CONFIDENCE=0.5
+CONTEXT_WINDOW=500
+```
+
+### Override at Runtime
+
+```bash
+python -m training.train extractor \
+    --epochs 5 \
+    --batch-size 4 \
+    --learning-rate 5e-5
+```
+
+## 📊 Model Architecture
+
+### Extractor (Token Classification)
+
+**Input:** Text passage (max 512 tokens)
+**Output:** BIO tags for each token
+- `B-ZONE`: Beginning of zone code
+- `I-ZONE`: Inside (continuation) of zone code
+- `O`: Outside (not a zone code)
+
+**Metrics:** Precision, Recall, F1 (uses seqeval for entity-level evaluation)
+
+### Validator (Sequence Classification)
+
+**Input:** `[CODE] zone_code [SEP] passage1 [SEP] passage2 ...`
+**Output:** Binary classification (valid zone / not valid)
+
+**Metrics:** Accuracy, Precision, Recall, F1, ROC-AUC
+
+### Categorizer (Rule-based)
+
+**Input:** Zone code + description
+**Output:** Category (Residential, Commercial, Industrial, etc.) + Subtype
+
+## 🎓 Training
+
+See [Training Guide](training/README.md) for comprehensive documentation.
+
+### Quick Training
+
+```bash
+# Full pipeline (data prep + training)
+python -m training.train pipeline --cities 100
+
+# Individual steps
+python -m training.train prepare extractor --cities 100
+python -m training.train extractor --epochs 3
+python -m training.train prepare validator --cities 100
+python -m training.train validator --epochs 3
+```
+
+### GCP Training (Recommended)
+
+```bash
+# Launch GCP VM training
+bash training/scripts/launch_gcp_training.sh \
+    --states california texas \
+    --n-cities 50
+
+# Models automatically uploaded to GCS
+```
+
+**Cost:** ~$1.50 for full training (2-3 hours)
+
+## 📈 Evaluation
+
+Generate metrics and dashboard cache:
+
+```bash
+python -m training.train evaluate
+
+# Or directly
+python evaluation/compute_metrics.py \
+    --extractor extractor_20240301_120000 \
+    --validator validator_20240301_130000
+```
+
+**Outputs:**
+- `cached_metrics.json` - Overall metrics
+- `cached_extractor_examples.json` - Sample predictions
+- `cached_validator_examples.json` - Sample predictions
+- `cached_city_comparison.json` - Per-city performance
+
+## 🧪 Testing
+
+```bash
+# Test imports
+python -c "from zoning_extract import ZoneExtractor, ZoneValidator; print('OK')"
+
+# Test trainers
+python -c "from training.trainers import ExtractorTrainer, ValidatorTrainer; print('OK')"
+
+# Quick training test (1 epoch)
+python -m training.train extractor --epochs 1
+```
+
+## 📝 Common Tasks
+
+### Extract Zones from New City
+
+```python
+from zoning_extract import ZoningCodePipeline
+
+pipeline = ZoningCodePipeline(
+    extractor_model_path="artifacts/models/extractor",
+    validator_model_path="artifacts/models/validator"
+)
+
+zones = pipeline.extract_from_ordinances("path/to/city/ordinances")
+pipeline.save_to_csv(zones, "output/city_zones.csv")
+```
+
+### Retrain with More Data
+
+```bash
+# Prepare data with more cities
+python -m training.train prepare extractor --cities 163
+python -m training.train prepare validator --cities 163
+
+# Train models
+python -m training.train pipeline --epochs 5
+```
+
+### Evaluate Model Performance
+
+```bash
+# Generate metrics
+python -m training.train evaluate
+
+# View in dashboard
+cd ../model_dashboard
+python app.py
+# Open http://localhost:5000
+```
+
+## 🐛 Troubleshooting
+
+### Import Errors
+
+**Old imports (pre-refactoring):**
+```python
+from src.extractor import ZoneExtractor  # ❌
+```
+
+**New imports:**
+```python
+from zoning_extract import ZoneExtractor  # ✅
+```
+
+### Training Data Not Found
+
+```bash
+# Prepare data first
+python -m training.train prepare extractor --cities 100
+python -m training.train prepare validator --cities 100
+```
+
+### CUDA/MPS Out of Memory
+
+Training is configured for CPU by default. If using GPU and encountering OOM:
+
+```bash
+# Reduce batch size
+python -m training.train extractor --batch-size 1
+
+# Or edit training/.env.training
+BATCH_SIZE=1
+GRADIENT_ACCUMULATION_STEPS=16
+```
+
+### Configuration Issues
+
+```bash
+# View current configuration
+python -m training.train config
+
+# Check .env files exist
+ls .env .env.example training/.env.training
+```
+
+## 📚 Documentation
+
+- **[Training Guide](training/README.md)** - Complete training documentation
+- **[Refactoring Summary](REFACTORING_SUMMARY.md)** - Recent changes and migration
+- **[.env.example](.env.example)** - Configuration template
+
+## 🔄 Recent Changes
+
+**v2.0.0 - Major Refactoring (2024-03)**
+- Renamed `src/` → `zoning_extract/` with organized subdirectories
+- Created unified training CLI (`training/train.py`)
+- Consolidated training infrastructure into modular trainers
+- Added shared utilities module (`utils.py`)
+- Fixed configuration mismatches
+- Removed duplicate code (~360 lines)
+- Better separation of concerns
+
+See [REFACTORING_SUMMARY.md](REFACTORING_SUMMARY.md) for complete details.
+
+## 🤝 Contributing
+
+When making changes:
+
+1. Follow the modular structure (core/, parsers/, trainers/)
+2. Use shared utilities from `utils.py`
+3. Update documentation if workflow changes
+4. Test full pipeline before committing
+5. Run verification: `python -c "from zoning_extract import *; print('OK')"`
+
+## 📄 License
+
+[Add license information]
+
+## 📞 Support
+
+For questions or issues:
+1. Check documentation in `training/README.md`
+2. Review `REFACTORING_SUMMARY.md` for recent changes
+3. Verify configuration with `python -m training.train config`
+4. Check previous session logs in `~/.claude/projects/`
+
+---
+
+**Note:** This is a research/development project. Model accuracy depends on training data quality and size. For production use, evaluate on your specific ordinance documents and retrain as needed.
