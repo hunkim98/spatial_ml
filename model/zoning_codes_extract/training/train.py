@@ -294,8 +294,8 @@ Note: For easier usage, use the unified shell script:
 
     # Evaluate command
     evaluate_parser = subparsers.add_parser('evaluate', help='Evaluate trained models')
-    evaluate_parser.add_argument('--extractor', type=str, default='extractor', help='Extractor model name')
-    evaluate_parser.add_argument('--validator', type=str, default='validator', help='Validator model name')
+    evaluate_parser.add_argument('--extractor', type=str, default=None, help='Extractor model name (auto-detected if omitted)')
+    evaluate_parser.add_argument('--validator', type=str, default=None, help='Validator model name (auto-detected if omitted)')
     evaluate_parser.set_defaults(func=evaluate_models)
 
     # Config command
