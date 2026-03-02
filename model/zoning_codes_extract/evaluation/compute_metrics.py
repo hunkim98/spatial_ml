@@ -391,11 +391,28 @@ def compute_city_comparison(
         recall_raw = len(common_raw) / len(true_set) if true_set else 0
         f1_raw = 2 * precision_raw * recall_raw / (precision_raw + recall_raw) if (precision_raw + recall_raw) > 0 else 0
 
-        # Validated metrics
+        # Validated metrics (pipeline = extractor + validator)
         common_validated = true_set & pred_set_validated
         precision_validated = len(common_validated) / len(pred_set_validated) if pred_set_validated else 0
         recall_validated = len(common_validated) / len(true_set) if true_set else 0
         f1_validated = 2 * precision_validated * recall_validated / (precision_validated + recall_validated) if (precision_validated + recall_validated) > 0 else 0
+
+        # Validator-specific metrics (how well validator filters extractor outputs)
+        # TP: Correct extractor predictions that validator kept
+        # TN: Incorrect extractor predictions that validator rejected
+        # FP: Incorrect extractor predictions that validator kept (validator mistakes)
+        # FN: Correct extractor predictions that validator rejected (validator mistakes)
+        correct_extractor_preds = pred_set_raw & true_set
+        incorrect_extractor_preds = pred_set_raw - true_set
+
+        validator_tp = pred_set_validated & correct_extractor_preds
+        validator_tn = incorrect_extractor_preds - pred_set_validated
+        validator_fp = pred_set_validated & incorrect_extractor_preds
+        validator_fn = correct_extractor_preds - pred_set_validated
+
+        validator_precision = len(validator_tp) / (len(validator_tp) + len(validator_fp)) if (len(validator_tp) + len(validator_fp)) > 0 else 0
+        validator_recall = len(validator_tp) / (len(validator_tp) + len(validator_fn)) if (len(validator_tp) + len(validator_fn)) > 0 else 0
+        validator_f1 = 2 * validator_precision * validator_recall / (validator_precision + validator_recall) if (validator_precision + validator_recall) > 0 else 0
 
         results.append({
             'city': data['city'],
@@ -410,6 +427,15 @@ def compute_city_comparison(
             'precision_raw': round(precision_raw, 2),
             'recall_raw': round(recall_raw, 2),
             'f1_raw': round(f1_raw, 2),
+            # Validator filtering metrics
+            'validator_precision': round(validator_precision, 2),
+            'validator_recall': round(validator_recall, 2),
+            'validator_f1': round(validator_f1, 2),
+            'validator_tp': len(validator_tp),
+            'validator_tn': len(validator_tn),
+            'validator_fp': len(validator_fp),
+            'validator_fn': len(validator_fn),
+            # Validated pipeline metrics
             'pred_zones_validated': sorted(pred_set_validated),
             'pred_count_validated': len(pred_set_validated),
             'common_zones_validated': sorted(common_validated),
