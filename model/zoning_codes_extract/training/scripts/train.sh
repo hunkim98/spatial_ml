@@ -79,8 +79,15 @@ fi
 CONFIG_FILE="training/.env.training.$CONFIG"
 
 # Build states argument for Python CLI
+# Note: When using "all", we force regeneration of city splits to ensure
+# we get ALL available cities, not just those from a previous partial run
 if [ "$STATES" = "all" ]; then
     STATES_ARG=""
+    # Delete old city splits to force regeneration with all cities
+    if [ -f "training/data/city_splits.json" ]; then
+        echo "Removing old city_splits.json to regenerate with all states..."
+        rm -f training/data/city_splits.json
+    fi
 else
     STATES_ARG="--states $STATES"
 fi
