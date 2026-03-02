@@ -174,12 +174,12 @@ class ValidatorTrainer(BaseTrainer):
                 "f1_macro": f1_macro,
             }
 
-            # Per-class metrics
+            # Per-class metrics (explicit float conversion for W&B)
             for i, label_name in id_to_label.items():
                 if i < len(precision_per_class):
-                    metrics[f"precision_{label_name}"] = precision_per_class[i]
-                    metrics[f"recall_{label_name}"] = recall_per_class[i]
-                    metrics[f"f1_{label_name}"] = f1_per_class[i]
+                    metrics[f"precision_{label_name}"] = float(precision_per_class[i])
+                    metrics[f"recall_{label_name}"] = float(recall_per_class[i])
+                    metrics[f"f1_{label_name}"] = float(f1_per_class[i])
                     metrics[f"support_{label_name}"] = int(support_per_class[i])
 
             # False positive/negative rates
@@ -199,14 +199,16 @@ class ValidatorTrainer(BaseTrainer):
                     # Use probability of positive class
                     pos_probs = probabilities[:, 1]
                     roc_auc = roc_auc_score(labels, pos_probs)
-                    metrics["roc_auc"] = roc_auc
+                    metrics["roc_auc"] = float(roc_auc)
             except:
                 pass
 
-            # Log confusion matrix to W&B
+            # Log visualizations to W&B
             try:
                 if wandb.run is not None:
                     class_names = [id_to_label[0], id_to_label[1]]
+
+                    # Confusion matrix
                     wandb.log({
                         "eval/confusion_matrix": wandb.plot.confusion_matrix(
                             probs=None,
@@ -215,7 +217,33 @@ class ValidatorTrainer(BaseTrainer):
                             class_names=class_names
                         )
                     })
-            except:
+
+                    # ROC curve (if both classes present)
+                    if len(np.unique(labels)) > 1:
+                        from sklearn.metrics import roc_curve
+                        pos_probs = probabilities[:, 1]
+                        fpr, tpr, thresholds = roc_curve(labels, pos_probs)
+
+                        wandb.log({
+                            "eval/roc_curve": wandb.plot.roc_curve(
+                                labels,
+                                probabilities,
+                                labels=class_names
+                            )
+                        })
+
+                        # Precision-Recall curve
+                        from sklearn.metrics import precision_recall_curve
+                        precision_curve, recall_curve, pr_thresholds = precision_recall_curve(labels, pos_probs)
+
+                        wandb.log({
+                            "eval/pr_curve": wandb.plot.pr_curve(
+                                labels,
+                                probabilities,
+                                labels=class_names
+                            )
+                        })
+            except Exception as e:
                 pass  # Skip if wandb logging fails
 
             return metrics

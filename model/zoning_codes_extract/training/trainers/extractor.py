@@ -160,21 +160,38 @@ class ExtractorTrainer(BaseTrainer):
                 "f1": overall_f1,
             }
 
-            # Add per-tag metrics if available
-            for tag in ['B-ZONE', 'I-ZONE', 'O']:
-                if tag in report:
-                    metrics[f"precision_{tag}"] = report[tag]['precision']
-                    metrics[f"recall_{tag}"] = report[tag]['recall']
-                    metrics[f"f1_{tag}"] = report[tag]['f1-score']
-                    metrics[f"support_{tag}"] = report[tag]['support']
-
-            # Flatten labels for token-level confusion matrix
+            # Flatten labels for token-level metrics
             flat_true = [label for seq in true_labels for label in seq]
             flat_pred = [label for seq in pred_labels for label in seq]
 
             # Token-level accuracy
             token_accuracy = sum(1 for t, p in zip(flat_true, flat_pred) if t == p) / len(flat_true) if flat_true else 0
             metrics["token_accuracy"] = token_accuracy
+
+            # Per-tag metrics using sklearn on flattened labels
+            from sklearn.metrics import precision_recall_fscore_support
+
+            all_tags = ['O', 'B-ZONE', 'I-ZONE']
+            for tag in all_tags:
+                # Count true positives, false positives, false negatives for this tag
+                tag_true = [1 if t == tag else 0 for t in flat_true]
+                tag_pred = [1 if p == tag else 0 for p in flat_pred]
+
+                if sum(tag_true) > 0:  # Only compute if tag exists in ground truth
+                    precision, recall, f1, support = precision_recall_fscore_support(
+                        tag_true, tag_pred, average='binary', zero_division=0
+                    )
+                    metrics[f"precision_{tag}"] = float(precision)
+                    metrics[f"recall_{tag}"] = float(recall)
+                    metrics[f"f1_{tag}"] = float(f1)
+                    metrics[f"support_{tag}"] = int(sum(tag_true))
+
+            # Add entity-level metrics from seqeval report if available
+            if 'ZONE' in report:
+                metrics["precision_ZONE_entity"] = report['ZONE']['precision']
+                metrics["recall_ZONE_entity"] = report['ZONE']['recall']
+                metrics["f1_ZONE_entity"] = report['ZONE']['f1-score']
+                metrics["support_ZONE_entity"] = report['ZONE']['support']
 
             # Log confusion matrix to W&B
             try:

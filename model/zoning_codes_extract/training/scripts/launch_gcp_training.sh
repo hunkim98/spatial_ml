@@ -18,9 +18,11 @@ set -e  # Exit on error
 
 PROJECT_ID="${GCP_PROJECT:-teamspatially}"
 ZONE="${GCP_ZONE:-us-central1-a}"
-MACHINE_TYPE="${GCP_MACHINE_TYPE:-n1-highmem-8}"
+MACHINE_TYPE="${GCP_MACHINE_TYPE:-n1-standard-8}"
+GPU_TYPE="${GCP_GPU_TYPE:-nvidia-tesla-t4}"
+GPU_COUNT="${GCP_GPU_COUNT:-1}"
 BOOT_DISK_SIZE="${GCP_BOOT_DISK_SIZE:-100GB}"
-IMAGE_FAMILY="pytorch-latest-cpu"
+IMAGE_FAMILY="pytorch-latest-gpu"
 IMAGE_PROJECT="deeplearning-platform-release"
 
 # Generate unique instance name with timestamp
@@ -202,12 +204,15 @@ gcloud compute instances create "$INSTANCE_NAME" \
     --project="$PROJECT_ID" \
     --zone="$ZONE" \
     --machine-type="$MACHINE_TYPE" \
+    --accelerator="type=$GPU_TYPE,count=$GPU_COUNT" \
+    --maintenance-policy=TERMINATE \
     --image-family="$IMAGE_FAMILY" \
     --image-project="$IMAGE_PROJECT" \
     --boot-disk-size="$BOOT_DISK_SIZE" \
     --boot-disk-type=pd-standard \
     --metadata-from-file=startup-script="$STARTUP_SCRIPT_PATH" \
     --metadata="env-vars=$ENV_CONTENT,training-command=$TRAINING_CMD" \
+    --metadata="install-nvidia-driver=True" \
     --scopes=https://www.googleapis.com/auth/cloud-platform \
     $PREEMPTIBLE
 

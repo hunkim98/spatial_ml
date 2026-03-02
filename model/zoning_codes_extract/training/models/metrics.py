@@ -53,21 +53,36 @@ def create_token_classification_metrics(id_to_label: Dict[int, str]):
             "f1": overall_f1,
         }
 
-        # Add per-tag metrics if available
-        for tag in ['B-ZONE', 'I-ZONE', 'O']:
-            if tag in report:
-                metrics[f"precision_{tag}"] = report[tag]['precision']
-                metrics[f"recall_{tag}"] = report[tag]['recall']
-                metrics[f"f1_{tag}"] = report[tag]['f1-score']
-                metrics[f"support_{tag}"] = report[tag]['support']
-
-        # Flatten labels for token-level confusion matrix
+        # Flatten labels for token-level metrics
         flat_true = [label for seq in true_labels for label in seq]
         flat_pred = [label for seq in pred_labels for label in seq]
 
         # Token-level accuracy
         token_accuracy = sum(1 for t, p in zip(flat_true, flat_pred) if t == p) / len(flat_true) if flat_true else 0
         metrics["token_accuracy"] = token_accuracy
+
+        # Per-tag metrics using sklearn on flattened labels
+        all_tags = ['O', 'B-ZONE', 'I-ZONE']
+        for tag in all_tags:
+            # Count true positives, false positives, false negatives for this tag
+            tag_true = [1 if t == tag else 0 for t in flat_true]
+            tag_pred = [1 if p == tag else 0 for p in flat_pred]
+
+            if sum(tag_true) > 0:  # Only compute if tag exists in ground truth
+                precision, recall, f1, support = precision_recall_fscore_support(
+                    tag_true, tag_pred, average='binary', zero_division=0
+                )
+                metrics[f"precision_{tag}"] = float(precision)
+                metrics[f"recall_{tag}"] = float(recall)
+                metrics[f"f1_{tag}"] = float(f1)
+                metrics[f"support_{tag}"] = int(sum(tag_true))
+
+        # Add entity-level metrics from seqeval report if available
+        if 'ZONE' in report:
+            metrics["precision_ZONE_entity"] = report['ZONE']['precision']
+            metrics["recall_ZONE_entity"] = report['ZONE']['recall']
+            metrics["f1_ZONE_entity"] = report['ZONE']['f1-score']
+            metrics["support_ZONE_entity"] = report['ZONE']['support']
 
         # Log confusion matrix to W&B
         try:
@@ -131,12 +146,12 @@ def create_sequence_classification_metrics(id_to_label: Dict[int, str]):
             "f1_macro": f1_macro,
         }
 
-        # Per-class metrics
+        # Per-class metrics (explicit float conversion for W&B)
         for i, label_name in id_to_label.items():
             if i < len(precision_per_class):
-                metrics[f"precision_{label_name}"] = precision_per_class[i]
-                metrics[f"recall_{label_name}"] = recall_per_class[i]
-                metrics[f"f1_{label_name}"] = f1_per_class[i]
+                metrics[f"precision_{label_name}"] = float(precision_per_class[i])
+                metrics[f"recall_{label_name}"] = float(recall_per_class[i])
+                metrics[f"f1_{label_name}"] = float(f1_per_class[i])
                 metrics[f"support_{label_name}"] = int(support_per_class[i])
 
         # False positive/negative rates
@@ -156,22 +171,44 @@ def create_sequence_classification_metrics(id_to_label: Dict[int, str]):
                 # Use probability of positive class
                 pos_probs = probabilities[:, 1]
                 roc_auc = roc_auc_score(labels, pos_probs)
-                metrics["roc_auc"] = roc_auc
+                metrics["roc_auc"] = float(roc_auc)
         except:
             pass
 
-        # Log confusion matrix to W&B
+        # Log visualizations to W&B
         try:
-            class_names = [id_to_label[0], id_to_label[1]]
-            wandb.log({
-                "eval/confusion_matrix": wandb.plot.confusion_matrix(
-                    probs=None,
-                    y_true=labels.tolist(),
-                    preds=predictions.tolist(),
-                    class_names=class_names
-                )
-            })
-        except:
+            if wandb.run is not None:
+                class_names = [id_to_label[0], id_to_label[1]]
+
+                # Confusion matrix
+                wandb.log({
+                    "eval/confusion_matrix": wandb.plot.confusion_matrix(
+                        probs=None,
+                        y_true=labels.tolist(),
+                        preds=predictions.tolist(),
+                        class_names=class_names
+                    )
+                })
+
+                # ROC curve (if both classes present)
+                if len(np.unique(labels)) > 1:
+                    wandb.log({
+                        "eval/roc_curve": wandb.plot.roc_curve(
+                            labels,
+                            probabilities,
+                            labels=class_names
+                        )
+                    })
+
+                    # Precision-Recall curve
+                    wandb.log({
+                        "eval/pr_curve": wandb.plot.pr_curve(
+                            labels,
+                            probabilities,
+                            labels=class_names
+                        )
+                    })
+        except Exception as e:
             pass  # Skip if wandb logging fails
 
         return metrics
