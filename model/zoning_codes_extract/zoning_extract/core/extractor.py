@@ -214,11 +214,7 @@ class ZoneExtractor:
     ) -> List[ExtractedSpan]:
         """Extract zone codes from a single chunk."""
         # Run NER pipeline
-        predictions = self.ner_pipeline(
-            chunk,
-            truncation=True,
-            max_length=self.max_length,
-        )
+        predictions = self.ner_pipeline(chunk)
 
         spans = []
         for pred in predictions:
