@@ -517,8 +517,8 @@ def main():
     # Build final metrics object
     metrics = {
         'computed_at': datetime.now().isoformat(),
-        'extractor_model': args.extractor,
-        'validator_model': args.validator,
+        'extractor_model': extractor_path.name,  # Use actual directory name
+        'validator_model': validator_path.name,  # Use actual directory name
         'extractor': {
             **extractor_results['metrics'],
             'train_examples': len(extractor_train),
@@ -530,7 +530,7 @@ def main():
             'train_cities_list': extractor_train_cities,
             'test_cities_list': extractor_test_cities,
             'metrics_source': 'Pre-computed from test data',
-            'model_name': args.extractor,
+            'model_name': extractor_path.name,  # Use actual directory name
         },
         'validator': {
             **validator_results['metrics'],
@@ -544,7 +544,7 @@ def main():
             'test_cities_list': validator_test_cities,
             'confusion_matrix': validator_results['confusion_matrix'],
             'metrics_source': 'Pre-computed from test data',
-            'model_name': args.validator,
+            'model_name': validator_path.name,  # Use actual directory name
         },
     }
 

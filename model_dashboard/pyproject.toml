@@ -9,4 +9,7 @@ dependencies = [
     "torch>=2.0.0",
     "seqeval>=1.2.2",
     "dotenv>=0.9.9",
+    "google-cloud-storage>=3.9.0",
+    "python-dotenv>=1.2.2",
+    "sentencepiece>=0.2.1",
 ]

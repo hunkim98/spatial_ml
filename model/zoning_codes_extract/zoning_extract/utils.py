@@ -114,8 +114,11 @@ def extract_zones_from_bio(tokens: List[str], labels: List[str]) -> List[str]:
         if zone_str:
             zones.append(zone_str)
 
-    # Filter out special tokens
-    zones = [z for z in zones if z not in ['[CLS]', '[SEP]', '[PAD]', '']]
+    # Filter out special tokens and [UNK]
+    zones = [z for z in zones if z not in ['[CLS]', '[SEP]', '[PAD]', '[UNK]', '']]
+
+    # Also filter out zones that contain [UNK] as part of the string
+    zones = [z for z in zones if '[UNK]' not in z]
 
     return zones
 

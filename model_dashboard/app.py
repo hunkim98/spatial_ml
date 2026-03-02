@@ -598,10 +598,8 @@ def get_metrics():
     # Try to load from cache first (instant)
     cached = load_cached_metrics()
     if cached:
-        # Check if cached metrics match current model selection
-        if (cached.get('extractor_model') == current_extractor_model and
-            cached.get('validator_model') == current_validator_model):
-            return jsonify(cached)
+        # Use cached metrics if available (ignore model name mismatch since we're in cache-only mode)
+        return jsonify(cached)
 
     # Fall back to dynamic computation (slow) if no cache or model mismatch
     print("Warning: No cached metrics found or model mismatch. Computing dynamically (slow)...")
@@ -1027,7 +1025,21 @@ def get_city_comparison():
 if __name__ == '__main__':
     print("Ensuring cache files are available...")
     ensure_cache_files()
-    print("Loading models...")
-    load_models()
+
+    # Only load models if cache files are missing (fallback mode)
+    # Models will be lazy-loaded on-demand for live prediction feature
+    cache_files_exist = all([
+        CACHED_METRICS_FILE.exists(),
+        CACHED_EXTRACTOR_EXAMPLES_FILE.exists(),
+        CACHED_VALIDATOR_EXAMPLES_FILE.exists(),
+        CACHED_CITY_COMPARISON_FILE.exists(),
+    ])
+
+    if cache_files_exist:
+        print("✓ All cache files available - models will be loaded on-demand if needed")
+    else:
+        print("Loading models (cache files missing)...")
+        load_models()
+
     print("Starting server...")
     app.run(debug=True, port=5001)
