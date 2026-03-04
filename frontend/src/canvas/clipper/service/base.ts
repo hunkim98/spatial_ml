@@ -1,5 +1,5 @@
-export abstract static class IService<P, R> {
-  static serve(params: P): R {
+export abstract class IService {
+  static serve<P, R>(params: P): R {
     throw new Error("Method not implemented.");
   }
 }

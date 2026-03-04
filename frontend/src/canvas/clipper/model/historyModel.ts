@@ -1,5 +1,4 @@
 import { IModel } from "./base";
-import { ClipRect } from "../types";
 import { Action } from "../actions/base";
 
 const MAX_HISTORY_SIZE = 50;

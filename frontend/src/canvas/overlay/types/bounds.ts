@@ -34,3 +34,8 @@ export enum HandleType {
   BOTTOM_LEFT = "BOTTOM_LEFT",
   BODY = "BODY",
 }
+
+export enum EditorMode {
+  VIEW = "VIEW",
+  EDIT = "EDIT",
+}

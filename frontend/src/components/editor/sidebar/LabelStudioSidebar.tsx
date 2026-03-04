@@ -1,4 +1,5 @@
 import { PdfFile } from "@/types/pdf";
+import { GeoLabel, SkippedLabel } from "@/types/labels";
 import { ClipperEditorComponentHandle } from "../canvas/ClipperEditorComponent";
 import { OverlayEditorComponentHandle } from "../canvas/OverlayEditorComponent";
 import { MapEditorComponentHandle } from "../canvas/MapEditorComponent";
@@ -11,6 +12,8 @@ import OverlaySidebar from "./OverlaySidebar";
 
 interface LabelStudioSidebarProps {
   pdfs: PdfFile[];
+  labels: Record<string, GeoLabel>;
+  skippedLabels: Record<string, SkippedLabel>;
   onPdfSelect: (hash: string | null) => void;
   isLoadingResources: boolean;
   pdfUrl: string | null;
@@ -21,10 +24,16 @@ interface LabelStudioSidebarProps {
   mapRef: React.RefObject<MapEditorComponentHandle | null>;
   imageGeoCorners: GeoCorners | null;
   setImageGeoCorners: React.Dispatch<React.SetStateAction<GeoCorners | null>>;
+  onSkip: () => void;
+  onBack: () => void;
+  onSaveLabel: () => void;
+  isSaving: boolean;
 }
 
 export default function LabelStudioSidebar({
   pdfs,
+  labels,
+  skippedLabels,
   onPdfSelect,
   clipResult,
   setClipResult,
@@ -35,19 +44,25 @@ export default function LabelStudioSidebar({
   mapRef,
   imageGeoCorners,
   setImageGeoCorners,
+  onSkip,
+  onBack,
+  onSaveLabel,
+  isSaving,
 }: LabelStudioSidebarProps) {
   if (isLoadingResources) {
     return <LoadingSidebar />;
   }
 
   if (!pdfUrl) {
-    return <PdfSelectSidebar pdfs={pdfs} onPdfSelect={onPdfSelect} />;
+    return <PdfSelectSidebar pdfs={pdfs} labels={labels} skippedLabels={skippedLabels} onPdfSelect={onPdfSelect} />;
   }
   if (!clipResult) {
     return (
       <ClipperSidebar
         clipperRef={clipperRef}
         setClipResult={setClipResult}
+        onSkip={onSkip}
+        onBack={onBack}
       />
     );
   }
@@ -59,6 +74,9 @@ export default function LabelStudioSidebar({
       mapRef={mapRef}
       imageGeoCorners={imageGeoCorners}
       setImageGeoCorners={setImageGeoCorners}
+      onSaveLabel={onSaveLabel}
+      isSaving={isSaving}
+      onBack={onBack}
     />
   );
 }

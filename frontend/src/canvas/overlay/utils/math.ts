@@ -1,4 +1,4 @@
-import { Point } from "../types/geometry";
+import { Point } from "../types";
 
 export const addPoints = (a: Point, b: Point): Point => {
   return {

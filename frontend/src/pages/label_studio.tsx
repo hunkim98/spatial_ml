@@ -18,9 +18,11 @@ export default function LabelStudioPage() {
   const { pdfs, loading: isFetchingAllPDFs } = usePdfs();
   const {
     labels,
+    skippedLabels,
     loading: isFetchingAllLabels,
     saveLabel,
     deleteLabel,
+    skipLabel,
   } = useLabels();
 
   // ========== Refs ==========
@@ -82,11 +84,25 @@ export default function LabelStudioPage() {
     await deleteLabel(selectedPdf.hash);
   }, [selectedPdf, deleteLabel]);
 
+  const handleSkip = useCallback(async () => {
+    if (!selectedPdf) return;
+    await skipLabel(selectedPdf.hash, selectedPdf.path);
+    setSelectedPdf(null);
+    setClipResult(null);
+  }, [selectedPdf, skipLabel]);
+
+  const handleBack = useCallback(() => {
+    setSelectedPdf(null);
+    setClipResult(null);
+  }, []);
+
   return (
     <Layout
       sidebar={
         <EditorSidebar
           pdfs={pdfs}
+          labels={labels}
+          skippedLabels={skippedLabels}
           onPdfSelect={handlePdfSelect}
           clipResult={clipResult}
           setClipResult={setClipResult}
@@ -97,6 +113,10 @@ export default function LabelStudioPage() {
           mapRef={mapRef}
           imageGeoCorners={imageGeoCorners}
           setImageGeoCorners={setImageGeoCorners}
+          onSkip={handleSkip}
+          onSaveLabel={handleSaveLabel}
+          isSaving={saving}
+          onBack={handleBack}
         />
       }
     >
