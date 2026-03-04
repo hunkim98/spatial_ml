@@ -7,8 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "dvc:push": "cd .. && dvc push && ./scripts/update-manifest-hash.sh",
-    "dvc:add": "cd .. && dvc add data/ && ./scripts/update-manifest-hash.sh"
+    "dvc:push": "cd .. && dvc push",
+    "dvc:add": "cd .. && dvc add data/"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

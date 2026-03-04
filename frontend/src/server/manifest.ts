@@ -1,15 +1,5 @@
 import { hashToGcsPath } from "./gcs";
 import { Storage } from "@google-cloud/storage";
-import fs from "fs";
-import path from "path";
-
-/**
- * DVC manifest utilities - fetches manifest from GCS.
- *
- * The manifest contains all file paths and their MD5 hashes.
- * The manifest hash is read from dvc-manifest-hash.txt (git-tracked)
- * so it stays in sync with code deployments.
- */
 
 export interface DvcEntry {
   md5: string;
@@ -32,17 +22,12 @@ function getStorage(): Storage {
   return storage;
 }
 
-/**
- * Read the manifest hash from the git-tracked file.
- */
 function getManifestHash(): string {
-  // Try env var first (allows override), then read from file
-  if (process.env.DVC_MANIFEST_HASH) {
-    return process.env.DVC_MANIFEST_HASH;
+  // Injected at build time by next.config.ts from data.dvc
+  if (!process.env.DVC_MANIFEST_HASH) {
+    throw new Error("DVC_MANIFEST_HASH not set — check next.config.ts");
   }
-
-  const hashFile = path.resolve(process.cwd(), "dvc-manifest-hash.txt");
-  return fs.readFileSync(hashFile, "utf-8").trim();
+  return process.env.DVC_MANIFEST_HASH;
 }
 
 /**
