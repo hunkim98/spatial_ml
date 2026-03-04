@@ -3,6 +3,7 @@ import { OverlayEditorComponentHandle } from "../canvas/OverlayEditorComponent";
 import { MapEditorComponentHandle } from "../canvas/MapEditorComponent";
 import { GeoCorners } from "@/canvas/overlay/types";
 import { PdfFile } from "@/types/pdf";
+import { GeoLabel, SkippedLabel } from "@/types/labels";
 import { ExportResult } from "@/canvas/clipper/controller/exportController";
 import LoadingSidebar from "./LoadingSidebar";
 import PdfSelectSidebar from "./PdfSelectSidebar";
@@ -11,6 +12,8 @@ import OverlaySidebar from "./OverlaySidebar";
 
 interface EditorSidebarProps {
   pdfs: PdfFile[];
+  labels: Record<string, GeoLabel>;
+  skippedLabels: Record<string, SkippedLabel>;
   onPdfSelect: (hash: string | null) => void;
   isLoadingResources: boolean;
   pdfUrl: string | null;
@@ -21,10 +24,16 @@ interface EditorSidebarProps {
   mapRef: React.RefObject<MapEditorComponentHandle | null>;
   imageGeoCorners: GeoCorners | null;
   setImageGeoCorners: React.Dispatch<React.SetStateAction<GeoCorners | null>>;
+  onSkip: () => void;
+  onSaveLabel: () => void;
+  isSaving: boolean;
+  onBack: () => void;
 }
 
 export default function EditorSidebar({
   pdfs,
+  labels,
+  skippedLabels,
   onPdfSelect,
   clipResult,
   setClipResult,
@@ -35,19 +44,32 @@ export default function EditorSidebar({
   mapRef,
   imageGeoCorners,
   setImageGeoCorners,
+  onSkip,
+  onSaveLabel,
+  isSaving,
+  onBack,
 }: EditorSidebarProps) {
   if (isLoadingResources) {
     return <LoadingSidebar />;
   }
 
   if (!pdfUrl) {
-    return <PdfSelectSidebar pdfs={pdfs} onPdfSelect={onPdfSelect} />;
+    return (
+      <PdfSelectSidebar
+        pdfs={pdfs}
+        labels={labels}
+        skippedLabels={skippedLabels}
+        onPdfSelect={onPdfSelect}
+      />
+    );
   }
   if (!clipResult) {
     return (
       <ClipperSidebar
         clipperRef={clipperRef}
         setClipResult={setClipResult}
+        onSkip={onSkip}
+        onBack={onBack}
       />
     );
   }
@@ -59,6 +81,9 @@ export default function EditorSidebar({
       mapRef={mapRef}
       imageGeoCorners={imageGeoCorners}
       setImageGeoCorners={setImageGeoCorners}
+      onSaveLabel={onSaveLabel}
+      isSaving={isSaving}
+      onBack={onBack}
     />
   );
 }

@@ -22,6 +22,8 @@ interface OverlayEditorComponentProps {
   mapRef: React.RefObject<MapEditorComponentHandle | null>;
   imageGeoCorners: GeoCorners | null;
   onImageGeoCornersChange?: (corners: GeoCorners) => void;
+  initialBounds?: [[number, number], [number, number]];
+  initialImage?: { url: string; corners: GeoCorners; opacity?: number };
 }
 
 export interface OverlayEditorComponentHandle {
@@ -37,7 +39,7 @@ export const OverlayEditorComponent = forwardRef<
   OverlayEditorComponentHandle,
   OverlayEditorComponentProps
 >(function OverlayEditorComponent(
-  { imageBuffer, mapRef, imageGeoCorners, onImageGeoCornersChange },
+  { imageBuffer, mapRef, imageGeoCorners, onImageGeoCornersChange, initialBounds, initialImage },
   ref
 ) {
   const imageCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -270,6 +272,8 @@ export const OverlayEditorComponent = forwardRef<
           ref={mapRef}
           onMapClick={onMapClick}
           cursor={mapCursor}
+          initialBounds={initialBounds}
+          initialImage={initialImage}
         />
       </div>
     </div>

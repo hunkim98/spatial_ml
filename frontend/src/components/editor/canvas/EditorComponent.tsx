@@ -23,6 +23,8 @@ interface EditorComponentProps {
   mapRef: React.RefObject<MapEditorComponentHandle | null>;
   imageGeoCorners: GeoCorners | null;
   onImageGeoCornersChange?: (corners: GeoCorners) => void;
+  initialBounds?: [[number, number], [number, number]];
+  initialImage?: { url: string; corners: GeoCorners; opacity?: number };
 }
 
 export default function EditorComponent({
@@ -35,6 +37,8 @@ export default function EditorComponent({
   mapRef,
   imageGeoCorners,
   onImageGeoCornersChange,
+  initialBounds,
+  initialImage,
 }: EditorComponentProps) {
   if (isLoadingResources) {
     return (
@@ -67,6 +71,8 @@ export default function EditorComponent({
       mapRef={mapRef}
       imageGeoCorners={imageGeoCorners}
       onImageGeoCornersChange={onImageGeoCornersChange}
+      initialBounds={initialBounds}
+      initialImage={initialImage}
     />
   );
 }

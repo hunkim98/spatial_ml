@@ -12,8 +12,8 @@ import {
   Title,
 } from "@mantine/core";
 import { useDebouncedCallback } from "@mantine/hooks";
-import { IconSearch } from "@tabler/icons-react";
-import React, { useEffect, useMemo, useState } from "react";
+import { IconArrowLeft, IconSearch } from "@tabler/icons-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { OverlayEditorComponentHandle } from "../canvas/OverlayEditorComponent";
 import { MapEditorComponentHandle } from "../canvas/MapEditorComponent";
 import { GeoCorners } from "@/canvas/overlay/types";
@@ -27,6 +27,9 @@ interface OverlaySidebarProps {
   mapRef: React.RefObject<MapEditorComponentHandle | null>;
   imageGeoCorners: GeoCorners | null;
   setImageGeoCorners: React.Dispatch<React.SetStateAction<GeoCorners | null>>;
+  onSaveLabel: () => void;
+  isSaving: boolean;
+  onBack: () => void;
 }
 
 function OverlaySidebar({
@@ -36,14 +39,27 @@ function OverlaySidebar({
   mapRef,
   imageGeoCorners,
   setImageGeoCorners,
+  onSaveLabel,
+  isSaving,
+  onBack,
 }: OverlaySidebarProps) {
   const [isHoveringButton, setIsHoveringButton] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const { results, loading: searchLoading, search, clear } = useLocationSearch();
+  const {
+    results,
+    loading: searchLoading,
+    search,
+    clear,
+  } = useLocationSearch();
 
   const debouncedSearch = useDebouncedCallback((query: string) => {
     search(query);
   }, 300);
+
+  const handleClickClippedImage = useCallback(() => {
+    // we will go back to clipper phase
+    setClipResult(null);
+  }, []);
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
@@ -53,7 +69,10 @@ function OverlaySidebar({
   const handleLocationClick = (result: (typeof results)[0]) => {
     const [south, north, west, east] = result.boundingBox;
     mapRef.current?.getMapRef()?.fitBounds(
-      [[west, south], [east, north]],
+      [
+        [west, south],
+        [east, north],
+      ],
       { padding: 40 }
     );
     setSearchQuery("");
@@ -70,7 +89,10 @@ function OverlaySidebar({
     if (!overlayRef.current) return;
     const controllers = overlayRef.current?.getControllers();
     if (isHoveringButton) {
-      controllers?.imagePropertyController.execute({ opacity: 0.5, visible: true });
+      controllers?.imagePropertyController.execute({
+        opacity: 0.5,
+        visible: true,
+      });
     } else {
       controllers?.imagePropertyController.execute({ visible: false });
     }
@@ -79,7 +101,15 @@ function OverlaySidebar({
   return (
     <Stack gap="md">
       <Group>
-        <Title order={5}>Overlay</Title>
+        <Button
+          variant="subtle"
+          size="compact-sm"
+          onClick={onBack}
+          p={0}
+        >
+          <IconArrowLeft size={16} />
+        </Button>
+        <Title order={5}>Georeference</Title>
       </Group>
 
       <Divider label="Location" labelPosition="left" />
@@ -142,6 +172,14 @@ function OverlaySidebar({
             {imageGeoCorners ? "Image Inserted" : "Insert Image"}
           </Button>
         </>
+      )}
+      {imageGeoCorners && (
+        <Button
+          onClick={onSaveLabel}
+          loading={isSaving}
+        >
+          Submit Georeference
+        </Button>
       )}
     </Stack>
   );

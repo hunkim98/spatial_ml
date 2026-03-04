@@ -22,6 +22,8 @@ interface MapEditorComponentProps {
   onMapClick?: (lngLat: Corner) => void;
   cursor?: string;
   style?: React.CSSProperties;
+  initialBounds?: [[number, number], [number, number]];
+  initialImage?: { url: string; corners: GeoCorners; opacity?: number };
 }
 
 export interface MapEditorComponentHandle {
@@ -57,7 +59,7 @@ function toMapLibreCoordinates(
 export const MapEditorComponent = forwardRef<
   MapEditorComponentHandle,
   MapEditorComponentProps
->(function MapEditorComponent({ onMapClick, cursor, style }, ref) {
+>(function MapEditorComponent({ onMapClick, cursor, style, initialBounds, initialImage }, ref) {
   const mapRef = useRef<MapRef>(null);
   const [viewState, setViewState] = useState({
     longitude: DEFAULT_CENTER.lng,
@@ -233,6 +235,14 @@ export const MapEditorComponent = forwardRef<
       ref={mapRef}
       {...viewState}
       onMove={(evt) => setViewState(evt.viewState)}
+      onLoad={() => {
+        if (initialBounds) {
+          mapRef.current?.fitBounds(initialBounds, { padding: 40 });
+        }
+        if (initialImage) {
+          addImageLayer(initialImage.url, initialImage.corners, initialImage.opacity ?? 0.7);
+        }
+      }}
       onClick={handleClick}
       cursor={cursor}
       style={{ width: "100%", height: "100%", ...style }}

@@ -37,3 +37,9 @@ export interface GeoLabel {
 }
 
 export type CornerName = keyof GeoLabelCorners;
+
+export interface SkippedLabel {
+  pdfHash: string;
+  pdfPath: string;
+  createdAt?: string;
+}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
-import { GeoLabel } from "@/types/labels";
+import { GeoLabel, SkippedLabel } from "@/types/labels";
 import { uploadClippedImage } from "@/lib/storage";
 
 interface SaveLabelParams {
@@ -14,19 +14,29 @@ interface SaveLabelParams {
 
 interface UseLabelsReturn {
   labels: Record<string, GeoLabel>;
+  skippedLabels: Record<string, SkippedLabel>;
   loading: boolean;
   saveLabel: (params: SaveLabelParams) => Promise<boolean>;
   deleteLabel: (pdfHash: string) => Promise<boolean>;
+  skipLabel: (pdfHash: string, pdfPath: string) => Promise<boolean>;
 }
 
 export function useLabels(): UseLabelsReturn {
   const [labels, setLabels] = useState<Record<string, GeoLabel>>({});
+  const [skippedLabels, setSkippedLabels] = useState<
+    Record<string, SkippedLabel>
+  >({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    axios
-      .get<Record<string, GeoLabel>>("/api/labels")
-      .then((res) => setLabels(res.data))
+    Promise.all([
+      axios.get<Record<string, GeoLabel>>("/api/labels"),
+      axios.get<Record<string, SkippedLabel>>("/api/skipped-labels"),
+    ])
+      .then(([labelsRes, skippedRes]) => {
+        setLabels(labelsRes.data);
+        setSkippedLabels(skippedRes.data);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -79,5 +89,21 @@ export function useLabels(): UseLabelsReturn {
     []
   );
 
-  return { labels, loading, saveLabel, deleteLabel };
+  const skipLabel = useCallback(
+    async (pdfHash: string, pdfPath: string): Promise<boolean> => {
+      try {
+        await axios.post("/api/skipped-labels", { pdfHash, pdfPath });
+        setSkippedLabels((prev) => ({
+          ...prev,
+          [pdfHash]: { pdfHash, pdfPath },
+        }));
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    []
+  );
+
+  return { labels, skippedLabels, loading, saveLabel, deleteLabel, skipLabel };
 }
