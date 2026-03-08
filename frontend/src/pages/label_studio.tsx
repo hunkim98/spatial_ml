@@ -96,6 +96,12 @@ export default function LabelStudioPage() {
     setClipResult(null);
   }, []);
 
+  const handleBackToClipper = useCallback(() => {
+    setClipResult(null);
+    setImageGeoCorners(null);
+    mapRef.current?.removeImageLayer();
+  }, []);
+
   return (
     <Layout
       sidebar={
@@ -117,6 +123,7 @@ export default function LabelStudioPage() {
           onSaveLabel={handleSaveLabel}
           isSaving={saving}
           onBack={handleBack}
+          onBackToClipper={handleBackToClipper}
         />
       }
     >

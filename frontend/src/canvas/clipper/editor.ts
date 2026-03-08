@@ -33,6 +33,7 @@ import { ToolManagerModel } from "./model/tools/toolManagerModel";
 import { ToolManagerController } from "./controller/tools/toolManagerController";
 import { ClipRectCreateToolController } from "./controller/tools/clipRectCreateToolController";
 import { ClipRectEditToolController } from "./controller/tools/clipRectEditToolController";
+import { ClipRectRestoreController } from "./controller/tools/clipRectRestoreController";
 import { ToolType } from "./types/tool";
 import { DragInteractionModel } from "./model/dragInteractionModel";
 import { DragInteractionController } from "./controller/dragInteractionController";
@@ -154,6 +155,11 @@ export class ClipperEditor {
         this.listeners
       ),
       clipRectEditToolController: new ClipRectEditToolController(
+        this.models,
+        this.views,
+        this.listeners
+      ),
+      clipRectRestoreController: new ClipRectRestoreController(
         this.models,
         this.views,
         this.listeners

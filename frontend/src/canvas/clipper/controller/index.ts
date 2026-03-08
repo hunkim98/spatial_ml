@@ -6,6 +6,7 @@ import { CanvasSizeScaleController } from "./settings/CanvasSizeScaleController"
 import { ToolManagerController } from "./tools/toolManagerController";
 import { ClipRectCreateToolController } from "./tools/clipRectCreateToolController";
 import { ClipRectEditToolController } from "./tools/clipRectEditToolController";
+import { ClipRectRestoreController } from "./tools/clipRectRestoreController";
 import { DragInteractionController } from "./dragInteractionController";
 import { ExportController } from "./exportController";
 
@@ -19,5 +20,6 @@ export type ClipperController = {
   toolManagerController: ToolManagerController;
   clipRectCreateToolController: ClipRectCreateToolController;
   clipRectEditToolController: ClipRectEditToolController;
+  clipRectRestoreController: ClipRectRestoreController;
   exportController: ExportController;
 };

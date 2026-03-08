@@ -26,6 +26,7 @@ interface LabelStudioSidebarProps {
   setImageGeoCorners: React.Dispatch<React.SetStateAction<GeoCorners | null>>;
   onSkip: () => void;
   onBack: () => void;
+  onBackToClipper: () => void;
   onSaveLabel: () => void;
   isSaving: boolean;
 }
@@ -46,6 +47,7 @@ export default function LabelStudioSidebar({
   setImageGeoCorners,
   onSkip,
   onBack,
+  onBackToClipper,
   onSaveLabel,
   isSaving,
 }: LabelStudioSidebarProps) {
@@ -69,14 +71,14 @@ export default function LabelStudioSidebar({
   return (
     <OverlaySidebar
       clippedImageBuffer={clipResult.buffer}
-      setClipResult={setClipResult}
       overlayRef={overlayRef}
       mapRef={mapRef}
       imageGeoCorners={imageGeoCorners}
       setImageGeoCorners={setImageGeoCorners}
       onSaveLabel={onSaveLabel}
       isSaving={isSaving}
-      onBack={onBack}
+      onBackToSelectPdf={onBack}
+      onBackToClipper={onBackToClipper}
     />
   );
 }

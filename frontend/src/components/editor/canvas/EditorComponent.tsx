@@ -25,6 +25,7 @@ interface EditorComponentProps {
   onImageGeoCornersChange?: (corners: GeoCorners) => void;
   initialBounds?: [[number, number], [number, number]];
   initialImage?: { url: string; corners: GeoCorners; opacity?: number };
+  initialClipRect?: { x: number; y: number; width: number; height: number };
 }
 
 export default function EditorComponent({
@@ -39,6 +40,7 @@ export default function EditorComponent({
   onImageGeoCornersChange,
   initialBounds,
   initialImage,
+  initialClipRect,
 }: EditorComponentProps) {
   if (isLoadingResources) {
     return (
@@ -59,6 +61,7 @@ export default function EditorComponent({
         ref={clipperRef}
         pdfUrl={pdfUrl}
         pageNumber={pageNumber}
+        initialClipRect={initialClipRect}
       />
     );
   }

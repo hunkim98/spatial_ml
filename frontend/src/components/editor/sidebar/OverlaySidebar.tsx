@@ -17,31 +17,30 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { OverlayEditorComponentHandle } from "../canvas/OverlayEditorComponent";
 import { MapEditorComponentHandle } from "../canvas/MapEditorComponent";
 import { GeoCorners } from "@/canvas/overlay/types";
-import { ExportResult } from "@/canvas/clipper/controller/exportController";
 import { useLocationSearch } from "@/hooks/useLocationSearch";
 
 interface OverlaySidebarProps {
   clippedImageBuffer: HTMLCanvasElement;
-  setClipResult: React.Dispatch<React.SetStateAction<ExportResult | null>>;
   overlayRef: React.RefObject<OverlayEditorComponentHandle | null>;
   mapRef: React.RefObject<MapEditorComponentHandle | null>;
   imageGeoCorners: GeoCorners | null;
   setImageGeoCorners: React.Dispatch<React.SetStateAction<GeoCorners | null>>;
   onSaveLabel: () => void;
   isSaving: boolean;
-  onBack: () => void;
+  onBackToSelectPdf: () => void;
+  onBackToClipper: () => void;
 }
 
 function OverlaySidebar({
   clippedImageBuffer,
-  setClipResult,
   overlayRef,
   mapRef,
   imageGeoCorners,
   setImageGeoCorners,
   onSaveLabel,
   isSaving,
-  onBack,
+  onBackToSelectPdf,
+  onBackToClipper,
 }: OverlaySidebarProps) {
   const [isHoveringButton, setIsHoveringButton] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -57,9 +56,8 @@ function OverlaySidebar({
   }, 300);
 
   const handleClickClippedImage = useCallback(() => {
-    // we will go back to clipper phase
-    setClipResult(null);
-  }, []);
+    onBackToClipper();
+  }, [onBackToClipper]);
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
@@ -104,7 +102,7 @@ function OverlaySidebar({
         <Button
           variant="subtle"
           size="compact-sm"
-          onClick={onBack}
+          onClick={onBackToSelectPdf}
           p={0}
         >
           <IconArrowLeft size={16} />
@@ -147,7 +145,11 @@ function OverlaySidebar({
 
       {previewUrl && (
         <>
-          <Box bg="black" style={{ borderRadius: 4 }}>
+          <Box
+            bg="black"
+            style={{ borderRadius: 4, cursor: "pointer" }}
+            onClick={handleClickClippedImage}
+          >
             <MantineImage
               src={previewUrl}
               alt="Clipped Image"
@@ -171,6 +173,18 @@ function OverlaySidebar({
           >
             {imageGeoCorners ? "Image Inserted" : "Insert Image"}
           </Button>
+          {imageGeoCorners && (
+            <Button
+              variant="outline"
+              color="red"
+              onClick={() => {
+                mapRef.current?.removeImageLayer();
+                setImageGeoCorners(null);
+              }}
+            >
+              Remove Image
+            </Button>
+          )}
         </>
       )}
       {imageGeoCorners && (

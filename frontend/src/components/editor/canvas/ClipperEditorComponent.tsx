@@ -3,6 +3,7 @@ import { ClipperEvent, ClipperEventHandler } from "@/canvas/clipper/events";
 import { useClipperEditor } from "@/canvas/clipper/hooks/useClipperEditor";
 import {
   forwardRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useLayoutEffect,
@@ -21,12 +22,13 @@ export interface ClipperEditorComponentHandle {
 interface ClipperEditorComponentProps {
   pdfUrl: string;
   pageNumber: number;
+  initialClipRect?: { x: number; y: number; width: number; height: number };
 }
 
 export const ClipperEditorComponent = forwardRef<
   ClipperEditorComponentHandle,
   ClipperEditorComponentProps
->(function PDFMapFrameExtractor({ pdfUrl, pageNumber }, ref) {
+>(function PDFMapFrameExtractor({ pdfUrl, pageNumber, initialClipRect }, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const maskCanvasRef = useRef<HTMLCanvasElement>(null);
   const pdfCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -53,6 +55,22 @@ export const ClipperEditorComponent = forwardRef<
     }
     pendingListeners.current = [];
   }, [editor]);
+
+  // Restore clip rect after PDF loads (when returning from overlay phase)
+  useEffect(() => {
+    if (!editor || !initialClipRect) return;
+
+    const handlePdfLoaded = () => {
+      editor.controllers.clipRectRestoreController.execute({
+        clipRect: initialClipRect,
+      });
+    };
+
+    editor.addEventListener(ClipperEvent.PDF_LOADED, handlePdfLoaded);
+    return () => {
+      editor.removeEventListener(ClipperEvent.PDF_LOADED, handlePdfLoaded);
+    };
+  }, [editor, initialClipRect]);
 
   // Expose methods via ref
   useImperativeHandle(

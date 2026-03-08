@@ -28,6 +28,7 @@ interface EditorSidebarProps {
   onSaveLabel: () => void;
   isSaving: boolean;
   onBack: () => void;
+  onBackToClipper: () => void;
 }
 
 export default function EditorSidebar({
@@ -48,6 +49,7 @@ export default function EditorSidebar({
   onSaveLabel,
   isSaving,
   onBack,
+  onBackToClipper,
 }: EditorSidebarProps) {
   if (isLoadingResources) {
     return <LoadingSidebar />;
@@ -76,14 +78,14 @@ export default function EditorSidebar({
   return (
     <OverlaySidebar
       clippedImageBuffer={clipResult.buffer}
-      setClipResult={setClipResult}
       overlayRef={overlayRef}
       mapRef={mapRef}
       imageGeoCorners={imageGeoCorners}
       setImageGeoCorners={setImageGeoCorners}
       onSaveLabel={onSaveLabel}
       isSaving={isSaving}
-      onBack={onBack}
+      onBackToSelectPdf={onBack}
+      onBackToClipper={onBackToClipper}
     />
   );
 }

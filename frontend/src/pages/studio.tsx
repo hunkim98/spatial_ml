@@ -41,6 +41,9 @@ export default function StudioPage() {
   const [initialImage, setInitialImage] = useState<
     { url: string; corners: GeoCorners; opacity?: number } | undefined
   >(undefined);
+  const [initialClipRect, setInitialClipRect] = useState<
+    { x: number; y: number; width: number; height: number } | undefined
+  >(undefined);
 
   // ========== Derived Values ==========
   const pdfUrl = selectedPdf ? `/api/pdf/${selectedPdf.path}` : null;
@@ -54,7 +57,17 @@ export default function StudioPage() {
     setImageGeoCorners(null);
     setInitialBounds(undefined);
     setInitialImage(undefined);
+    setInitialClipRect(undefined);
   }, []);
+
+  const handleBackToClipper = useCallback(() => {
+    setInitialClipRect(clipResult?.clipRect);
+    setClipResult(null);
+    setImageGeoCorners(null);
+    setInitialBounds(undefined);
+    setInitialImage(undefined);
+    mapRef.current?.removeImageLayer();
+  }, [clipResult]);
 
   const handlePdfSelect = useCallback(
     (hash: string | null) => {
@@ -171,6 +184,7 @@ export default function StudioPage() {
           onSaveLabel={handleSaveLabel}
           isSaving={isSaving}
           onBack={handleBack}
+          onBackToClipper={handleBackToClipper}
         />
       }
     >
@@ -193,6 +207,7 @@ export default function StudioPage() {
           onImageGeoCornersChange={setImageGeoCorners}
           initialBounds={initialBounds}
           initialImage={initialImage}
+          initialClipRect={initialClipRect}
         />
       </Box>
     </Layout>
