@@ -1,5 +1,4 @@
 import { Action, ActionType } from "./base";
-import { ClipRect } from "../types";
 
 export class ResizeAction extends Action {
   _type = ActionType.RESIZE;

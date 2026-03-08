@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import path from "path";
-import { getFileStream } from "@/lib/gcs";
-import { findHashByPath } from "@/lib/manifest";
+import { getFileStream } from "@/server/gcs";
+import { findHashByPath } from "@/server/manifest";
 
 /**
  * PDF serving endpoint - fetches from GCS using DVC cache structure.

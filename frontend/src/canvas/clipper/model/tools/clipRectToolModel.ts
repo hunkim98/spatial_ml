@@ -1,66 +1,114 @@
 import { IModel } from "../base";
-import { ClipRect, HandleType, Point } from "../../types";
+import { HandleType, Point, Rect } from "../../types";
 
 export interface ClipRectToolModelType {
-  rect: ClipRect | null;
-  activeHandle: HandleType;
-  dragStart: Point | null;
-  rectAtDragStart: ClipRect | null;
+  corner1: Point | null;
+  corner2: Point | null;
+  corner3: Point | null;
+  corner4: Point | null;
 }
 
 export class ClipRectToolModel
   extends IModel<ClipRectToolModelType>
   implements ClipRectToolModelType
 {
-  private _rect: ClipRect | null;
-  private _activeHandle: HandleType;
-  private _dragStart: Point | null;
-  private _rectAtDragStart: ClipRect | null;
+  private _corner1: Point | null;
+  private _corner2: Point | null;
+  private _corner3: Point | null;
+  private _corner4: Point | null;
+  private _activeHandle: HandleType | null;
+  private _candidateHandle: HandleType | null;
+  private _isCreating: boolean;
+  private _isEditing: boolean;
 
   constructor(props: Partial<ClipRectToolModelType>) {
     super();
-    this._rect = props.rect ?? null;
-    this._activeHandle = props.activeHandle ?? HandleType.NONE;
-    this._dragStart = props.dragStart ?? null;
-    this._rectAtDragStart = props.rectAtDragStart ?? null;
+    this._corner1 = props.corner1 ?? null;
+    this._corner2 = props.corner2 ?? null;
+    this._corner3 = props.corner3 ?? null;
+    this._corner4 = props.corner4 ?? null;
+    this._activeHandle = null;
+    this._candidateHandle = null;
+    this._isCreating = false;
+    this._isEditing = false;
   }
 
-  get rect(): ClipRect | null {
-    return this._rect;
+  get corner1(): Point | null {
+    return this._corner1;
+  }
+  get corner2(): Point | null {
+    return this._corner2;
+  }
+  get corner3(): Point | null {
+    return this._corner3;
+  }
+  get corner4(): Point | null {
+    return this._corner4;
   }
 
-  get activeHandle(): HandleType {
+  set corner1(point: Point | null) {
+    this._corner1 = point;
+  }
+  set corner2(point: Point | null) {
+    this._corner2 = point;
+  }
+  set corner3(point: Point | null) {
+    this._corner3 = point;
+  }
+  set corner4(point: Point | null) {
+    this._corner4 = point;
+  }
+
+  get activeHandle(): HandleType | null {
     return this._activeHandle;
   }
-
-  get dragStart(): Point | null {
-    return this._dragStart;
+  set activeHandle(handle: HandleType | null) {
+    this._activeHandle = handle;
   }
 
-  get rectAtDragStart(): ClipRect | null {
-    return this._rectAtDragStart;
+  get candidateHandle(): HandleType | null {
+    return this._candidateHandle;
+  }
+  set candidateHandle(handle: HandleType | null) {
+    this._candidateHandle = handle;
   }
 
-  set rect(rect: ClipRect | null) {
-    this._rect = rect;
+  get isCreating(): boolean {
+    return this._isCreating;
+  }
+  set isCreating(value: boolean) {
+    this._isCreating = value;
   }
 
-  set activeHandle(activeHandle: HandleType) {
-    this._activeHandle = activeHandle;
+  get isEditing(): boolean {
+    return this._isEditing;
+  }
+  set isEditing(value: boolean) {
+    this._isEditing = value;
   }
 
-  set dragStart(point: Point | null) {
-    this._dragStart = point;
-  }
-
-  set rectAtDragStart(rect: ClipRect | null) {
-    this._rectAtDragStart = rect;
+  /** Computed Rect from the 4 corners. Returns null if corner1 or corner4 are unset. */
+  get rect(): Rect | null {
+    if (!this._corner1 || !this._corner4) return null;
+    const minX = Math.min(this._corner1.x, this._corner4.x);
+    const minY = Math.min(this._corner1.y, this._corner4.y);
+    const maxX = Math.max(this._corner1.x, this._corner4.x);
+    const maxY = Math.max(this._corner1.y, this._corner4.y);
+    return {
+      offset: { x: minX, y: minY },
+      width: maxX - minX,
+      height: maxY - minY,
+    };
   }
 
   reset() {
-    this._rect = null;
-    this._activeHandle = HandleType.NONE;
-    this._dragStart = null;
-    this._rectAtDragStart = null;
+    this._corner1 = null;
+    this._corner2 = null;
+    this._corner3 = null;
+    this._corner4 = null;
+    this._activeHandle = null;
+    this._candidateHandle = null;
+    this._isCreating = false;
+    this._isEditing = false;
   }
 }

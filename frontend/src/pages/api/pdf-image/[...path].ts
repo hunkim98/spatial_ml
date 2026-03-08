@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { findHashByPath } from "@/lib/manifest";
+import { findHashByPath } from "@/server/manifest";
 
 /**
  * PDF Image endpoint - returns PDF info for client-side rendering.

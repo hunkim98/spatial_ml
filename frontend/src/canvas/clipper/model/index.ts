@@ -4,8 +4,10 @@ import { PdfLayerModel } from "./layers/pdfLayerModel";
 import { EditorStatusModel } from "./editorStatusModel";
 import { HistoryModel } from "./historyModel";
 import { ImageModel } from "./imageModel";
-import { MouseControlModel } from "./mouseControlModel";
+import { MouseInteractionModel } from "./mouseInteractionModel";
 import { NavigationModel } from "./navigationModel";
+import { ToolManagerModel } from "./tools/toolManagerModel";
+import { DragInteractionModel } from "./dragInteractionModel";
 
 export type ClipperModel = {
   maskLayerModel: MaskLayerModel;
@@ -14,6 +16,8 @@ export type ClipperModel = {
   clipRectToolModel: ClipRectToolModel;
   editorStatusModel: EditorStatusModel;
   historyModel: HistoryModel;
-  mouseControlModel: MouseControlModel;
+  mouseInteractionModel: MouseInteractionModel;
   navigationModel: NavigationModel;
+  toolManagerModel: ToolManagerModel;
+  dragInteractionModel: DragInteractionModel;
 };

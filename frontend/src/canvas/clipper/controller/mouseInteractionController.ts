@@ -12,7 +12,7 @@ import {
 
 type Models = Pick<
   ClipperModel,
-  "pdfLayerModel" | "navigationModel" | "mouseControlModel"
+  "pdfLayerModel" | "navigationModel" | "mouseInteractionModel"
 >;
 type Views = Pick<ClipperView, "pdfLayerView" | "maskLayerView">;
 
@@ -42,6 +42,8 @@ export class MouseInteractionController extends BaseController<
       this.executeMouseDown(e as React.MouseEvent<HTMLCanvasElement>);
     } else if (e.type === "mousemove") {
       this.executeMouseMove(e as React.MouseEvent<HTMLCanvasElement>);
+    } else if (e.type === "mouseup") {
+      this.executeMouseUp(e as React.MouseEvent<HTMLCanvasElement>);
     }
 
     this.views.pdfLayerView.clear();
@@ -59,40 +61,28 @@ export class MouseInteractionController extends BaseController<
 
   private executeMouseDown(e: React.MouseEvent<HTMLCanvasElement>): void {
     const { element } = this.models.pdfLayerModel;
-    if (!this.models.mouseControlModel.mouseDownWorldPosition) return;
-    const { mouseDownWorldPosition } = this.models.mouseControlModel;
-    console.log("mouseDownWorldPosition", mouseDownWorldPosition);
+    if (!this.models.mouseInteractionModel.mouseDownWorldPosition) return;
+    const { mouseDownWorldPosition } = this.models.mouseInteractionModel;
     const mouseDownScreenPosition = getEventRelativePositionToCanvas(
       e,
       element
     );
-    this.models.mouseControlModel.mouseDownScreenPosition =
+    this.models.mouseInteractionModel.mouseDownScreenPosition =
       mouseDownScreenPosition;
-    this.models.mouseControlModel.mouseDownWorldPosition =
+    this.models.mouseInteractionModel.mouseDownWorldPosition =
       mouseDownWorldPosition;
   }
 
   private executeMouseMove(e: React.MouseEvent<HTMLCanvasElement>): void {
-    const { mouseDownScreenPosition, mouseDownWorldPosition } =
-      this.models.mouseControlModel;
-    if (!mouseDownScreenPosition || !mouseDownWorldPosition) return;
+    // Panning is handled by dragInteractionController.
+    // This is kept for any future mouse-move tracking needs.
+  }
 
-    const { element } = this.models.pdfLayerModel;
-    const currentScreenPosition = getEventRelativePositionToCanvas(e, element);
-    const currentWorldPosition = getWorldPointFromRelativePositionToCanvas(
-      currentScreenPosition,
-      this.models.navigationModel.offset,
-      this.models.navigationModel.scale
-    );
-    if (!currentWorldPosition) return;
-    const delta = subtractPoints(currentWorldPosition, mouseDownWorldPosition);
-
-    const newOffset = addPoints(this.models.navigationModel.offset, delta);
-    this.models.navigationModel.offset = { x: newOffset.x, y: newOffset.y };
-
-    this.models.mouseControlModel.mouseDownScreenPosition =
-      currentScreenPosition;
-    this.models.mouseControlModel.mouseDownWorldPosition = currentWorldPosition;
+  private executeMouseUp(e: React.MouseEvent<HTMLCanvasElement>): void {
+    this.models.mouseInteractionModel.mouseDownScreenPosition = null;
+    this.models.mouseInteractionModel.mouseDownWorldPosition = null;
+    this.models.mouseInteractionModel.mouseMoveScreenPosition = null;
+    this.models.mouseInteractionModel.mouseMoveWorldPosition = null;
   }
 
   private pan(deltaX: number, deltaY: number): void {

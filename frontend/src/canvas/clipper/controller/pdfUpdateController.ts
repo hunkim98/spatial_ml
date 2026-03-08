@@ -1,5 +1,5 @@
-import { getPdfPageAsBlob } from "@/lib/pdf";
-import { ClipperEventListeners } from "../events";
+import { getPdfPageAsBlob } from "@/server/pdf";
+import { ClipperEvent, ClipperEventListeners } from "../events";
 import { ClipperModel } from "../model";
 import { ClipperView } from "../view";
 import { BaseController } from "./base";
@@ -18,8 +18,6 @@ type ExecuteParams = {
   padding?: number; // 0-1, percentage of canvas to use (default 0.9)
   resourceUrl: string;
   pageNumber: number;
-  canvasWidth: number;
-  canvasHeight: number;
 };
 
 export class PdfUpdateController extends BaseController<
@@ -36,7 +34,9 @@ export class PdfUpdateController extends BaseController<
   }
 
   async execute(params: ExecuteParams): Promise<void> {
-    const { resourceUrl, pageNumber, canvasWidth, canvasHeight } = params;
+    const { resourceUrl, pageNumber } = params;
+    const canvasWidth = this.models.pdfLayerModel.width;
+    const canvasHeight = this.models.pdfLayerModel.height;
     this.models.editorStatusModel.isLoading = true;
 
     const { blob, url } = await getPdfPageAsBlob(resourceUrl, pageNumber);
@@ -68,30 +68,12 @@ export class PdfUpdateController extends BaseController<
       offset: { x: x, y: y },
     });
     this.models.editorStatusModel.isLoaded = true;
-    //   const { padding = 0.9 } = params;
-
-    //   const { width: imageWidth, height: imageHeight } = this.models.imageModel;
-    //   const { element } = this.models.pdfLayerModel;
-    //   const canvasWidth = element.width;
-    //   const canvasHeight = element.height;
-
-    //   if (imageWidth === 0 || imageHeight === 0) return;
-
-    //   // Calculate scale to fit image in canvas
-    //   const scaleX = (canvasWidth * padding) / imageWidth;
-    //   const scaleY = (canvasHeight * padding) / imageHeight;
-    //   const scale = Math.min(scaleX, scaleY);
-
-    //   // Calculate offset to center the image
-    //   const offsetX = (canvasWidth - imageWidth * scale) / 2;
-    //   const offsetY = (canvasHeight - imageHeight * scale) / 2;
-
-    //   this.models.navigationModel.scale = scale;
-    //   this.models.navigationModel.offset = { x: offsetX, y: offsetY };
 
     this.views.pdfLayerView.clear();
     this.views.pdfLayerView.render();
     this.views.maskLayerView.render();
+
+    this.dispatchEvent(ClipperEvent.PDF_LOADED);
   }
   private _loadImage(url: string): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {

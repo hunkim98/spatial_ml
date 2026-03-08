@@ -41,10 +41,10 @@ const GeoReferencer = dynamic(
 const ANNISTON_CENTER = { lng: -85.843, lat: 33.676 };
 const ANNISTON_PDF_URL = "/2024-Zoning-Map.pdf";
 const ANNISTON_CORNERS: GeoCorners = {
-  topLeft: { lng: -85.934926, lat: 33.753125 },
-  topRight: { lng: -85.751109, lat: 33.753125 },
-  bottomRight: { lng: -85.751109, lat: 33.600156 },
-  bottomLeft: { lng: -85.934926, lat: 33.600156 },
+  corner1: { lng: -85.934926, lat: 33.753125 },
+  corner2: { lng: -85.751109, lat: 33.753125 },
+  corner4: { lng: -85.751109, lat: 33.600156 },
+  corner3: { lng: -85.934926, lat: 33.600156 },
 };
 
 const FEATURES = [

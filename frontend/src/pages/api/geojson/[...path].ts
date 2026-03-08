@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { getManifest } from "@/lib/manifest";
-import { getFileStream } from "@/lib/gcs";
+import { getManifest } from "@/server/manifest";
+import { getFileStream } from "@/server/gcs";
 
 /**
  * GeoJSON serving endpoint - fetches from GCS using DVC cache structure.

@@ -1,43 +1,46 @@
 import { GeoCorners } from "@/canvas/overlay/types";
-import { ClipperEditorComponent } from "@/components/editor/ClipperEditorComponent";
-import EditorComponent from "@/components/editor/EditorComponent";
-import { NoEditorComponent } from "@/components/editor/NoEditorComponent";
-import { OverlayEditorComponent } from "@/components/editor/OverlayEditorComponent";
-import { PdfSelectSidebar } from "@/components/editor/PDFSelectSidebar";
-import { GeoReferencerHandle } from "@/components/GeoReferencer";
+import { ExportResult } from "@/canvas/clipper/controller/exportController";
+import EditorComponent from "@/components/editor/canvas/EditorComponent";
+import { ClipperEditorComponentHandle } from "@/components/editor/canvas/ClipperEditorComponent";
+import { OverlayEditorComponentHandle } from "@/components/editor/canvas/OverlayEditorComponent";
+import EditorSidebar from "@/components/editor/sidebar/EditorSidebar";
 import { Layout } from "@/components/Layout";
 import { useLabels } from "@/hooks/useLabels";
 import { usePdfs } from "@/hooks/usePdfs";
 import { PdfFile } from "@/types/pdf";
-import { Box, Loader } from "@mantine/core";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { MapEditorComponentHandle } from "@/components/editor/canvas/MapEditorComponent";
+import { Box } from "@mantine/core";
+import { useCallback, useRef, useState } from "react";
 
 export default function StudioPage() {
   // ========== Hooks ==========
   const { pdfs, loading: isFetchingAllPDFs } = usePdfs();
   const {
     labels,
+    skippedLabels,
     loading: isFetchingAllLabels,
     saveLabel,
     deleteLabel,
+    skipLabel,
   } = useLabels();
 
   // ========== Refs ==========
-  const geoReferencerRef = useRef<GeoReferencerHandle>(null);
+  const clipperRef = useRef<ClipperEditorComponentHandle>(null);
+  const overlayRef = useRef<OverlayEditorComponentHandle>(null);
+  const mapRef = useRef<MapEditorComponentHandle>(null);
   const [selectedPdf, setSelectedPdf] = useState<PdfFile | null>(null);
-  const [pageNumber, setPageNumber] = useState(1); // we will default to page 1
-  const [saving, setSaving] = useState(false);
-  const [geoCorners, setGeoCorners] = useState<GeoCorners | null>(null);
-  const [pdfMapFrameImageBuffer, setPdfMapFrameImageBuffer] =
-    useState<Buffer | null>(null);
-
-  // ========== Effects ==========
-  // Auto-select first PDF for testing
-  useEffect(() => {
-    if (pdfs.length > 0 && !selectedPdf) {
-      setSelectedPdf(pdfs[0]);
-    }
-  }, [pdfs, selectedPdf]);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [isSaving, setIsSaving] = useState(false);
+  const [imageGeoCorners, setImageGeoCorners] = useState<GeoCorners | null>(
+    null
+  );
+  const [clipResult, setClipResult] = useState<ExportResult | null>(null);
+  const [initialBounds, setInitialBounds] = useState<
+    [[number, number], [number, number]] | undefined
+  >(undefined);
+  const [initialImage, setInitialImage] = useState<
+    { url: string; corners: GeoCorners; opacity?: number } | undefined
+  >(undefined);
 
   // ========== Derived Values ==========
   const pdfUrl = selectedPdf ? `/api/pdf/${selectedPdf.path}` : null;
@@ -45,74 +48,151 @@ export default function StudioPage() {
 
   // ========== Callbacks ==========
 
+  const handleBack = useCallback(() => {
+    setSelectedPdf(null);
+    setClipResult(null);
+    setImageGeoCorners(null);
+    setInitialBounds(undefined);
+    setInitialImage(undefined);
+  }, []);
+
   const handlePdfSelect = useCallback(
     (hash: string | null) => {
       const pdf = pdfs.find((p) => p.hash === hash) || null;
       setSelectedPdf(pdf);
       setPageNumber(1);
-    },
-    [pdfs]
-  );
+      setInitialBounds(undefined);
+      setInitialImage(undefined);
 
-  const handlePageChange = useCallback((page: number) => {
-    setPageNumber(page);
-  }, []);
+      // If this PDF already has a label, restore clip result and geo corners
+      if (hash && labels[hash]) {
+        const label = labels[hash];
+        const corners: GeoCorners = {
+          corner1: label.corners.topLeft,
+          corner2: label.corners.topRight,
+          corner3: label.corners.bottomLeft,
+          corner4: label.corners.bottomRight,
+        };
+        setImageGeoCorners(corners);
+        const lngs = [corners.corner1.lng, corners.corner2.lng, corners.corner3.lng, corners.corner4.lng];
+        const lats = [corners.corner1.lat, corners.corner2.lat, corners.corner3.lat, corners.corner4.lat];
+        setInitialBounds([
+          [Math.min(...lngs), Math.min(...lats)],
+          [Math.max(...lngs), Math.max(...lats)],
+        ]);
+        setInitialImage({
+          url: label.clippedImageUrl,
+          corners,
+          opacity: 0.7,
+        });
 
-  const handleLocationSelect = useCallback(
-    (bounds: [number, number, number, number]) => {
-      geoReferencerRef.current?.fitBounds(bounds);
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext("2d");
+          ctx?.drawImage(img, 0, 0);
+          setClipResult({
+            buffer: canvas,
+            width: img.width,
+            height: img.height,
+            clipRect: {
+              x: label.clipRect.offsetX,
+              y: label.clipRect.offsetY,
+              width: label.clipRect.width,
+              height: label.clipRect.height,
+            },
+          });
+        };
+        img.src = label.clippedImageUrl;
+      }
     },
-    []
+    [pdfs, labels]
   );
 
   const handleSaveLabel = useCallback(async () => {
-    if (!selectedPdf) return;
+    if (!selectedPdf || !clipResult || !imageGeoCorners) return;
 
-    const corners = geoReferencerRef.current?.getCorners();
-    if (!corners) {
-      console.error("Could not compute corners - PDF not positioned");
-      return;
-    }
-
-    setSaving(true);
+    setIsSaving(true);
     await saveLabel({
       pdfHash: selectedPdf.hash,
       pdfPath: selectedPdf.path,
-      corners,
+      corners: {
+        topLeft: imageGeoCorners.corner1,
+        topRight: imageGeoCorners.corner2,
+        bottomRight: imageGeoCorners.corner4,
+        bottomLeft: imageGeoCorners.corner3,
+      },
+      clipRect: clipResult.clipRect,
+      pageNumber,
+      clippedImageBuffer: clipResult.buffer,
     });
-    setSaving(false);
-  }, [selectedPdf, saveLabel]);
+    setIsSaving(false);
+
+    // Reset state after saving
+    setImageGeoCorners(null);
+    mapRef.current?.removeImageLayer();
+    setClipResult(null);
+    setSelectedPdf(null);
+  }, [selectedPdf, clipResult, imageGeoCorners, pageNumber, saveLabel]);
 
   const handleDeleteLabel = useCallback(async () => {
     if (!selectedPdf) return;
     await deleteLabel(selectedPdf.hash);
   }, [selectedPdf, deleteLabel]);
 
+  const handleSkipLabel = useCallback(async () => {
+    if (!selectedPdf) return;
+    await skipLabel(selectedPdf.hash, selectedPdf.path);
+    setSelectedPdf(null);
+    setClipResult(null);
+  }, [selectedPdf, skipLabel]);
+
   return (
     <Layout
       sidebar={
-        <PdfSelectSidebar
+        <EditorSidebar
           pdfs={pdfs}
           labels={labels}
-          selectedPdf={selectedPdf}
-          saving={saving}
-          pageNumber={pageNumber}
-          numPages={1}
-          geoCorners={geoCorners}
+          skippedLabels={skippedLabels}
           onPdfSelect={handlePdfSelect}
-          onPageChange={handlePageChange}
-          onSave={handleSaveLabel}
-          onDelete={handleDeleteLabel}
-          onLocationSelect={handleLocationSelect}
+          clipResult={clipResult}
+          setClipResult={setClipResult}
+          isLoadingResources={isLoadingResources}
+          pdfUrl={pdfUrl}
+          clipperRef={clipperRef}
+          overlayRef={overlayRef}
+          mapRef={mapRef}
+          imageGeoCorners={imageGeoCorners}
+          setImageGeoCorners={setImageGeoCorners}
+          onSkip={handleSkipLabel}
+          onSaveLabel={handleSaveLabel}
+          isSaving={isSaving}
+          onBack={handleBack}
         />
       }
     >
-      <Box style={{ width: "100%", height: "100%", backgroundColor: "red" }}>
+      <Box
+        style={{
+          width: "100%",
+          height: "100%",
+          backgroundColor: "#f0f0f0",
+        }}
+      >
         <EditorComponent
+          clipResult={clipResult}
           isLoadingResources={isLoadingResources}
           pdfUrl={pdfUrl}
-          pdfMapFrameImageBuffer={pdfMapFrameImageBuffer}
           pageNumber={pageNumber}
+          clipperRef={clipperRef}
+          overlayRef={overlayRef}
+          mapRef={mapRef}
+          imageGeoCorners={imageGeoCorners}
+          onImageGeoCornersChange={setImageGeoCorners}
+          initialBounds={initialBounds}
+          initialImage={initialImage}
         />
       </Box>
     </Layout>

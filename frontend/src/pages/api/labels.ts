@@ -1,35 +1,25 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import db, { GeoLabel } from "@/lib/db";
+import * as labels from "@/server/labels";
 
-/**
- * Labels API - CRUD operations for PDF georeferencing labels.
- *
- * Labels are keyed by pdf_hash (MD5 of file content) so they survive
- * file moves and work across different DVC checkouts.
- *
- * GET    - Returns all labels as { [hash]: GeoLabel }
- * POST   - Save/update a label (upsert by hash)
- * DELETE - Delete a label by hash
- */
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
   try {
     if (req.method === "GET") {
-      const labels = await db.getAllLabels();
-      return res.status(200).json(labels);
+      const allLabels = await labels.getAllLabels();
+      return res.status(200).json(allLabels);
     }
 
     if (req.method === "POST") {
-      const label: GeoLabel = req.body;
-      await db.saveLabel(label);
+      const { label } = req.body;
+      await labels.saveLabel(label);
       return res.status(200).json({ success: true });
     }
 
     if (req.method === "DELETE") {
       const { pdfHash } = req.body;
-      await db.deleteLabel(pdfHash);
+      await labels.deleteLabel(pdfHash);
       return res.status(200).json({ success: true });
     }
 

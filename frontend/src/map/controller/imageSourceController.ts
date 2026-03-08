@@ -82,10 +82,10 @@ export class ImageSourceController {
     corners: GeoCorners
   ): [[number, number], [number, number], [number, number], [number, number]] {
     return [
-      [corners.topLeft.lng, corners.topLeft.lat],
-      [corners.topRight.lng, corners.topRight.lat],
-      [corners.bottomRight.lng, corners.bottomRight.lat],
-      [corners.bottomLeft.lng, corners.bottomLeft.lat],
+      [corners.corner1.lng, corners.corner1.lat],
+      [corners.corner2.lng, corners.corner2.lat],
+      [corners.corner4.lng, corners.corner4.lat],
+      [corners.corner3.lng, corners.corner3.lat],
     ];
   }
 }

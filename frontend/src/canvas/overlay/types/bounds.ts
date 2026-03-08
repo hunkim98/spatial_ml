@@ -13,17 +13,17 @@ export interface ScreenBounds {
 }
 
 export interface GeoCorners {
-  topLeft: Location;
-  topRight: Location;
-  bottomRight: Location;
-  bottomLeft: Location;
+  corner1: Location;
+  corner2: Location;
+  corner3: Location;
+  corner4: Location;
 }
 
 export interface ScreenCorners {
-  topLeft: Point;
-  topRight: Point;
-  bottomRight: Point;
-  bottomLeft: Point;
+  corner1: Point;
+  corner2: Point;
+  corner3: Point;
+  corner4: Point;
 }
 
 export enum HandleType {
@@ -33,4 +33,9 @@ export enum HandleType {
   BOTTOM_RIGHT = "BOTTOM_RIGHT",
   BOTTOM_LEFT = "BOTTOM_LEFT",
   BODY = "BODY",
+}
+
+export enum EditorMode {
+  VIEW = "VIEW",
+  EDIT = "EDIT",
 }

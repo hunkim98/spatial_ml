@@ -34,7 +34,7 @@ export abstract class BaseController<
         return viewKeys;
       },
       {} as { [key in keyof CanvasView]: IView<M> }
-    ) as V;
+    ) as unknown as V;
     // we should directly inherit the listeners from main parent class that connects the controller and model
     this.listeners = listeners;
   }

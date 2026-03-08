@@ -9,15 +9,10 @@ import {
   useState,
 } from "react";
 import { Loader } from "@mantine/core";
-import { Corner } from "@/types/db";
+import { Corner } from "@/types/labels";
 import { MapManager } from "@/map";
 import { Editor } from "@/canvas/overlay/editor";
-import {
-  MapMediaType,
-  EditorMode,
-  GeoCorners,
-  HandleType,
-} from "@/canvas/overlay/types";
+import { GeoCorners } from "@/canvas/overlay/types";
 import { CanvasEvent } from "@/canvas/overlay/events";
 import { useEditorContext } from "@/canvas/overlay/context";
 import { OpacitySlider } from "./OpacitySlider";
@@ -61,7 +56,8 @@ export const GeoReferencer = forwardRef<
   // ========== Refs ==========
   const containerRef = useRef<HTMLDivElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imageCanvasRef = useRef<HTMLCanvasElement>(null);
+  const frameCanvasRef = useRef<HTMLCanvasElement>(null);
   const mapManagerRef = useRef<MapManager | null>(null);
   const editorRef = useRef<Editor | null>(null);
   const initialCenterRef = useRef(initialCenter);
@@ -70,7 +66,6 @@ export const GeoReferencer = forwardRef<
   // ========== State ==========
   const [isMapReady, setIsMapReady] = useState(false);
   const [isEditorReady, setIsEditorReady] = useState(false);
-  const [editorMode, setEditorMode] = useState<EditorMode>(EditorMode.CREATE);
   const [isInteracting, setIsInteracting] = useState(false);
   const [isOverOverlay, setIsOverOverlay] = useState(false);
   const [cursor, setCursor] = useState<string>("default");
@@ -153,12 +148,9 @@ export const GeoReferencer = forwardRef<
 
   const handleBoundsCreated = useCallback(() => {
     syncGeoCorners();
-    if (editorRef.current) {
-      setEditorMode(editorRef.current.mode);
-      const corners = editorRef.current.geoCorners;
-      if (corners) {
-        cornersChangeListeners.forEach((listener) => listener(corners));
-      }
+    const corners = editorRef.current?.geoCorners;
+    if (corners) {
+      cornersChangeListeners.forEach((listener) => listener(corners));
     }
   }, [syncGeoCorners, cornersChangeListeners]);
 
@@ -170,12 +162,6 @@ export const GeoReferencer = forwardRef<
     }
   }, [syncGeoCorners, cornersChangeListeners]);
 
-  const handleModeChanged = useCallback(() => {
-    if (editorRef.current) {
-      setEditorMode(editorRef.current.mode);
-    }
-  }, []);
-
   // ========== Mouse Handlers ==========
 
   const handleMouseDown = useCallback(
@@ -183,11 +169,8 @@ export const GeoReferencer = forwardRef<
       const editor = editorRef.current;
       if (!editor) return;
 
-      const consumed = editor.onMouseDown(e);
-      if (consumed) {
-        e.stopPropagation();
-        startInteraction();
-      }
+      e.stopPropagation();
+      startInteraction();
     },
     [startInteraction]
   );
@@ -199,7 +182,7 @@ export const GeoReferencer = forwardRef<
 
       editor.onMouseMove(e);
 
-      const cursorStyle = editor.getCursor(e);
+      const cursorStyle = editor.getCursor();
       setCursor(cursorStyle);
 
       // Track if mouse is over the overlay (for pointer events)
@@ -209,18 +192,21 @@ export const GeoReferencer = forwardRef<
     []
   );
 
-  const handleMouseUp = useCallback(() => {
-    const editor = editorRef.current;
-    if (!editor) return;
+  const handleMouseUp = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const editor = editorRef.current;
+      if (!editor) return;
 
-    const wasInteracting = isInteracting;
-    editor.onMouseUp();
+      const wasInteracting = isInteracting;
+      editor.onMouseUp(e);
 
-    // Only end interaction if we were actually interacting
-    if (wasInteracting && editor.isInitialized) {
-      endInteraction();
-    }
-  }, [isInteracting, endInteraction]);
+      // Only end interaction if we were actually interacting
+      if (wasInteracting && editor.isInitialized) {
+        endInteraction();
+      }
+    },
+    [isInteracting, endInteraction]
+  );
 
   const handleWheel = useCallback(
     (e: React.WheelEvent<HTMLCanvasElement>) => {
@@ -243,11 +229,14 @@ export const GeoReferencer = forwardRef<
 
   const handleResize = useCallback(
     (width: number, height: number) => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
+      const imageCanvas = imageCanvasRef.current;
+      const frameCanvas = frameCanvasRef.current;
+      if (!imageCanvas || !frameCanvas) return;
 
-      canvas.width = width;
-      canvas.height = height;
+      imageCanvas.width = width;
+      imageCanvas.height = height;
+      frameCanvas.width = width;
+      frameCanvas.height = height;
 
       // Re-sync screen corners from geo corners after resize
       syncScreenCorners();
@@ -318,28 +307,36 @@ export const GeoReferencer = forwardRef<
     if (!pdfUrl) {
       editorRef.current = null;
       setIsEditorReady(false);
-      setEditorMode(EditorMode.CREATE);
       setIsInteracting(false);
       return;
     }
 
     const rafId = requestAnimationFrame(() => {
-      const canvas = canvasRef.current;
+      const imageCanvas = imageCanvasRef.current;
+      const frameCanvas = frameCanvasRef.current;
       const container = containerRef.current;
-      if (!canvas || !container) return;
+      if (!imageCanvas || !frameCanvas || !container) return;
 
       const rect = container.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) {
-        canvas.width = rect.width;
-        canvas.height = rect.height;
-      }
+      const canvasWidth = rect.width > 0 ? rect.width : 800;
+      const canvasHeight = rect.height > 0 ? rect.height : 600;
 
-      const editor = new Editor(MapMediaType.PDF, pdfUrl, canvas, pageNumber);
+      // Set canvas dimensions
+      imageCanvas.width = canvasWidth;
+      imageCanvas.height = canvasHeight;
+      frameCanvas.width = canvasWidth;
+      frameCanvas.height = canvasHeight;
+
+      const editor = new Editor(
+        imageCanvas,
+        frameCanvas,
+        canvasWidth,
+        canvasHeight
+      );
       editorRef.current = editor;
 
-      editor.load().then(() => {
+      editor.updatePdf(pdfUrl, pageNumber).then(() => {
         setIsEditorReady(true);
-        setEditorMode(editor.mode);
       });
     });
 
@@ -367,7 +364,6 @@ export const GeoReferencer = forwardRef<
       CanvasEvent.TRANSFORM_CHANGED,
       handleTransformChanged
     );
-    editor.addEventListener(CanvasEvent.MODE_CHANGED, handleModeChanged);
 
     return () => {
       editor.removeEventListener(
@@ -378,14 +374,8 @@ export const GeoReferencer = forwardRef<
         CanvasEvent.TRANSFORM_CHANGED,
         handleTransformChanged
       );
-      editor.removeEventListener(CanvasEvent.MODE_CHANGED, handleModeChanged);
     };
-  }, [
-    isEditorReady,
-    handleBoundsCreated,
-    handleTransformChanged,
-    handleModeChanged,
-  ]);
+  }, [isEditorReady, handleBoundsCreated, handleTransformChanged]);
 
   // Apply initial corners when both map and editor are ready
   useEffect(() => {
@@ -405,10 +395,10 @@ export const GeoReferencer = forwardRef<
 
     // Initialize editor with pre-set corners
     editor.initializeWithCorners(screenCorners, initialCorners);
-    setEditorMode(EditorMode.EDIT);
 
-    // Show on map
+    // Show on map, then clear the canvas overlay (image is now on MapLibre)
     showImageOnMapLibre();
+    editor.clearCanvas();
   }, [isMapReady, isEditorReady, initialCorners, showImageOnMapLibre]);
 
   // Sync screen corners when map moves (when not interacting)
@@ -455,8 +445,8 @@ export const GeoReferencer = forwardRef<
     const editor = editorRef.current;
     const container = containerRef.current;
 
-    // Only track when editor is initialized and not in CREATE mode
-    if (!editor || !editor.isInitialized || editorMode === EditorMode.CREATE) {
+    // Only track when editor is initialized
+    if (!editor || !editor.isInitialized) {
       return;
     }
 
@@ -478,15 +468,15 @@ export const GeoReferencer = forwardRef<
         return;
       }
 
-      // Use editor's hit test to check if over overlay
-      const hit = editor.hitTest({ x, y });
-      setIsOverOverlay(hit !== HandleType.NONE);
+      // TODO: Implement overlay hit detection without hitTest
+      // For now, assume we're over overlay if editor is initialized
+      setIsOverOverlay(isInitialized);
     };
 
     document.addEventListener("mousemove", handleDocumentMouseMove);
     return () =>
       document.removeEventListener("mousemove", handleDocumentMouseMove);
-  }, [editorMode, isInteracting, isEditorReady]);
+  }, [isInteracting, isEditorReady]);
 
   // Expose methods to parent
   useImperativeHandle(
@@ -514,13 +504,13 @@ export const GeoReferencer = forwardRef<
 
   // Pointer events logic:
   // - readOnly: never capture (view only)
-  // - CREATE mode: always capture (need to draw bounds)
+  // - Not initialized: always capture (need to draw bounds)
   // - Interacting: always capture (dragging)
   // - Initialized + mouse over overlay: capture (to allow clicking to edit)
   // - Otherwise: none (allow map panning)
   const canvasPointerEvents = readOnly
     ? "none"
-    : editorMode === EditorMode.CREATE || isInteracting || isOverOverlay
+    : !isInitialized || isInteracting || isOverOverlay
       ? "auto"
       : "none";
 
@@ -541,55 +531,42 @@ export const GeoReferencer = forwardRef<
 
       {/* Canvas overlay for Editor */}
       {pdfUrl && (
-        <canvas
-          ref={canvasRef}
-          style={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-            pointerEvents: canvasPointerEvents,
-            cursor: editorMode === EditorMode.CREATE ? "crosshair" : cursor,
-          }}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          onWheel={handleWheel}
-        />
+        <>
+          {/* Image layer canvas - displays the PDF/image */}
+          <canvas
+            ref={imageCanvasRef}
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              pointerEvents: "none",
+              zIndex: 1,
+            }}
+          />
+          {/* Frame layer canvas - displays handles and receives mouse events */}
+          <canvas
+            ref={frameCanvasRef}
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              pointerEvents: canvasPointerEvents,
+              cursor: !isInitialized ? "crosshair" : cursor,
+              zIndex: 2,
+            }}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            onWheel={handleWheel}
+          />
+        </>
       )}
 
       {/* Opacity slider (only when initialized) */}
       {isInitialized && <OpacitySlider />}
-
-      {/* Instructions for CREATE mode */}
-      {pdfUrl && isEditorReady && editorMode === EditorMode.CREATE && (
-        <div style={instructionStyle}>
-          Click and drag to draw the PDF overlay bounds
-        </div>
-      )}
-
-      {/* Instructions for EDIT mode (when interacting) */}
-      {pdfUrl &&
-        isEditorReady &&
-        editorMode === EditorMode.EDIT &&
-        isInteracting && (
-          <div style={instructionStyle}>
-            Drag to move | Drag corners to resize
-          </div>
-        )}
-
-      {/* Instructions when not interacting (hide in readOnly mode) */}
-      {pdfUrl && isInitialized && !isInteracting && !readOnly && (
-        <div style={instructionStyle}>
-          Click on overlay to edit | Scroll to zoom
-        </div>
-      )}
-
-      {/* Preview notice for readOnly demo */}
-      {readOnly && isInitialized && (
-        <div style={previewNoticeStyle}>Preview — Tool in development</div>
-      )}
     </div>
   );
 });

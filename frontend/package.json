@@ -7,14 +7,15 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "dvc:push": "cd .. && dvc push && ./scripts/update-manifest-hash.sh",
-    "dvc:add": "cd .. && dvc add data/ && ./scripts/update-manifest-hash.sh"
+    "dvc:push": "cd .. && dvc push",
+    "dvc:add": "cd .. && dvc add data/"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@google-cloud/storage": "^7.18.0",
     "@mantine/core": "^8.3.13",
     "@mantine/hooks": "^8.3.13",
+    "@supabase/supabase-js": "^2.95.2",
     "@tabler/icons-react": "^3.36.1",
     "@types/pg": "^8.16.0",
     "axios": "^1.13.3",

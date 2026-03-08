@@ -1,9 +1,14 @@
 import { CanvasModel } from "../model";
 import { IView } from "./base";
+import { getCanvasRelativePositionFromWorldPoint } from "../utils/project";
+import { Point } from "../types";
 
 type Models = Pick<
   CanvasModel,
-  "canvasElementModel" | "transformModel" | "imageBufferModel"
+  | "imageLayerModel"
+  | "imageTransformToolModel"
+  | "imageBufferModel"
+  | "navigationModel"
 >;
 
 export class ImageLayerView extends IView<Models> {
@@ -12,52 +17,52 @@ export class ImageLayerView extends IView<Models> {
   }
 
   render(): void {
-    const { buffer } = this.models.imageBufferModel;
-    const { corners } = this.models.transformModel;
+    const { ctx } = this.models.imageLayerModel;
+    const { buffer, width, height, opacity } = this.models.imageBufferModel;
+    if (!buffer || !width || !height) return;
 
-    if (!buffer || !corners) return;
+    const corners = this.models.imageTransformToolModel.corners;
+    if (corners) {
+      const w = corners.corner2.x - corners.corner1.x;
+      const h = corners.corner3.y - corners.corner1.y;
+      ctx.save();
+      ctx.globalAlpha = opacity;
+      ctx.drawImage(buffer, corners.corner1.x, corners.corner1.y, w, h);
+      ctx.restore();
+      return;
+    }
 
-    const ctx = this.models.canvasElementModel.ctx;
+    const { leftTop } = this.models.imageBufferModel;
+    const { offset, scale } = this.models.navigationModel;
+    const imageLeftTopCanvasPoint: Point =
+      getCanvasRelativePositionFromWorldPoint(
+        { x: leftTop.x, y: leftTop.y },
+        offset,
+        scale
+      );
 
     ctx.save();
-
-    // Calculate bounding rect from corners
-    const minX = Math.min(
-      corners.topLeft.x,
-      corners.topRight.x,
-      corners.bottomRight.x,
-      corners.bottomLeft.x
+    ctx.globalAlpha = opacity;
+    ctx.drawImage(
+      buffer,
+      imageLeftTopCanvasPoint.x,
+      imageLeftTopCanvasPoint.y,
+      width * scale,
+      height * scale
     );
-    const minY = Math.min(
-      corners.topLeft.y,
-      corners.topRight.y,
-      corners.bottomRight.y,
-      corners.bottomLeft.y
-    );
-    const maxX = Math.max(
-      corners.topLeft.x,
-      corners.topRight.x,
-      corners.bottomRight.x,
-      corners.bottomLeft.x
-    );
-    const maxY = Math.max(
-      corners.topLeft.y,
-      corners.topRight.y,
-      corners.bottomRight.y,
-      corners.bottomLeft.y
-    );
-
-    ctx.drawImage(buffer, minX, minY, maxX - minX, maxY - minY);
-
     ctx.restore();
   }
 
+  scale(dpr: number): void {
+    this.models.imageLayerModel.ctx.scale(dpr, dpr);
+  }
+
   clear(): void {
-    const { htmlCanvas, ctx } = this.models.canvasElementModel;
+    const { element, ctx } = this.models.imageLayerModel;
 
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, htmlCanvas.width, htmlCanvas.height);
+    ctx.clearRect(0, 0, element.width, element.height);
     ctx.restore();
   }
 }

@@ -28,6 +28,7 @@ export class MapManager {
         ? [config.center.lng, config.center.lat]
         : [DEFAULT_CENTER.lng, DEFAULT_CENTER.lat],
       zoom: config?.zoom ?? DEFAULT_ZOOM,
+      maxPitch: 0,
     };
 
     this.map = new Map(options);
