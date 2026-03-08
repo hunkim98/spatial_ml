@@ -40,6 +40,7 @@ export interface MapEditorComponentHandle {
   removeImageLayer: () => void;
   showImageLayer: (opacity?: number) => void;
   hideImageLayer: () => void;
+  setImageLayerOpacity: (opacity: number) => void;
   updateImageLayerCorners: (corners: GeoCorners) => void;
   unprojectScreenCorners: (corners: ScreenCorners) => GeoCorners | null;
   getMapRef: () => MapRef | null;
@@ -179,6 +180,12 @@ export const MapEditorComponent = forwardRef<
     map.setPaintProperty(IMAGE_LAYER_ID, "raster-opacity", 0);
   }, []);
 
+  const setImageLayerOpacity = useCallback((opacity: number) => {
+    const map = mapRef.current?.getMap();
+    if (!map || !map.getLayer(IMAGE_LAYER_ID)) return;
+    map.setPaintProperty(IMAGE_LAYER_ID, "raster-opacity", opacity);
+  }, []);
+
   const updateImageLayerCorners = useCallback((corners: GeoCorners) => {
     const map = mapRef.current?.getMap();
     if (!map) return;
@@ -215,6 +222,7 @@ export const MapEditorComponent = forwardRef<
       removeImageLayer,
       showImageLayer,
       hideImageLayer,
+      setImageLayerOpacity,
       updateImageLayerCorners,
       unprojectScreenCorners,
       getMapRef: () => mapRef.current,
@@ -225,6 +233,7 @@ export const MapEditorComponent = forwardRef<
       removeImageLayer,
       showImageLayer,
       hideImageLayer,
+      setImageLayerOpacity,
       updateImageLayerCorners,
       unprojectScreenCorners,
     ]

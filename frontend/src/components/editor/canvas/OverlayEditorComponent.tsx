@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { Slider, Text, Group, Paper } from "@mantine/core";
 import { CornersChangeHandler } from "../../GeoReferencer";
 import { useOverlayEditor } from "@/hooks/useOverlayEditor";
 import {
@@ -56,6 +57,15 @@ export const OverlayEditorComponent = forwardRef<
   const onMapClick = useCallback((lngLat: Corner) => {}, []);
   const [canvasInteractive, setCanvasInteractive] = useState(false);
   const [mapCursor, setMapCursor] = useState<string | undefined>(undefined);
+  const [opacity, setOpacity] = useState(0.7);
+
+  const handleOpacityChange = useCallback(
+    (value: number) => {
+      setOpacity(value);
+      mapRef.current?.setImageLayerOpacity(value);
+    },
+    [mapRef]
+  );
 
   // ========== Geo hit detection for cursor ==========
 
@@ -144,9 +154,9 @@ export const OverlayEditorComponent = forwardRef<
     }
 
     editor.controllers.transformSessionController.execute({ action: "end" });
-    mapRef.current?.showImageLayer();
+    mapRef.current?.showImageLayer(opacity);
     setCanvasInteractive(false);
-  }, [editor, mapRef, onImageGeoCornersChange]);
+  }, [editor, mapRef, onImageGeoCornersChange, opacity]);
 
   // ========== Keyboard events: delegate to editor + toggle canvas ==========
 
@@ -276,6 +286,42 @@ export const OverlayEditorComponent = forwardRef<
           initialImage={initialImage}
         />
       </div>
+
+      {/* Floating opacity slider */}
+      {imageGeoCorners && (
+        <Paper
+          shadow="md"
+          p="sm"
+          radius="md"
+          style={{
+            position: "absolute",
+            bottom: 24,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 30,
+            minWidth: 200,
+            background: "rgba(255, 255, 255, 0.95)",
+            pointerEvents: "auto",
+          }}
+        >
+          <Group gap="xs" mb={4}>
+            <Text size="xs" fw={500}>
+              Opacity
+            </Text>
+            <Text size="xs" c="dimmed">
+              {Math.round(opacity * 100)}%
+            </Text>
+          </Group>
+          <Slider
+            value={opacity}
+            onChange={handleOpacityChange}
+            min={0}
+            max={1}
+            step={0.05}
+            size="sm"
+          />
+        </Paper>
+      )}
     </div>
   );
 });
