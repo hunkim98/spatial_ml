@@ -46,6 +46,24 @@ function getGeoHitRadius(corners: GeoCorners): number {
  * Detect which handle (if any) the point is near in geo space.
  * Mirrors toolManagerController.detectHandle() but for {lng, lat}.
  */
+function isNearGeoEdge(
+  point: { lng: number; lat: number },
+  a: { lng: number; lat: number },
+  b: { lng: number; lat: number },
+  hitRadius: number
+): boolean {
+  const dx = b.lng - a.lng;
+  const dy = b.lat - a.lat;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return distanceGeo(point, a) <= hitRadius;
+
+  let t = ((point.lng - a.lng) * dx + (point.lat - a.lat) * dy) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+
+  const closest = { lng: a.lng + t * dx, lat: a.lat + t * dy };
+  return distanceGeo(point, closest) <= hitRadius;
+}
+
 export function detectGeoHandle(
   point: { lng: number; lat: number },
   corners: GeoCorners
@@ -61,6 +79,16 @@ export function detectGeoHandle(
     return HandleType.BOTTOM_RIGHT;
   if (distanceGeo(point, corners.corner3) <= hitRadius)
     return HandleType.BOTTOM_LEFT;
+
+  // Check edge handles (entire edge, not just midpoint)
+  if (isNearGeoEdge(point, corners.corner1, corners.corner2, hitRadius))
+    return HandleType.TOP_EDGE;
+  if (isNearGeoEdge(point, corners.corner2, corners.corner4, hitRadius))
+    return HandleType.RIGHT_EDGE;
+  if (isNearGeoEdge(point, corners.corner3, corners.corner4, hitRadius))
+    return HandleType.BOTTOM_EDGE;
+  if (isNearGeoEdge(point, corners.corner1, corners.corner3, hitRadius))
+    return HandleType.LEFT_EDGE;
 
   // Check if inside the polygon (body)
   if (isInsideGeoPolygon(point, corners)) return HandleType.BODY;

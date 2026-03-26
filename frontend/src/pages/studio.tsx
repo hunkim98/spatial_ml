@@ -170,6 +170,7 @@ export default function StudioPage() {
           pdfs={pdfs}
           labels={labels}
           skippedLabels={skippedLabels}
+          selectedPdf={selectedPdf}
           onPdfSelect={handlePdfSelect}
           clipResult={clipResult}
           setClipResult={setClipResult}

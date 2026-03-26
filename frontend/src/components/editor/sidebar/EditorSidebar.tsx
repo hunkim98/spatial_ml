@@ -14,6 +14,7 @@ interface EditorSidebarProps {
   pdfs: PdfFile[];
   labels: Record<string, GeoLabel>;
   skippedLabels: Record<string, SkippedLabel>;
+  selectedPdf: PdfFile | null;
   onPdfSelect: (hash: string | null) => void;
   isLoadingResources: boolean;
   pdfUrl: string | null;
@@ -35,6 +36,7 @@ export default function EditorSidebar({
   pdfs,
   labels,
   skippedLabels,
+  selectedPdf,
   onPdfSelect,
   clipResult,
   setClipResult,
@@ -68,6 +70,7 @@ export default function EditorSidebar({
   if (!clipResult) {
     return (
       <ClipperSidebar
+        selectedPdf={selectedPdf}
         clipperRef={clipperRef}
         setClipResult={setClipResult}
         onSkip={onSkip}
@@ -77,6 +80,7 @@ export default function EditorSidebar({
   }
   return (
     <OverlaySidebar
+      selectedPdf={selectedPdf}
       clippedImageBuffer={clipResult.buffer}
       overlayRef={overlayRef}
       mapRef={mapRef}

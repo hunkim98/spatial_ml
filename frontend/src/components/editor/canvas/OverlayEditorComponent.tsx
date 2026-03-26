@@ -8,9 +8,11 @@ import {
   useRef,
   useState,
 } from "react";
-import { Slider, Text, Group, Paper } from "@mantine/core";
+import { ActionIcon, Slider, Text, Group, Paper, Tooltip } from "@mantine/core";
+import { IconArrowsMove, IconArrowsDiagonal } from "@tabler/icons-react";
 import { CornersChangeHandler } from "../../GeoReferencer";
 import { useOverlayEditor } from "@/hooks/useOverlayEditor";
+import { ToolType } from "@/canvas/overlay/model/tools/toolManagerModel";
 import {
   MapEditorComponent,
   MapEditorComponentHandle,
@@ -46,6 +48,7 @@ export const OverlayEditorComponent = forwardRef<
   const imageCanvasRef = useRef<HTMLCanvasElement>(null);
   const frameCanvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
 
   const editor = useOverlayEditor(
     imageCanvasRef,
@@ -58,6 +61,18 @@ export const OverlayEditorComponent = forwardRef<
   const [canvasInteractive, setCanvasInteractive] = useState(false);
   const [mapCursor, setMapCursor] = useState<string | undefined>(undefined);
   const [opacity, setOpacity] = useState(0.7);
+  const [lockedTool, setLockedTool] = useState<ToolType | null>(null);
+
+  const handleToggleTool = useCallback(
+    (tool: ToolType) => {
+      const next = lockedTool === tool ? null : tool;
+      setLockedTool(next);
+      if (editor) {
+        editor.forcedTool = next;
+      }
+    },
+    [editor, lockedTool]
+  );
 
   const handleOpacityChange = useCallback(
     (value: number) => {
@@ -96,6 +111,14 @@ export const OverlayEditorComponent = forwardRef<
         case HandleType.TOP_RIGHT:
         case HandleType.BOTTOM_LEFT:
           return "nesw-resize";
+        case HandleType.TOP_EDGE:
+        case HandleType.BOTTOM_EDGE:
+          return "ns-resize";
+        case HandleType.LEFT_EDGE:
+        case HandleType.RIGHT_EDGE:
+          return "ew-resize";
+        case HandleType.CUSTOM_ANCHOR:
+          return "crosshair";
         default:
           return undefined;
       }
@@ -220,6 +243,9 @@ export const OverlayEditorComponent = forwardRef<
         background: "#f0f0f0",
       }}
       onMouseDownCapture={(e) => {
+        // Let toolbar interactions (opacity slider, tool buttons) pass through
+        if (toolbarRef.current?.contains(e.target as Node)) return;
+
         // Capture phase: intercept BEFORE the map sees the event
         // Skip when space is held so the map can be navigated freely
         if (
@@ -287,40 +313,78 @@ export const OverlayEditorComponent = forwardRef<
         />
       </div>
 
-      {/* Floating opacity slider */}
+      {/* Floating toolbar */}
       {imageGeoCorners && (
-        <Paper
-          shadow="md"
-          p="sm"
-          radius="md"
+        <Group
+          ref={toolbarRef}
+          gap="xs"
           style={{
             position: "absolute",
             bottom: 24,
             left: "50%",
             transform: "translateX(-50%)",
             zIndex: 30,
-            minWidth: 200,
-            background: "rgba(255, 255, 255, 0.95)",
             pointerEvents: "auto",
           }}
+          wrap="nowrap"
         >
-          <Group gap="xs" mb={4}>
-            <Text size="xs" fw={500}>
-              Opacity
-            </Text>
-            <Text size="xs" c="dimmed">
-              {Math.round(opacity * 100)}%
-            </Text>
-          </Group>
-          <Slider
-            value={opacity}
-            onChange={handleOpacityChange}
-            min={0}
-            max={1}
-            step={0.05}
-            size="sm"
-          />
-        </Paper>
+          {/* Tool buttons */}
+          <Paper
+            shadow="md"
+            p="xs"
+            radius="md"
+            style={{ background: "rgba(255, 255, 255, 0.95)" }}
+          >
+            <Group gap={4}>
+              <Tooltip label="Pan (move image)" position="top" withArrow>
+                <ActionIcon
+                  variant={lockedTool === ToolType.IMAGE_MOVE ? "filled" : "default"}
+                  size="md"
+                  onClick={() => handleToggleTool(ToolType.IMAGE_MOVE)}
+                >
+                  <IconArrowsMove size={16} />
+                </ActionIcon>
+              </Tooltip>
+              <Tooltip label="Scale (resize from click point)" position="top" withArrow>
+                <ActionIcon
+                  variant={lockedTool === ToolType.IMAGE_RESIZE ? "filled" : "default"}
+                  size="md"
+                  onClick={() => handleToggleTool(ToolType.IMAGE_RESIZE)}
+                >
+                  <IconArrowsDiagonal size={16} />
+                </ActionIcon>
+              </Tooltip>
+            </Group>
+          </Paper>
+
+          {/* Opacity slider */}
+          <Paper
+            shadow="md"
+            p="sm"
+            radius="md"
+            style={{
+              minWidth: 200,
+              background: "rgba(255, 255, 255, 0.95)",
+            }}
+          >
+            <Group gap="xs" mb={4}>
+              <Text size="xs" fw={500}>
+                Opacity
+              </Text>
+              <Text size="xs" c="dimmed">
+                {Math.round(opacity * 100)}%
+              </Text>
+            </Group>
+            <Slider
+              value={opacity}
+              onChange={handleOpacityChange}
+              min={0}
+              max={1}
+              step={0.05}
+              size="sm"
+            />
+          </Paper>
+        </Group>
       )}
     </div>
   );

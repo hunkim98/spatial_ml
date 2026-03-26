@@ -28,6 +28,8 @@ export class ToolManagerController extends BaseController<
   Views,
   ExecuteParams
 > {
+  private altHeld = false;
+
   constructor(
     models: CanvasModel,
     views: CanvasView,
@@ -37,6 +39,7 @@ export class ToolManagerController extends BaseController<
   }
 
   execute(params: ExecuteParams): void {
+    this.altHeld = params.e.altKey;
     this.detectTool();
   }
 
@@ -58,13 +61,29 @@ export class ToolManagerController extends BaseController<
       return;
     }
 
-    // Forced tool overrides auto-detection
-    if (this.models.toolManagerModel.forcedTool !== null) {
-      this.setCandidate(this.models.toolManagerModel.forcedTool);
+    const forced = this.models.toolManagerModel.forcedTool;
+
+    // Forced IMAGE_CREATE overrides everything (existing behavior)
+    if (forced === ToolType.IMAGE_CREATE) {
+      this.setCandidate(forced);
       return;
     }
 
-    const handle = this.detectHandle();
+    let handle = this.detectHandle();
+
+    // Alt + body OR forced resize + body = custom anchor resize
+    if (
+      handle === HandleType.BODY &&
+      (this.altHeld || forced === ToolType.IMAGE_RESIZE)
+    ) {
+      handle = HandleType.CUSTOM_ANCHOR;
+    }
+
+    // Forced move: override any handle to BODY (always pan)
+    if (forced === ToolType.IMAGE_MOVE && handle !== HandleType.NONE) {
+      handle = HandleType.BODY;
+    }
+
     this.models.imageTransformToolModel.candidateHandle =
       handle === HandleType.NONE ? null : handle;
 
@@ -117,6 +136,16 @@ export class ToolManagerController extends BaseController<
       return HandleType.BOTTOM_RIGHT;
     if (this.isNearPoint(point, corners.corner3)) return HandleType.BOTTOM_LEFT;
 
+    // Check edge handles (entire edge, not just midpoint)
+    if (this.isNearEdge(point, corners.corner1, corners.corner2))
+      return HandleType.TOP_EDGE;
+    if (this.isNearEdge(point, corners.corner2, corners.corner4))
+      return HandleType.RIGHT_EDGE;
+    if (this.isNearEdge(point, corners.corner3, corners.corner4))
+      return HandleType.BOTTOM_EDGE;
+    if (this.isNearEdge(point, corners.corner1, corners.corner3))
+      return HandleType.LEFT_EDGE;
+
     // Check if inside the polygon (body)
     if (this.isInsidePolygon(point, corners)) return HandleType.BODY;
 
@@ -131,6 +160,21 @@ export class ToolManagerController extends BaseController<
     const dx = p1.x - p2.x;
     const dy = p1.y - p2.y;
     return Math.sqrt(dx * dx + dy * dy) <= HANDLE_HIT_RADIUS;
+  }
+
+  /** Check if point is within HANDLE_HIT_RADIUS of the line segment a→b */
+  private isNearEdge(point: Point, a: Point, b: Point): boolean {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq === 0) return this.isNearPoint(point, a);
+
+    // Project point onto line, clamped to [0,1]
+    let t = ((point.x - a.x) * dx + (point.y - a.y) * dy) / lenSq;
+    t = Math.max(0, Math.min(1, t));
+
+    const closest: Point = { x: a.x + t * dx, y: a.y + t * dy };
+    return this.isNearPoint(point, closest);
   }
 
   private isInsidePolygon(

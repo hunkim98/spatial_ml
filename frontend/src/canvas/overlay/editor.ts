@@ -392,6 +392,14 @@ export class Editor {
       case HandleType.TOP_RIGHT:
       case HandleType.BOTTOM_LEFT:
         return "nesw-resize";
+      case HandleType.TOP_EDGE:
+      case HandleType.BOTTOM_EDGE:
+        return "ns-resize";
+      case HandleType.LEFT_EDGE:
+      case HandleType.RIGHT_EDGE:
+        return "ew-resize";
+      case HandleType.CUSTOM_ANCHOR:
+        return "crosshair";
       default:
         return "default";
     }
@@ -404,6 +412,14 @@ export class Editor {
 
   get isInitialized(): boolean {
     return this.models.editorStateModel.isInitialized;
+  }
+
+  get forcedTool(): ToolType | null {
+    return this.models.toolManagerModel.forcedTool;
+  }
+
+  set forcedTool(tool: ToolType | null) {
+    this.models.toolManagerModel.forcedTool = tool;
   }
 
   get isSpaceHeld(): boolean {

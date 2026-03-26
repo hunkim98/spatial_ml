@@ -39,7 +39,17 @@ export class FrameLayerView extends IView<Models> {
     this.drawHandle(ctx, corners.corner4);
     this.drawHandle(ctx, corners.corner3);
 
+    // Draw edge midpoint handles
+    this.drawHandle(ctx, this.midpoint(corners.corner1, corners.corner2));
+    this.drawHandle(ctx, this.midpoint(corners.corner2, corners.corner4));
+    this.drawHandle(ctx, this.midpoint(corners.corner3, corners.corner4));
+    this.drawHandle(ctx, this.midpoint(corners.corner1, corners.corner3));
+
     ctx.restore();
+  }
+
+  private midpoint(a: Point, b: Point): Point {
+    return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
   }
 
   private drawHandle(ctx: CanvasRenderingContext2D, point: Point): void {

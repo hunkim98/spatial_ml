@@ -18,8 +18,10 @@ import { OverlayEditorComponentHandle } from "../canvas/OverlayEditorComponent";
 import { MapEditorComponentHandle } from "../canvas/MapEditorComponent";
 import { GeoCorners } from "@/canvas/overlay/types";
 import { useLocationSearch } from "@/hooks/useLocationSearch";
+import { PdfFile } from "@/types/pdf";
 
 interface OverlaySidebarProps {
+  selectedPdf: PdfFile | null;
   clippedImageBuffer: HTMLCanvasElement;
   overlayRef: React.RefObject<OverlayEditorComponentHandle | null>;
   mapRef: React.RefObject<MapEditorComponentHandle | null>;
@@ -32,6 +34,7 @@ interface OverlaySidebarProps {
 }
 
 function OverlaySidebar({
+  selectedPdf,
   clippedImageBuffer,
   overlayRef,
   mapRef,
@@ -109,6 +112,12 @@ function OverlaySidebar({
         </Button>
         <Title order={5}>Georeference</Title>
       </Group>
+
+      {selectedPdf && (
+        <Text size="xs" c="dimmed" truncate>
+          {selectedPdf.path.split("/").slice(0, -1).join("/")}
+        </Text>
+      )}
 
       <Divider label="Location" labelPosition="left" />
 

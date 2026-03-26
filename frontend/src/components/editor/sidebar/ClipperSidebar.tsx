@@ -4,8 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import { ClipperEditorComponentHandle } from "../canvas/ClipperEditorComponent";
 import { ClipperEvent } from "@/canvas/clipper/events";
 import { ExportResult } from "@/canvas/clipper/controller/exportController";
+import { PdfFile } from "@/types/pdf";
 
 interface ClipperSidebarProps {
+  selectedPdf: PdfFile | null;
   clipperRef: React.RefObject<ClipperEditorComponentHandle | null>;
   setClipResult: React.Dispatch<React.SetStateAction<ExportResult | null>>;
   onSkip: () => void;
@@ -13,6 +15,7 @@ interface ClipperSidebarProps {
 }
 
 function ClipperSidebar({
+  selectedPdf,
   clipperRef,
   setClipResult,
   onSkip,
@@ -66,6 +69,12 @@ function ClipperSidebar({
         </Button>
         <Title order={5}>Clip Image</Title>
       </Group>
+
+      {selectedPdf && (
+        <Text size="xs" c="dimmed" truncate>
+          {selectedPdf.path.split("/").slice(0, -1).join("/")}
+        </Text>
+      )}
 
       {!isPdfLoaded ? (
         <Group gap="xs">
