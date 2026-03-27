@@ -14,6 +14,7 @@ interface LabelStudioSidebarProps {
   pdfs: PdfFile[];
   labels: Record<string, GeoLabel>;
   skippedLabels: Record<string, SkippedLabel>;
+  selectedPdf: PdfFile | null;
   onPdfSelect: (hash: string | null) => void;
   isLoadingResources: boolean;
   pdfUrl: string | null;
@@ -35,6 +36,7 @@ export default function LabelStudioSidebar({
   pdfs,
   labels,
   skippedLabels,
+  selectedPdf,
   onPdfSelect,
   clipResult,
   setClipResult,
@@ -61,6 +63,7 @@ export default function LabelStudioSidebar({
   if (!clipResult) {
     return (
       <ClipperSidebar
+        selectedPdf={selectedPdf}
         clipperRef={clipperRef}
         setClipResult={setClipResult}
         onSkip={onSkip}
@@ -70,6 +73,7 @@ export default function LabelStudioSidebar({
   }
   return (
     <OverlaySidebar
+      selectedPdf={selectedPdf}
       clippedImageBuffer={clipResult.buffer}
       overlayRef={overlayRef}
       mapRef={mapRef}

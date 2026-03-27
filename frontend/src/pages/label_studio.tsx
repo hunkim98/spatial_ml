@@ -109,6 +109,7 @@ export default function LabelStudioPage() {
           pdfs={pdfs}
           labels={labels}
           skippedLabels={skippedLabels}
+          selectedPdf={selectedPdf}
           onPdfSelect={handlePdfSelect}
           clipResult={clipResult}
           setClipResult={setClipResult}
