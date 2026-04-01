@@ -2,3 +2,4 @@
     remote = zoning_data
 ['remote "zoning_data"']
     url = gs://zoning_data
+    credentialpath = ../secrets/teamspatially-storage-accessor-keys.json
