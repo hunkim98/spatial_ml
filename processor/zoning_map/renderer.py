@@ -55,14 +55,17 @@ def _ingest_to_feature_class(gdf: gpd.GeoDataFrame, output_dir: Path) -> str:
 
 # Map our style names to ArcGIS gallery names
 HATCH_STYLES = [
-    # Line patterns
+    # Line patterns — varying spacing: tight, medium, loose
     {"name": "diagonal", "gallery": "Hatched Fill with Background"},
     {"name": "horizontal", "gallery": "Horizontal Hatch Fill"},
     {"name": "vertical", "gallery": "Vertical Hatch Fill"},
-    {"name": "crosshatch", "gallery": "Crosshatch Fill, Medium"},
+    {"name": "crosshatch_tight", "gallery": "Crosshatch Fill, Tight"},
+    {"name": "crosshatch_medium", "gallery": "Crosshatch Fill, Medium"},
+    {"name": "crosshatch_loose", "gallery": "Crosshatch Fill, Loose"},
+    {"name": "crosshatch_10pct", "gallery": "10% Crosshatch"},
+    {"name": "hatch_10pct", "gallery": "10% Simple hatch"},
     {"name": "striped", "gallery": "Striped Fill"},
     # Point/dot patterns
-    {"name": "dots_sparse", "gallery": "Dot Fill 1"},
     {"name": "dots_medium", "gallery": "Dot Fill 2"},
     {"name": "dots_dense", "gallery": "Dot Fill 3"},
     {"name": "stipple", "gallery": "10% Ordered Stipple"},
@@ -303,8 +306,6 @@ class MapRenderer:
             self._add_legend(aprx, layout, mf, config, regions)
 
         # --- Scale bar inside map frame ---
-        self._add_scale_bar(aprx, layout, mf, mx1, my0)
-
         # --- Export PDF ---
         pdf_path = work_dir / "render.pdf"
         layout.exportToPDF(str(pdf_path), resolution=config.dpi * 2)
@@ -325,7 +326,9 @@ class MapRenderer:
         img = img.crop(crop_box)
         doc.close()
 
-        image_path = work_dir / "map_frame.png"
+        # Unique filename per render to avoid overwrites when rendering twice
+        import uuid
+        image_path = work_dir / f"map_frame_{uuid.uuid4().hex[:8]}.png"
         img.save(str(image_path))
         img_w, img_h = img.size
 
@@ -513,14 +516,3 @@ class MapRenderer:
             lc.expression = expr
             lc.visible = True
 
-    def _add_scale_bar(self, aprx, layout, mf, mx1, my0):
-        """Add scale bar inside the map frame at bottom-right."""
-        sb_style = aprx.listStyleItems("ArcGIS 2D", "SCALE_BAR", "Scale Line 1")[0]
-        sb = layout.createMapSurroundElement(
-            arcpy.Point(mx1 - 0.3, my0 + 0.3), "SCALE_BAR", mf, sb_style
-        )
-        if sb.elementWidth > 2.5:
-            sb.elementWidth = 2.5
-        sb.setAnchor("BOTTOM_RIGHT_CORNER")
-        sb.elementPositionX = mx1 - 0.3
-        sb.elementPositionY = my0 + 0.3

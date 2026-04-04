@@ -59,14 +59,23 @@ def generate_sample(
         mask_dir = work_dir / "masks"
         mask_dir.mkdir()
 
-        # 1. Render map image (arcpy)
+        # 1. Render map image WITH labels (the training image)
         result = renderer.render(config, work_dir)
 
-        # 2. Augment the rendered image (PIL/numpy)
-        img = Image.open(result.image_path)
-        img = augment(img, config.noise, config.color_jitter, config.old_map_intensity)
+        # 2. Render AGAIN without labels and basemap (clean fills only for patterns)
+        from copy import copy
+        config_clean = copy(config)
+        config_clean.show_labels = False
+        config_clean.basemap = None
+        result_clean = renderer.render(config_clean, work_dir)
 
-        # 3. Render per-zone binary masks + pattern thumbnails (rasterio)
+        # 3. Augment BOTH images with the same transforms
+        img = Image.open(result.image_path)
+        img_clean = Image.open(result_clean.image_path)
+        img = augment(img, config.noise, config.color_jitter, config.old_map_intensity)
+        img_clean = augment(img_clean, config.noise, config.color_jitter, config.old_map_intensity)
+
+        # 4. Render per-zone binary masks + crop patterns from label-free image
         mask_info = render_masks(
             result.gdf,
             result.extent,
@@ -75,11 +84,11 @@ def generate_sample(
             result.color_map,
             result.zone_field,
             mask_dir,
-            map_image=img,
+            map_image=img_clean,
             hatch_zones=config.hatch_zones or None,
         )
 
-        # 4. Write to dataset structure
+        # 5. Write to dataset structure
         extra = {
             "rotation": round(config.rotation, 1),
             "basemap": config.basemap or "none",
@@ -200,7 +209,7 @@ def random_config(
     # Hatching: randomly assign some zones to have hatch patterns
     from .renderer import HATCH_STYLES
     if hatch_probability is None:
-        hatch_probability = 0.25  # 25% of samples get hatching
+        hatch_probability = 0.0  # hatching disabled — will add via geopandas later
     hatch_zones_map = {}
     if random.random() < hatch_probability:
         zone_names = list(color_map.keys())
