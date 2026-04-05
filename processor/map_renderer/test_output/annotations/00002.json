@@ -1,0 +1,476 @@
+{
+  "sample_id": "00002",
+  "image": "images/00002.png",
+  "image_width": 2047,
+  "image_height": 1830,
+  "crs": "EPSG:4326",
+  "geojson": "geojsons/00002.geojson",
+  "n_zones": 19,
+  "zone_column": "ZONEDESC",
+  "source_file": "data/maps/CA/Lemoore/geojson/Lemoore.geojson",
+  "renderer": "map_renderer",
+  "rotation": 0.0,
+  "background": "cream",
+  "zone_styles": {
+    "Agriculture": {
+      "color": "#ae0d8d",
+      "hatch": null,
+      "polygon_count": 9
+    },
+    "County": {
+      "color": "#f3b59d",
+      "hatch": null,
+      "polygon_count": 335
+    },
+    "Downtown Mixed Use, Auto-Orientated": {
+      "color": "#6b204d",
+      "hatch": null,
+      "polygon_count": 36
+    },
+    "Downtown Mixed Use, Core": {
+      "color": "#f977ae",
+      "hatch": null,
+      "polygon_count": 79
+    },
+    "Downtown Mixed Use, Transitional": {
+      "color": "#2477d3",
+      "hatch": null,
+      "polygon_count": 44
+    },
+    "Heavy Industrial": {
+      "color": "#517e63",
+      "hatch": null,
+      "polygon_count": 3
+    },
+    "High Density Residential": {
+      "color": "#62a112",
+      "hatch": null,
+      "polygon_count": 38
+    },
+    "Light Industrial": {
+      "color": "#d4b201",
+      "hatch": null,
+      "polygon_count": 41
+    },
+    "Low Density Residential": {
+      "color": "#119a66",
+      "hatch": null,
+      "polygon_count": 1855
+    },
+    "Low-Medium Density Residential": {
+      "color": "#6505a2",
+      "hatch": null,
+      "polygon_count": 179
+    },
+    "Medium Density Residential": {
+      "color": "#7f618f",
+      "hatch": null,
+      "polygon_count": 45
+    },
+    "Neighborhood Commercial": {
+      "color": "#9c373c",
+      "hatch": null,
+      "polygon_count": 62
+    },
+    "Parks and Recreation/Ponding Basin": {
+      "color": "#5f1772",
+      "hatch": "x_hatch",
+      "polygon_count": 56
+    },
+    "Professional Office": {
+      "color": "#fb109c",
+      "hatch": null,
+      "polygon_count": 7
+    },
+    "Public Services and Community Facilities": {
+      "color": "#5d83a0",
+      "hatch": null,
+      "polygon_count": 46
+    },
+    "Regional Commercial": {
+      "color": "#b1a256",
+      "hatch": null,
+      "polygon_count": 10
+    },
+    "Traditional Neighborhood Residential": {
+      "color": "#a66841",
+      "hatch": null,
+      "polygon_count": 400
+    },
+    "Very Low Density Residential": {
+      "color": "#e218fb",
+      "hatch": null,
+      "polygon_count": 13
+    },
+    "Wetlands": {
+      "color": "#f6df75",
+      "hatch": null,
+      "polygon_count": 1
+    }
+  },
+  "has_hatching": true,
+  "hatch_zones": {
+    "Parks and Recreation/Ponding Basin": "x_hatch"
+  },
+  "has_labels": true,
+  "label_count": 34,
+  "labeled_zones": [
+    "Agriculture",
+    "County",
+    "Downtown Mixed Use, Auto-Orientated",
+    "Heavy Industrial",
+    "Light Industrial",
+    "Low Density Residential",
+    "Low-Medium Density Residential",
+    "Medium Density Residential",
+    "Neighborhood Commercial"
+  ],
+  "color_jitter_brightness": -0.1896,
+  "color_jitter_contrast": 0.0701,
+  "color_jitter_saturation": -0.1484,
+  "noise_type": "salt_pepper",
+  "noise_strength": 0.0102,
+  "corners_wgs84": {
+    "top_left": [
+      36.32749513165454,
+      -119.85094044756048
+    ],
+    "top_right": [
+      36.32817223598185,
+      -119.75058192231387
+    ],
+    "bottom_left": [
+      36.25482196423442,
+      -119.85014540573569
+    ],
+    "bottom_right": [
+      36.255498439213305,
+      -119.74988063828656
+    ]
+  },
+  "zones": [
+    {
+      "zone_idx": 0,
+      "zone_dir": "masks/00002/zone_00",
+      "names": [
+        "Agriculture"
+      ],
+      "color": [
+        174,
+        13,
+        141
+      ],
+      "pixel_count": 49557,
+      "pixel_fraction": 0.0132,
+      "pattern_type": "solid",
+      "mask": "masks/00002/zone_00/mask.png",
+      "pattern": "masks/00002/zone_00/pattern.png"
+    },
+    {
+      "zone_idx": 1,
+      "zone_dir": "masks/00002/zone_01",
+      "names": [
+        "County"
+      ],
+      "color": [
+        243,
+        181,
+        157
+      ],
+      "pixel_count": 904448,
+      "pixel_fraction": 0.2414,
+      "pattern_type": "solid",
+      "mask": "masks/00002/zone_01/mask.png",
+      "pattern": "masks/00002/zone_01/pattern.png"
+    },
+    {
+      "zone_idx": 2,
+      "zone_dir": "masks/00002/zone_02",
+      "names": [
+        "Downtown Mixed Use, Auto-Orientated"
+      ],
+      "color": [
+        107,
+        32,
+        77
+      ],
+      "pixel_count": 1920,
+      "pixel_fraction": 0.0005,
+      "pattern_type": "solid",
+      "mask": "masks/00002/zone_02/mask.png",
+      "pattern": "masks/00002/zone_02/pattern.png"
+    },
+    {
+      "zone_idx": 3,
+      "zone_dir": "masks/00002/zone_03",
+      "names": [
+        "Downtown Mixed Use, Core"
+      ],
+      "color": [
+        249,
+        119,
+        174
+      ],
+      "pixel_count": 2968,
+      "pixel_fraction": 0.0008,
+      "pattern_type": "solid",
+      "mask": "masks/00002/zone_03/mask.png",
+      "pattern": "masks/00002/zone_03/pattern.png"
+    },
+    {
+      "zone_idx": 4,
+      "zone_dir": "masks/00002/zone_04",
+      "names": [
+        "Downtown Mixed Use, Transitional"
+      ],
+      "color": [
+        36,
+        119,
+        211
+      ],
+      "pixel_count": 1771,
+      "pixel_fraction": 0.0005,
+      "pattern_type": "solid",
+      "mask": "masks/00002/zone_04/mask.png",
+      "pattern": "masks/00002/zone_04/pattern.png"
+    },
+    {
+      "zone_idx": 5,
+      "zone_dir": "masks/00002/zone_05",
+      "names": [
+        "Heavy Industrial"
+      ],
+      "color": [
+        81,
+        126,
+        99
+      ],
+      "pixel_count": 4003,
+      "pixel_fraction": 0.0011,
+      "pattern_type": "solid",
+      "mask": "masks/00002/zone_05/mask.png",
+      "pattern": "masks/00002/zone_05/pattern.png"
+    },
+    {
+      "zone_idx": 6,
+      "zone_dir": "masks/00002/zone_06",
+      "names": [
+        "High Density Residential"
+      ],
+      "color": [
+        98,
+        161,
+        18
+      ],
+      "pixel_count": 12234,
+      "pixel_fraction": 0.0033,
+      "pattern_type": "solid",
+      "mask": "masks/00002/zone_06/mask.png",
+      "pattern": "masks/00002/zone_06/pattern.png"
+    },
+    {
+      "zone_idx": 7,
+      "zone_dir": "masks/00002/zone_07",
+      "names": [
+        "Light Industrial"
+      ],
+      "color": [
+        212,
+        178,
+        1
+      ],
+      "pixel_count": 57805,
+      "pixel_fraction": 0.0154,
+      "pattern_type": "solid",
+      "mask": "masks/00002/zone_07/mask.png",
+      "pattern": "masks/00002/zone_07/pattern.png"
+    },
+    {
+      "zone_idx": 8,
+      "zone_dir": "masks/00002/zone_08",
+      "names": [
+        "Low Density Residential"
+      ],
+      "color": [
+        17,
+        154,
+        102
+      ],
+      "pixel_count": 104738,
+      "pixel_fraction": 0.028,
+      "pattern_type": "solid",
+      "mask": "masks/00002/zone_08/mask.png",
+      "pattern": "masks/00002/zone_08/pattern.png"
+    },
+    {
+      "zone_idx": 9,
+      "zone_dir": "masks/00002/zone_09",
+      "names": [
+        "Low-Medium Density Residential"
+      ],
+      "color": [
+        101,
+        5,
+        162
+      ],
+      "pixel_count": 10352,
+      "pixel_fraction": 0.0028,
+      "pattern_type": "solid",
+      "mask": "masks/00002/zone_09/mask.png",
+      "pattern": "masks/00002/zone_09/pattern.png"
+    },
+    {
+      "zone_idx": 10,
+      "zone_dir": "masks/00002/zone_10",
+      "names": [
+        "Medium Density Residential"
+      ],
+      "color": [
+        127,
+        97,
+        143
+      ],
+      "pixel_count": 18558,
+      "pixel_fraction": 0.005,
+      "pattern_type": "solid",
+      "mask": "masks/00002/zone_10/mask.png",
+      "pattern": "masks/00002/zone_10/pattern.png"
+    },
+    {
+      "zone_idx": 11,
+      "zone_dir": "masks/00002/zone_11",
+      "names": [
+        "Neighborhood Commercial"
+      ],
+      "color": [
+        156,
+        55,
+        60
+      ],
+      "pixel_count": 12123,
+      "pixel_fraction": 0.0032,
+      "pattern_type": "solid",
+      "mask": "masks/00002/zone_11/mask.png",
+      "pattern": "masks/00002/zone_11/pattern.png"
+    },
+    {
+      "zone_idx": 12,
+      "zone_dir": "masks/00002/zone_12",
+      "names": [
+        "Parks and Recreation/Ponding Basin"
+      ],
+      "color": [
+        95,
+        23,
+        114
+      ],
+      "pixel_count": 58608,
+      "pixel_fraction": 0.0156,
+      "pattern_type": "x_hatch",
+      "mask": "masks/00002/zone_12/mask.png",
+      "pattern": "masks/00002/zone_12/pattern.png"
+    },
+    {
+      "zone_idx": 13,
+      "zone_dir": "masks/00002/zone_13",
+      "names": [
+        "Professional Office"
+      ],
+      "color": [
+        251,
+        16,
+        156
+      ],
+      "pixel_count": 3675,
+      "pixel_fraction": 0.001,
+      "pattern_type": "solid",
+      "mask": "masks/00002/zone_13/mask.png",
+      "pattern": "masks/00002/zone_13/pattern.png"
+    },
+    {
+      "zone_idx": 14,
+      "zone_dir": "masks/00002/zone_14",
+      "names": [
+        "Public Services and Community Facilities"
+      ],
+      "color": [
+        93,
+        131,
+        160
+      ],
+      "pixel_count": 81551,
+      "pixel_fraction": 0.0218,
+      "pattern_type": "solid",
+      "mask": "masks/00002/zone_14/mask.png",
+      "pattern": "masks/00002/zone_14/pattern.png"
+    },
+    {
+      "zone_idx": 15,
+      "zone_dir": "masks/00002/zone_15",
+      "names": [
+        "Regional Commercial"
+      ],
+      "color": [
+        177,
+        162,
+        86
+      ],
+      "pixel_count": 4501,
+      "pixel_fraction": 0.0012,
+      "pattern_type": "solid",
+      "mask": "masks/00002/zone_15/mask.png",
+      "pattern": "masks/00002/zone_15/pattern.png"
+    },
+    {
+      "zone_idx": 16,
+      "zone_dir": "masks/00002/zone_16",
+      "names": [
+        "Traditional Neighborhood Residential"
+      ],
+      "color": [
+        166,
+        104,
+        65
+      ],
+      "pixel_count": 16315,
+      "pixel_fraction": 0.0044,
+      "pattern_type": "solid",
+      "mask": "masks/00002/zone_16/mask.png",
+      "pattern": "masks/00002/zone_16/pattern.png"
+    },
+    {
+      "zone_idx": 17,
+      "zone_dir": "masks/00002/zone_17",
+      "names": [
+        "Very Low Density Residential"
+      ],
+      "color": [
+        226,
+        24,
+        251
+      ],
+      "pixel_count": 2417,
+      "pixel_fraction": 0.0006,
+      "pattern_type": "solid",
+      "mask": "masks/00002/zone_17/mask.png",
+      "pattern": "masks/00002/zone_17/pattern.png"
+    },
+    {
+      "zone_idx": 18,
+      "zone_dir": "masks/00002/zone_18",
+      "names": [
+        "Wetlands"
+      ],
+      "color": [
+        246,
+        223,
+        117
+      ],
+      "pixel_count": 17235,
+      "pixel_fraction": 0.0046,
+      "pattern_type": "solid",
+      "mask": "masks/00002/zone_18/mask.png",
+      "pattern": "masks/00002/zone_18/pattern.png"
+    }
+  ]
+}
