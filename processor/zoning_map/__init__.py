@@ -8,10 +8,13 @@ Usage:
 """
 
 from .config import ColorJitterConfig, MapConfig, NoiseConfig, RenderResult
-from .dataset import generate_dataset, generate_sample, random_config
 from .legend import LegendConfig
-from .renderer import MapRenderer
 from .writer import DatasetWriter
+
+# Lazy imports for arcpy-dependent modules (MapRenderer, dataset functions)
+# Import them explicitly when needed:
+#   from processor.zoning_map.dataset import generate_dataset
+#   from processor.zoning_map.renderer import MapRenderer
 
 __all__ = [
     "MapConfig",
@@ -19,9 +22,5 @@ __all__ = [
     "ColorJitterConfig",
     "RenderResult",
     "LegendConfig",
-    "MapRenderer",
     "DatasetWriter",
-    "generate_dataset",
-    "generate_sample",
-    "random_config",
 ]

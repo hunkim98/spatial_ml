@@ -30,6 +30,10 @@ def load_geojson(path: Path) -> gpd.GeoDataFrame:
     gdf = gpd.read_file(path)
     if gdf.crs and gdf.crs.to_epsg() != 4326:
         gdf = gdf.to_crs(epsg=4326)
+    # Drop rows with null, empty, or invalid geometries
+    gdf = gdf[~gdf.geometry.isna()]
+    gdf = gdf[gdf.geometry.is_valid & ~gdf.geometry.is_empty]
+    gdf = gdf.reset_index(drop=True)
     return gdf
 
 

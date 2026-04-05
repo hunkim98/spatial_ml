@@ -94,87 +94,83 @@ def _extract_pattern(
     is_hatched: bool = False,
     hatch_pattern: str | None = None,
 ) -> tuple[Image.Image, tuple | None]:
-    """Render this zone ALONE and crop its deepest interior.
+    """Crop a pattern from the zone layer (no text, consistent CRS).
 
-    Renders only this zone's polygons (no neighbors) on white background
-    using matplotlib. Crops around the polylabel center within the
-    inscribed radius. Guarantees zero bleed from neighboring zones.
+    Uses polylabel to find the deepest interior, crops from the actual
+    rendered zone layer, and masks out non-zone pixels with median fill.
     """
     import random as _rng
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-    from shapely.ops import polylabel
 
-    if zone_gdf is None or len(zone_gdf) == 0 or not np.any(mask > 0):
+    img_w, img_h = map_image.size
+    h, w = img_h, img_w
+
+    if not np.any(mask > 0):
         return Image.new("RGB", (size, size), zone_color), None
 
-    # Find deepest interior point
-    largest = max(zone_gdf.geometry, key=lambda g: g.area)
-    if largest.geom_type == "MultiPolygon":
-        largest = max(largest.geoms, key=lambda g: g.area)
-    if largest.is_empty:
-        return Image.new("RGB", (size, size), zone_color), None
+    # Resize mask to match image if needed
+    mask_h, mask_w = mask.shape
+    if mask_w != img_w or mask_h != img_h:
+        mask_r = np.array(Image.fromarray(mask).resize((img_w, img_h), Image.NEAREST))
+    else:
+        mask_r = mask
 
-    try:
-        pole = polylabel(largest, tolerance=0.001)
-    except Exception:
-        pole = largest.centroid
-    radius = pole.distance(largest.boundary) * 0.7
+    # Vector method: find safe crop region
+    crop_region = None
+    if zone_gdf is not None and extent is not None and len(zone_gdf) > 0:
+        crop_region = _find_safe_crop_region(zone_gdf, extent, w, h)
 
-    if radius < 1e-10:
-        return Image.new("RGB", (size, size), zone_color), None
+    if crop_region is not None:
+        cx_px, cy_px, safe_r = crop_region
+        # Cap crop size so patterns survive downscaling to `size x size`.
+        # Hatching lines are ~2-3px; at >3x downscale they vanish.
+        max_half = size * 3  # e.g. 96px for size=32 → 2x2 crop → lines stay ≥1px
+        if is_hatched:
+            min_half = min(size, safe_r)          # at least 1:1 with output
+            half = _rng.randint(min_half, min(safe_r, max_half))
+        else:
+            min_half = min(16, safe_r)
+            half = _rng.randint(min_half, min(safe_r, max_half))
+    else:
+        # Fallback: raster distance transform
+        from scipy.ndimage import binary_erosion, distance_transform_edt
+        for px in [8, 5, 3]:
+            eroded = binary_erosion(mask_r > 0, iterations=px).astype(np.uint8) * 255
+            if np.any(eroded > 0):
+                break
+        else:
+            eroded = mask_r
+        dist = distance_transform_edt(eroded > 0)
+        max_dist = dist.max()
+        if max_dist < 2:
+            return Image.new("RGB", (size, size), zone_color), None
+        cy_px, cx_px = np.unravel_index(np.argmax(dist), dist.shape)
+        safe_r = int(max_dist * 0.7)
+        max_half = size * 3
+        half = max(4, _rng.randint(4, min(max(4, safe_r), max_half)))
 
-    # Random crop size within safe radius
-    crop_r = _rng.uniform(radius * 0.3, radius)
+    top = max(0, cy_px - half)
+    left = max(0, cx_px - half)
+    bottom = min(h, top + half * 2)
+    right = min(w, left + half * 2)
 
-    # Render ONLY this zone on white background
-    fig, ax = plt.subplots(1, 1, figsize=(3, 3), dpi=max(size, 64))
-    fill = (zone_color[0] / 255, zone_color[1] / 255, zone_color[2] / 255)
+    crop = map_image.crop((left, top, right, bottom))
+    crop_arr = np.array(crop)
 
-    hatch = None
-    if is_hatched and hatch_pattern and hatch_pattern != "solid":
-        try:
-            from processor.zoning_map_geopandas.renderer import HATCH_PATTERNS
-            hatch_lookup = {h["name"]: h["hatch"] for h in HATCH_PATTERNS}
-            hatch = hatch_lookup.get(hatch_pattern)
-        except ImportError:
-            pass
+    # Mask out non-zone pixels (neighbor bleed from anti-aliasing)
+    mask_region = mask_r[top:bottom, left:right]
+    if mask_region.shape[0] == crop_arr.shape[0] and mask_region.shape[1] == crop_arr.shape[1]:
+        outside = mask_region == 0
+        if outside.any():
+            zone_pixels = crop_arr[~outside]
+            if len(zone_pixels) > 0:
+                fill = np.median(zone_pixels, axis=0).astype(np.uint8)
+                crop_arr[outside] = fill
+                crop = Image.fromarray(crop_arr)
 
-    zone_gdf.plot(ax=ax, color=fill, alpha=1.0, edgecolor="none",
-                  linewidth=0, hatch=hatch)
+    if crop.size[0] != size or crop.size[1] != size:
+        crop = crop.resize((size, size), Image.LANCZOS)
 
-    ax.set_xlim(pole.x - crop_r, pole.x + crop_r)
-    ax.set_ylim(pole.y - crop_r, pole.y + crop_r)
-    ax.set_axis_off()
-    ax.set_facecolor("white")
-    ax.set_position([0, 0, 1, 1])
-
-    fig.canvas.draw()
-    buf = fig.canvas.buffer_rgba()
-    arr = np.asarray(buf)[:, :, :3]
-    plt.close(fig)
-
-    pattern = Image.fromarray(arr)
-    if pattern.size[0] != size or pattern.size[1] != size:
-        pattern = pattern.resize((size, size), Image.LANCZOS)
-
-    # Compute crop box in map image coordinate space for mask_pattern viz
-    crop_box = None
-    if extent and map_image:
-        img_w, img_h = map_image.size
-        xmin, ymin, xmax, ymax = extent
-        geo_w, geo_h = xmax - xmin, ymax - ymin
-        if geo_w > 0 and geo_h > 0:
-            px_x = img_w / geo_w
-            px_y = img_h / geo_h
-            cx = int((pole.x - xmin) * px_x)
-            cy = int((ymax - pole.y) * px_y)
-            r_px = int(crop_r * min(px_x, px_y))
-            crop_box = (max(0, cx - r_px), max(0, cy - r_px),
-                        min(img_w, cx + r_px), min(img_h, cy + r_px))
-
-    return pattern, crop_box
+    return crop, (left, top, right, bottom)
 
 
 def _generate_pattern_swatch(
@@ -258,6 +254,7 @@ def render_masks(
     output_dir: Path,
     map_image: Image.Image | None = None,
     hatch_zones: dict[str, str] | None = None,
+    debug_visualizations: bool = False,
 ):
     """Render per-zone binary masks and pattern thumbnails.
 
@@ -350,33 +347,31 @@ def render_masks(
             )
             pattern.save(zone_dir / "pattern.png")
 
-            # Generate mask_pattern.png — white mask with red crop area
-            # Re-rasterize this zone in the MAP IMAGE's coordinate space
-            img_w_actual, img_h_actual = map_image.size
-            try:
-                # Rasterize zone in map image coords
-                from rasterio.features import rasterize as _rast
-                from rasterio.transform import from_bounds as _fb
-                # Use the extent that _extract_pattern uses (same as map_image)
-                _ext = extent
-                _tf = _fb(_ext[0], _ext[1], _ext[2], _ext[3], img_w_actual, img_h_actual)
-                _shapes = [(g, 1) for g in zone_gdf_for_crop.geometry if g is not None]
-                mask_vis = _rast(_shapes, out_shape=(img_h_actual, img_w_actual),
-                                 transform=_tf, fill=0, dtype=np.uint8) * 255
-            except Exception:
-                mask_vis = np.zeros((img_h_actual, img_w_actual), dtype=np.uint8)
+            # Generate mask_pattern.png — debug visualization only
+            if debug_visualizations:
+                img_w_actual, img_h_actual = map_image.size
+                try:
+                    from rasterio.features import rasterize as _rast
+                    from rasterio.transform import from_bounds as _fb
+                    _ext = extent
+                    _tf = _fb(_ext[0], _ext[1], _ext[2], _ext[3], img_w_actual, img_h_actual)
+                    _shapes = [(g, 1) for g in zone_gdf_for_crop.geometry if g is not None]
+                    mask_vis = _rast(_shapes, out_shape=(img_h_actual, img_w_actual),
+                                     transform=_tf, fill=0, dtype=np.uint8) * 255
+                except Exception:
+                    mask_vis = np.zeros((img_h_actual, img_w_actual), dtype=np.uint8)
 
-            mp = np.zeros((img_h_actual, img_w_actual, 3), dtype=np.uint8)
-            mp[mask_vis > 0] = [255, 255, 255]
-            if crop_box:
-                cl, ct, cr, cb = crop_box
-                ct, cb = max(0, ct), min(img_h_actual, cb)
-                cl, cr = max(0, cl), min(img_w_actual, cr)
-                mp[ct:cb, cl:cr, 0] = np.minimum(
-                    mp[ct:cb, cl:cr, 0].astype(int) + 200, 255).astype(np.uint8)
-                mp[ct:cb, cl:cr, 1] = (mp[ct:cb, cl:cr, 1] * 0.3).astype(np.uint8)
-                mp[ct:cb, cl:cr, 2] = (mp[ct:cb, cl:cr, 2] * 0.3).astype(np.uint8)
-            Image.fromarray(mp).save(zone_dir / "mask_pattern.png")
+                mp = np.zeros((img_h_actual, img_w_actual, 3), dtype=np.uint8)
+                mp[mask_vis > 0] = [255, 255, 255]
+                if crop_box:
+                    cl, ct, cr, cb = crop_box
+                    ct, cb = max(0, ct), min(img_h_actual, cb)
+                    cl, cr = max(0, cl), min(img_w_actual, cr)
+                    mp[ct:cb, cl:cr, 0] = np.minimum(
+                        mp[ct:cb, cl:cr, 0].astype(int) + 200, 255).astype(np.uint8)
+                    mp[ct:cb, cl:cr, 1] = (mp[ct:cb, cl:cr, 1] * 0.3).astype(np.uint8)
+                    mp[ct:cb, cl:cr, 2] = (mp[ct:cb, cl:cr, 2] * 0.3).astype(np.uint8)
+                Image.fromarray(mp).save(zone_dir / "mask_pattern.png")
 
         mask_info.append({
             "zone_dir": zone_dir_name,

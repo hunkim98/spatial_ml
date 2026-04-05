@@ -31,15 +31,21 @@ from .renderer import (
 
 logger = logging.getLogger(__name__)
 
-# Basemaps that work without API keys
+# Basemaps that work without API keys.
+# NO satellite/imagery providers — they confuse the model with polygon colors.
 BASEMAP_PROVIDERS = [
     None,  # no basemap (use background color)
-    "OpenTopoMap",
     "CartoDB.Positron",
     "CartoDB.DarkMatter",
     "Esri.WorldTopoMap",
     "Esri.WorldTerrain",
 ]
+
+# Fallback order: if the chosen provider has no coverage, try these
+BASEMAP_FALLBACKS = {
+    "Esri.WorldTerrain": ["Esri.WorldTopoMap", "CartoDB.Positron"],
+    "Esri.WorldTopoMap": ["Esri.WorldTerrain", "CartoDB.Positron"],
+}
 
 
 def _get_basemap_provider(name: str | None):
@@ -160,6 +166,7 @@ def generate_sample(
     render_kwargs: dict,
     sample_id: str,
     writer: DatasetWriter,
+    source_file: str | None = None,
 ):
     """Generate one training sample using geopandas renderer."""
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
@@ -168,74 +175,61 @@ def generate_sample(
         mask_dir.mkdir()
 
         basemap_provider = _get_basemap_provider(config.basemap) if config.basemap else None
+        fallback_names = BASEMAP_FALLBACKS.get(config.basemap, []) if config.basemap else []
+        fallback_providers = [_get_basemap_provider(n) for n in fallback_names]
 
         # LAYERED RENDERING:
-        # Layer 1: Map (zones + basemap + hatching, NO labels)
-        # Layer 2: Text labels on transparent background
-        # Merge: training image = Layer 1 + Layer 2
-        # Patterns: crop from Layer 1 (clean, no text)
-        # Masks: from GeoJSON (same extent as Layer 1)
+        # 1. Zone layer: all zones + basemap + hatching, NO labels
+        # 2. Augment zone layer
+        # 3. Crop patterns from augmented zone layer (no text contamination)
+        # 4. Render text layer (transparent) and composite onto zone layer
+        # 5. Result = training image with text on top
 
         from copy import copy
+        from .renderer import render_text_layer
 
-        # Layer 1: Map without labels, NO boundaries (clean for pattern extraction)
-        config_map = copy(config)
-        config_map.show_labels = False
-        map_path = work_dir / "map_layer.png"
-        result_map = render_map(
-            config_map, map_path, dpi=config.dpi,
+        # 1. Render zone layer (no labels)
+        config_zones = copy(config)
+        config_zones.show_labels = False
+        zone_path = work_dir / "zone_layer.png"
+        result_zones = render_map(
+            config_zones, zone_path, dpi=config.dpi,
             basemap_provider=basemap_provider,
-            boundary_style="none",
-            contour_lines=render_kwargs.get("contour_lines", False),
-            grid_lines=render_kwargs.get("grid_lines", False),
+            fallback_providers=fallback_providers,
+            **render_kwargs,
         )
 
-        # Layer 2: Text labels on transparent background (same extent/size)
-        if config.show_labels:
-            config_text = copy(config)
-            config_text.show_labels = True
-            # Render with transparent bg — just the labels
-            text_path = work_dir / "text_layer.png"
-            result_text = render_map(
-                config_text, text_path, dpi=config.dpi,
-                basemap_provider=basemap_provider,
-                **render_kwargs,
-            )
-            # The text layer IS the full render with labels — we'll use it as the training image
-            result = result_text
-        else:
-            result = result_map
+        # Use the GDF from the render result — already in the correct CRS
+        map_extent = result_zones.extent
+        gdf_for_masks = result_zones.gdf
 
-        # The map layer's extent and CRS — use this for EVERYTHING
-        map_extent = result_map.extent
+        # 2. Augment zone layer
+        img_zones = Image.open(result_zones.image_path).convert("RGB")
+        img_zones = augment(img_zones, config.noise, config.color_jitter, config.old_map_intensity)
 
-        # If basemap was used, GDF needs to be in 3857 to match the map
-        if basemap_provider:
-            gdf_for_masks = config.gdf.to_crs(epsg=3857)
-        else:
-            gdf_for_masks = config.gdf
-
-        result.gdf = gdf_for_masks
-        result_map.gdf = gdf_for_masks
-
-        # Augment BOTH layers with the same transforms
-        img_map = Image.open(result_map.image_path).convert("RGB")
-        img_map = augment(img_map, config.noise, config.color_jitter, config.old_map_intensity)
-
-        if config.show_labels:
-            img = Image.open(result.image_path).convert("RGB")
-            img = augment(img, config.noise, config.color_jitter, config.old_map_intensity)
-        else:
-            img = img_map
-
-        # Everything uses map_extent (same CRS as map image)
-        map_w, map_h = img_map.size
+        # 3. Crop patterns from augmented zone layer (no text, consistent CRS)
+        zone_w, zone_h = img_zones.size
         mask_info = render_masks(
-            gdf_for_masks, map_extent, map_w, map_h,
+            gdf_for_masks, map_extent, zone_w, zone_h,
             config.color_map, config.zone_field, mask_dir,
-            map_image=img_map,
+            map_image=img_zones,
             hatch_zones=config.hatch_zones or None,
         )
+
+        # 4. Composite text layer on top (if labels enabled)
+        if config.show_labels:
+            # Use the same GDF/CRS as the zone layer for coordinate alignment
+            from copy import copy as _copy
+            config_for_text = _copy(config)
+            config_for_text.gdf = gdf_for_masks  # same CRS as zone layer
+            text_layer = render_text_layer(
+                config_for_text, (zone_w, zone_h), map_extent, config.dpi,
+            )
+            # Paste text onto zone layer
+            img = img_zones.copy()
+            img.paste(text_layer, (0, 0), text_layer)  # use alpha as mask
+        else:
+            img = img_zones
 
         # 5. Random edge crop (40% chance) — crop 5-15% from random edges
         #    so the model doesn't learn that edges are always empty
@@ -275,6 +269,8 @@ def generate_sample(
             "page_size": f"{config.page_width}x{config.page_height}",
             "renderer": "geopandas",
         }
+        if source_file:
+            extra["source_file"] = source_file
         if config.hatch_zones:
             extra["hatch_zones"] = config.hatch_zones
 
@@ -284,6 +280,6 @@ def generate_sample(
             mask_info=mask_info,
             mask_dir=mask_dir,
             gdf=config.gdf,
-            render_result=result,
+            render_result=result_zones,
             extra_annotation=extra,
         )

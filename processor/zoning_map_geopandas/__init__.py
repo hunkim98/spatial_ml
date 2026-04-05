@@ -7,4 +7,4 @@ Use this for:
   - Linux / Docker / CI compatibility
 """
 
-from .renderer import HATCH_PATTERNS, render_map, render_pattern_swatch
+from .renderer import HATCH_PATTERNS, render_map, render_pattern_swatch, render_text_layer

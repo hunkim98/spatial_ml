@@ -127,6 +127,7 @@ def render_map(
     grid_lines: bool | None = None,
     contour_lines: bool | None = None,
     basemap_provider=None,
+    fallback_providers=None,
 ) -> RenderResult:
     """Render a map with full style control.
 
@@ -147,13 +148,16 @@ def render_map(
 
     # If basemap tiles are needed, reproject to EPSG:3857 inside the renderer
     if basemap_provider is not None:
-        gdf = config.gdf.to_crs(epsg=3857)
+        gdf = config.gdf.to_crs(epsg=4326)
     else:
         gdf = config.gdf
 
     # 1. Compute extent FIRST so we can size the figure correctly
     bounds = gdf.total_bounds
     xmin, ymin, xmax, ymax = bounds
+    import math
+    if any(math.isnan(v) or math.isinf(v) for v in bounds) or xmax <= xmin or ymax <= ymin:
+        raise ValueError(f"Degenerate geometry bounds: {bounds}")
     pad = config.extent_padding
     dx = (xmax - xmin) * (pad - 1) / 2
     dy = (ymax - ymin) * (pad - 1) / 2
@@ -202,64 +206,87 @@ def render_map(
 
     hatch_lookup = {h["name"]: h["hatch"] for h in HATCH_PATTERNS}
 
-    # Plot zones
+    # Plot zones — bulk plot for speed, then overlay hatched zones individually
     if zone_field and zone_field in gdf.columns:
-        for zone_name, rgb in color_map.items():
+        alpha = config_opacity
+        if is_blueprint:
+            alpha = min(1.0, alpha + 0.1)
+
+        # Resolve boundary style once
+        if isinstance(boundary_style, dict):
+            edge_color_base = boundary_style["color"]
+            edge_width = boundary_style["width"]
+            edge_style = boundary_style["style"]
+            if edge_color_base == "none" or edge_width == 0:
+                edge_color_base = "none"
+                edge_width = 0
+            if is_blueprint and edge_color_base != "none":
+                edge_color_base = (0.7, 0.8, 1.0)
+        else:
+            edge_color_base = (0.3, 0.3, 0.3)
+            edge_width = 0.5
+            edge_style = "-"
+
+        # Build per-row color column for bulk plot
+        def _zone_color(zone_name):
+            rgb = color_map.get(zone_name, [128, 128, 128])
+            c = _color_to_mpl(rgb)
+            return _lighten(c, 0.3) if is_blueprint else c
+
+        gdf = gdf.copy()
+        gdf["_fill"] = gdf[zone_field].map(
+            lambda z: "#{:02x}{:02x}{:02x}".format(
+                *[int(c * 255) for c in _zone_color(z)]
+            )
+        )
+
+        # Per-row edge color when "colored" mode
+        if edge_color_base is None:  # "colored" mode
+            gdf["_edge"] = gdf[zone_field].map(
+                lambda z: "#{:02x}{:02x}{:02x}".format(
+                    *[int(c * 255) for c in _darken(_zone_color(z), 0.3)]
+                )
+            )
+            edge_col = gdf["_edge"].tolist()
+        else:
+            edge_col = edge_color_base
+
+        # Single bulk plot call
+        gdf.plot(
+            ax=ax,
+            color=gdf["_fill"].tolist(),
+            alpha=alpha,
+            edgecolor=edge_col,
+            linewidth=edge_width,
+            linestyle=edge_style,
+        )
+
+        # Overlay hatched zones individually (only the few that need hatching)
+        for zone_name in hatch_zones:
             zone_gdf = gdf[gdf[zone_field] == zone_name]
             if zone_gdf.empty:
                 continue
-
-            fill_color = _color_to_mpl(rgb)
-            alpha = config_opacity
-
-            # Blueprint: invert to light colors on dark bg
-            if is_blueprint:
-                fill_color = _lighten(fill_color, 0.3)
-                alpha = min(1.0, alpha + 0.1)
-
-            # Hatch
-            hatch = None
-            if zone_name in hatch_zones:
-                hatch = hatch_lookup.get(hatch_zones[zone_name], "///")
-
-            # Boundary edge
-            if isinstance(boundary_style, dict):
-                edge_color = boundary_style["color"]
-                edge_width = boundary_style["width"]
-                edge_style = boundary_style["style"]
-                if edge_color == "none" or edge_width == 0:
-                    edge_color = "none"
-                    edge_width = 0
-                elif edge_color is None:  # "colored" mode
-                    edge_color = _darken(fill_color, 0.3)
-                if is_blueprint and edge_color != "none":
-                    edge_color = (0.7, 0.8, 1.0)
-            else:
-                edge_color = (0.3, 0.3, 0.3)
-                edge_width = 0.5
-                edge_style = "-"
+            fill_color = _zone_color(zone_name)
+            hatch = hatch_lookup.get(hatch_zones[zone_name], "///")
 
             zone_gdf.plot(
                 ax=ax,
-                color=fill_color,
+                color=[f"#{int(c*255):02x}" for c in fill_color] if False else "none",
                 alpha=alpha,
-                edgecolor=edge_color,
-                linewidth=edge_width,
-                linestyle=edge_style,
+                edgecolor=edge_col if isinstance(edge_col, str) else "none",
+                linewidth=0,
                 hatch=hatch,
             )
 
-            # Set hatch edge color
-            if hatch:
-                if hatch_color_mode == "dark":
-                    hc = _darken(fill_color, 0.3)
-                elif hatch_color_mode == "black":
-                    hc = (0, 0, 0)
-                elif hatch_color_mode == "white":
-                    hc = (1, 1, 1)
-                else:
-                    hc = _darken(fill_color, 0.15)
-                plt.rcParams['hatch.color'] = hc
+            if hatch_color_mode == "dark":
+                hc = _darken(fill_color, 0.3)
+            elif hatch_color_mode == "black":
+                hc = (0, 0, 0)
+            elif hatch_color_mode == "white":
+                hc = (1, 1, 1)
+            else:
+                hc = _darken(fill_color, 0.15)
+            plt.rcParams['hatch.color'] = hc
     else:
         gdf.plot(ax=ax, color="lightblue", edgecolor="gray", linewidth=0.5)
 
@@ -340,11 +367,18 @@ def render_map(
 
     # Basemap tiles (extent already set at top, so tiles fill correctly)
     if basemap_provider is not None:
-        try:
-            import contextily as cx
-            cx.add_basemap(ax, source=basemap_provider, zoom="auto", zorder=0)
-        except Exception as e:
-            logger.warning(f"Failed to add basemap: {e}")
+        import contextily as cx
+        providers_to_try = [basemap_provider] + (fallback_providers or [])
+        basemap_ok = False
+        for bp in providers_to_try:
+            try:
+                cx.add_basemap(ax, source=bp, zoom="auto", zorder=0)
+                basemap_ok = True
+                break
+            except Exception as e:
+                logger.warning(f"Basemap failed ({bp}): {e}")
+        if not basemap_ok:
+            logger.warning("All basemap providers failed, rendering without basemap")
 
     # Re-enforce extent (basemap may have shifted it)
     ax.set_xlim(xmin - dx, xmax + dx)
@@ -442,6 +476,87 @@ def _apply_old_map(img: Image.Image, intensity: float) -> Image.Image:
 # ---------------------------------------------------------------------------
 # Pattern swatches
 # ---------------------------------------------------------------------------
+
+def render_text_layer(
+    config,
+    img_size: tuple[int, int],
+    extent: tuple[float, float, float, float],
+    dpi: int = 200,
+) -> Image.Image:
+    """Render ONLY text labels on a transparent background.
+
+    Returns an RGBA image that can be composited onto the zone layer.
+    Same extent/size as the zone layer for pixel-perfect alignment.
+    """
+    gdf = config.gdf
+    zone_field = config.zone_field
+    color_map = config.color_map
+
+    img_w, img_h = img_size
+    xmin, ymin, xmax, ymax = extent
+    data_w = xmax - xmin
+    data_h = ymax - ymin
+
+    fig_w = img_w / dpi
+    fig_h = img_h / dpi
+    fig, ax = plt.subplots(1, 1, figsize=(fig_w, fig_h), dpi=dpi)
+
+    # Transparent background for text-only layer
+    fig.patch.set_facecolor("none")
+    fig.patch.set_alpha(0)
+    ax.set_facecolor("none")
+    ax.patch.set_alpha(0)
+    ax.set_xlim(xmin, xmax)
+    ax.set_ylim(ymin, ymax)
+    ax.set_axis_off()
+    ax.set_position([0, 0, 1, 1])
+
+    if zone_field and zone_field in gdf.columns:
+        zone_font = random.choice(LABEL_FONTS)
+        zone_weight = random.choice(["normal", "normal", "bold"])
+        zone_style = random.choice(["normal", "normal", "italic"])
+
+        for zone_name in color_map:
+            zone_gdf = gdf[gdf[zone_field] == zone_name].copy()
+            if zone_gdf.empty:
+                continue
+
+            zone_gdf["_area"] = zone_gdf.geometry.area
+            zone_gdf = zone_gdf.sort_values("_area", ascending=False)
+            n_to_label = random.randint(1, min(3, len(zone_gdf)))
+            to_label = zone_gdf.head(n_to_label)
+
+            fontsize = random.uniform(6, 16)
+            alpha = random.uniform(0.5, 1.0)
+            txt_color = (random.uniform(0, 0.25),) * 3
+            rotation = random.choice([0, 0, 0, 0, random.uniform(-15, 15)])
+
+            for _, row in to_label.iterrows():
+                centroid = row.geometry.centroid
+                text = ax.text(
+                    centroid.x, centroid.y, zone_name,
+                    fontsize=fontsize, fontstyle=zone_style,
+                    fontweight=zone_weight, color=txt_color,
+                    alpha=alpha, ha="center", va="center",
+                    fontfamily=zone_font, rotation=rotation,
+                )
+                if random.random() < 0.5:
+                    text.set_path_effects([
+                        pe.withStroke(linewidth=random.uniform(1, 3), foreground="white"),
+                    ])
+
+    # Render to RGBA buffer in memory — no temp file needed
+    fig.canvas.draw()
+    buf = fig.canvas.buffer_rgba()
+    arr = np.asarray(buf).copy()
+    plt.close(fig)
+
+    text_img = Image.fromarray(arr, mode="RGBA")
+    if text_img.size != (img_w, img_h):
+        text_img = text_img.resize((img_w, img_h), Image.LANCZOS)
+
+    return text_img
+
 
 def render_pattern_swatch(
     color: list[int],

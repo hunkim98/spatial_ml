@@ -78,6 +78,7 @@ class DatasetWriter:
             "image_height": image.height,
             "extent": list(render_result.extent),
             "crs": "EPSG:4326",
+            "bbox_wgs84": list(gdf.to_crs(epsg=4326).total_bounds if gdf.crs and gdf.crs.to_epsg() != 4326 else gdf.total_bounds),
             "geojson": f"geojsons/{sample_id}.geojson",
             # Sample-level metadata
             "n_zones": n_zones,
