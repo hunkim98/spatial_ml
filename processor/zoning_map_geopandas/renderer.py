@@ -146,9 +146,10 @@ def render_map(
     color_map = config.color_map
     hatch_zones = config.hatch_zones or {}
 
-    # If basemap tiles are needed, reproject to EPSG:3857 inside the renderer
+    # Use EPSG:3857 when basemap is present (native tile CRS, no distortion).
+    # Otherwise stay in EPSG:4326.
     if basemap_provider is not None:
-        gdf = config.gdf.to_crs(epsg=4326)
+        gdf = config.gdf.to_crs(epsg=3857)
     else:
         gdf = config.gdf
 
@@ -385,7 +386,10 @@ def render_map(
     ax.set_ylim(ymin - dy, ymax + dy)
     ax.set_axis_off()
 
-    # Remove all margins so the axes fill the entire figure
+    # aspect='auto' — figure is already sized to match the data's coordinate
+    # ratio so there is no distortion, and limits stay exactly as we set them
+    # (no expansion that would misalign basemap tiles).
+    ax.set_aspect("auto")
     ax.set_position([0, 0, 1, 1])
 
     output_path = Path(output_path)
@@ -402,13 +406,25 @@ def render_map(
         img.save(str(output_path))
 
     img_w, img_h = img.size
-    extent = (xmin - dx, ymin - dy, xmax + dx, ymax + dy)
+    # Extent matches exactly what we set on the axes (aspect='auto' preserves them)
+    render_extent = (xmin - dx, ymin - dy, xmax + dx, ymax + dy)
+
+    # Convert extent to EPSG:4326 for annotations
+    if basemap_provider is not None:
+        from pyproj import Transformer
+        t = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
+        x0, y0 = t.transform(render_extent[0], render_extent[1])
+        x1, y1 = t.transform(render_extent[2], render_extent[3])
+        extent_4326 = (x0, y0, x1, y1)
+    else:
+        extent_4326 = render_extent
 
     return RenderResult(
         image_path=output_path,
         width=img_w,
         height=img_h,
-        extent=extent,
+        extent=extent_4326,
+        render_extent=render_extent,
         color_map=color_map,
         zone_field=zone_field,
         gdf=gdf,

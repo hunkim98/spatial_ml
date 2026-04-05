@@ -81,7 +81,8 @@ class RenderResult:
     image_path: Path
     width: int
     height: int
-    extent: tuple[float, float, float, float]  # xmin, ymin, xmax, ymax
-    color_map: dict[str, list[int]]
-    zone_field: str | None
-    gdf: gpd.GeoDataFrame = field(repr=False)
+    extent: tuple[float, float, float, float]  # xmin, ymin, xmax, ymax (always EPSG:4326)
+    render_extent: tuple[float, float, float, float] | None = None  # extent in render CRS (for mask alignment)
+    color_map: dict[str, list[int]] = field(default_factory=dict)
+    zone_field: str | None = None
+    gdf: gpd.GeoDataFrame = field(repr=False, default=None)

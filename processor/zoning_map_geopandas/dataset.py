@@ -199,8 +199,9 @@ def generate_sample(
             **render_kwargs,
         )
 
-        # Use the GDF from the render result — already in the correct CRS
-        map_extent = result_zones.extent
+        # render_extent is in the CRS used for plotting (3857 if basemap, 4326 otherwise)
+        # extent is always EPSG:4326 (for annotations)
+        mask_extent = result_zones.render_extent or result_zones.extent
         gdf_for_masks = result_zones.gdf
 
         # 2. Augment zone layer
@@ -210,7 +211,7 @@ def generate_sample(
         # 3. Crop patterns from augmented zone layer (no text, consistent CRS)
         zone_w, zone_h = img_zones.size
         mask_info = render_masks(
-            gdf_for_masks, map_extent, zone_w, zone_h,
+            gdf_for_masks, mask_extent, zone_w, zone_h,
             config.color_map, config.zone_field, mask_dir,
             map_image=img_zones,
             hatch_zones=config.hatch_zones or None,
@@ -223,7 +224,7 @@ def generate_sample(
             config_for_text = _copy(config)
             config_for_text.gdf = gdf_for_masks  # same CRS as zone layer
             text_layer = render_text_layer(
-                config_for_text, (zone_w, zone_h), map_extent, config.dpi,
+                config_for_text, (zone_w, zone_h), mask_extent, config.dpi,
             )
             # Paste text onto zone layer
             img = img_zones.copy()
