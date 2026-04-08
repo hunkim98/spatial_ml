@@ -19,6 +19,7 @@ dist
 .claude
 chat-history
 .env.local
+uv.lock
 
 data/*
 /data
