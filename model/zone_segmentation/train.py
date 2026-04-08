@@ -1,21 +1,35 @@
 """Entry point for training the zone segmentation model.
 
-Usage:
+Usage (local):
     python -m model.zone_segmentation.train \
         --data data/training/zoning_segmentation \
         --epochs 50 \
         --batch-size 4 \
         --image-size 512
+
+Inside Docker (with secrets/teamspatially-project.env mounted):
+    docker compose run --rm zone_segmentation_trainer \
+        python -m model.zone_segmentation.train --data /data/training/zoning_segmentation --epochs 5
 """
 
 import argparse
 import logging
+import os
+import sys
 
 import torch
 
 from .dataset import get_dataloaders
 from .trainer import Trainer
 from .unet import PatternConditionedUNet
+
+
+def _pick_device() -> str:
+    if torch.cuda.is_available():
+        return "cuda"
+    if torch.backends.mps.is_available():
+        return "mps"
+    return "cpu"
 
 
 def main():
@@ -25,19 +39,47 @@ def main():
     parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--image-size", type=int, default=512)
     parser.add_argument("--lr", type=float, default=1e-4)
-    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    parser.add_argument("--device", default=_pick_device())
     parser.add_argument("--save-dir", default="checkpoints/zone_segmentation")
     parser.add_argument("--num-workers", type=int, default=4)
+    parser.add_argument(
+        "--no-wandb",
+        action="store_true",
+        help="Disable W&B even if WANDB_API_KEY is set",
+    )
+    parser.add_argument(
+        "--wandb-project",
+        default="spatially-zone-segmentation",
+        help="W&B project name",
+    )
     args = parser.parse_args()
 
+    # Send logs to stdout (matches ac215_Spatially convention so GCP doesn't flag them as errors).
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s",
+        stream=sys.stdout,
     )
+    sys.stderr = sys.stdout
     logger = logging.getLogger(__name__)
 
-    logger.info(f"Device: {args.device}")
-    logger.info(f"Dataset: {args.data}")
+    has_wandb_key = bool(os.environ.get("WANDB_API_KEY"))
+    use_wandb = (not args.no_wandb) and has_wandb_key
+
+    print("=" * 80)
+    print("Zone Segmentation Training")
+    print("=" * 80)
+    print(f"Dataset:    {args.data}")
+    print(f"Device:     {args.device}")
+    print(f"Epochs:     {args.epochs}")
+    print(f"Batch size: {args.batch_size}")
+    print(f"Image size: {args.image_size}")
+    print(f"LR:         {args.lr}")
+    print(f"Save dir:   {args.save_dir}")
+    print(f"W&B:        {'enabled (' + args.wandb_project + ')' if use_wandb else 'disabled'}")
+    if not has_wandb_key:
+        print("            (set WANDB_API_KEY in env or via secrets/*.env to enable)")
+    print("=" * 80)
 
     # Data
     train_loader, val_loader = get_dataloaders(
@@ -46,7 +88,10 @@ def main():
         batch_size=args.batch_size,
         num_workers=args.num_workers,
     )
-    logger.info(f"Train: {len(train_loader.dataset)} pairs, Val: {len(val_loader.dataset)} pairs")
+    logger.info(
+        f"Train: {len(train_loader.dataset)} pairs, "
+        f"Val: {len(val_loader.dataset)} pairs"
+    )
 
     # Model
     model = PatternConditionedUNet(pretrained=True)
@@ -62,8 +107,18 @@ def main():
         epochs=args.epochs,
         device=args.device,
         save_dir=args.save_dir,
+        use_wandb=use_wandb,
+        wandb_project=args.wandb_project,
+        wandb_config={"image_size": args.image_size},
     )
     trainer.train()
+
+    print("\n" + "=" * 80)
+    print("Training completed.")
+    print(f"Best checkpoint: {args.save_dir}/best.pt")
+    if use_wandb:
+        print("View results at: https://wandb.ai")
+    print("=" * 80)
 
 
 if __name__ == "__main__":

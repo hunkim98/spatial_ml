@@ -33,3 +33,41 @@ services:
       - ./secrets:/secrets:ro # This will mount our ./secrets as /secrets in the container
       - ./processor:/app # This will mount our ./data/processor as /app in the container
       - ./data:/data:ro # This will mount our ./data as /data in the container (This is where the data is stored)
+
+  zone_segmentation_trainer:
+    # PatternConditionedUNet trainer.
+    # Mirrors the llm_development_plans_trainer service in ac215_Spatially.
+    #
+    # Build:
+    #   docker compose build zone_segmentation_trainer
+    # Train on GPU:
+    #   docker compose run --rm --gpus all zone_segmentation_trainer \
+    #       python -m model.zone_segmentation.train --data /data/training/zoning_segmentation --epochs 20
+    # Train on CPU (same image):
+    #   docker compose run --rm zone_segmentation_trainer \
+    #       python -m model.zone_segmentation.train --data /data/training/zoning_segmentation --epochs 5
+    build:
+      context: .
+      dockerfile: model/zone_segmentation/Dockerfile
+    image: spatially/zone-segmentation-trainer:latest
+    container_name: spatially_zone_segmentation_trainer
+    stdin_open: true
+    tty: true
+    env_file:
+      - ./secrets/teamspatially-project.env  # provides WANDB_API_KEY, GCP_PROJECT, etc.
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /secrets/teamspatially-storage-accessor-keys.json
+      PYTHONPATH: /app
+    volumes:
+      - ./secrets:/secrets:ro
+      - ./model:/app/model            # live-mount source for fast iteration
+      - ./data:/data:ro                # training data (read-only)
+      - ./checkpoints:/app/checkpoints # persisted model checkpoints + history.json
+    # Uncomment the following block on a GPU host (or pass `--gpus all` at run time):
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]

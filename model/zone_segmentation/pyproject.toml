@@ -1,0 +1,17 @@
+[project]
+name = "zone-segmentation-trainer"
+version = "0.1.0"
+description = "Pattern-conditioned U-Net trainer for zoning maps"
+readme = "README.md"
+requires-python = ">=3.10"
+# torch / torchvision are intentionally NOT listed here:
+# the Docker image inherits them from the pytorch/pytorch CUDA base image,
+# which keeps the CUDA / cuDNN versions consistent.
+dependencies = [
+    "numpy>=1.26",
+    "pillow>=10.0",
+    "matplotlib>=3.8",
+    "opencv-python-headless>=4.10",
+    "wandb>=0.18",
+    "google-cloud-storage>=2.19.0",
+]

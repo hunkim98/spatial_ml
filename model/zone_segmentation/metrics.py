@@ -1,7 +1,6 @@
 """Evaluation metrics for binary segmentation."""
 
 import torch
-import numpy as np
 
 
 def iou_score(pred: torch.Tensor, target: torch.Tensor, threshold: float = 0.5) -> float:
@@ -46,3 +45,24 @@ def pixel_accuracy(pred: torch.Tensor, target: torch.Tensor, threshold: float = 
     total = target_binary.numel()
 
     return (correct / total).item()
+
+
+def precision_recall_f1(
+    pred: torch.Tensor, target: torch.Tensor, threshold: float = 0.5
+) -> tuple[float, float, float]:
+    """Pixel-level precision / recall / F1 for binary masks.
+
+    Returns:
+        (precision, recall, f1)
+    """
+    pred_binary = (torch.sigmoid(pred) > threshold).float()
+    target_binary = (target > 0.5).float()
+
+    tp = (pred_binary * target_binary).sum()
+    fp = (pred_binary * (1 - target_binary)).sum()
+    fn = ((1 - pred_binary) * target_binary).sum()
+
+    precision = (tp + 1e-6) / (tp + fp + 1e-6)
+    recall = (tp + 1e-6) / (tp + fn + 1e-6)
+    f1 = (2 * precision * recall) / (precision + recall + 1e-6)
+    return precision.item(), recall.item(), f1.item()
