@@ -66,6 +66,7 @@ class StratificationConfig:
         "dense": (16, 999_999),
     })
     use_stratified_batches: bool = True
+    min_coverage: float = 0.0  # min fraction of positive pixels per zone (0 = no filter)
 
 
 # ---------------------------------------------------------------------------
@@ -264,6 +265,7 @@ class ZoneSegmentationDataset(Dataset):
         samples: list[SampleMetadata],
         image_size: tuple[int, int] = (512, 512),
         augment: bool = True,
+        min_coverage: float = 0.0,
     ):
         self.root = Path(root)
         self.image_size = image_size
@@ -273,9 +275,25 @@ class ZoneSegmentationDataset(Dataset):
         # Build flat index: list of (sample_idx, zone_idx) for O(1) lookup.
         # Old code did a linear scan through all samples on every __getitem__.
         self._flat_index: list[tuple[int, int]] = []
+        n_filtered = 0
         for si, sample in enumerate(self.samples):
-            for zi in range(len(sample.zones)):
+            # Read image dimensions once per sample for coverage calculation
+            if min_coverage > 0:
+                img = Image.open(sample.image_path)
+                total_pixels = img.width * img.height
+                img.close()
+            for zi, zone in enumerate(sample.zones):
+                if min_coverage > 0:
+                    coverage = zone.get("pixel_count", 0) / max(1, total_pixels)
+                    if coverage < min_coverage:
+                        n_filtered += 1
+                        continue
                 self._flat_index.append((si, zi))
+        if n_filtered:
+            logger.info(
+                f"Coverage filter ({min_coverage:.1%}): dropped {n_filtered} zones, "
+                f"kept {len(self._flat_index)}"
+            )
 
         # Image transforms
         self.image_transform = transforms.Compose([
@@ -484,9 +502,10 @@ def get_dataloaders(
     logger.info(f"Train density bins: {dict(train_bins)}")
     logger.info(f"Train strat keys (top 6): {train_strat.most_common(6)}")
 
-    # 3. Build datasets
+    # 3. Build datasets (apply coverage filter to train only)
     train_ds = ZoneSegmentationDataset(
         root, train_samples, image_size=image_size, augment=True,
+        min_coverage=stratification.min_coverage,
     )
     val_ds = ZoneSegmentationDataset(
         root, val_samples, image_size=image_size, augment=False,
