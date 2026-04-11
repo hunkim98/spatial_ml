@@ -131,16 +131,25 @@ class TrainerLOAM:
             bs = self.train_loader.batch_size
             run_name = f"unet-film-loam-e{self.epochs}-bs{bs}-{ts}"
 
+        # Detect model/encoder from class name
+        model_name = self.model.__class__.__name__
+        if model_name == "VanillaUNet":
+            encoder = "vanilla"
+        else:
+            encoder = "resnet34-pretrained"
+
         config = {
-            "model": "PatternConditionedUNet",
+            "model": model_name,
+            "encoder": encoder,
             "variant": "loam-aligned",
+            "optimizer": "SGD",
+            "momentum": momentum,
+            "loss": "DiceLoss",
             "epochs": self.epochs,
             "batch_size": self.train_loader.batch_size,
             "learning_rate": lr,
             "weight_decay": weight_decay,
-            "optimizer": "SGD",
-            "momentum": momentum,
-            "loss": "DiceLoss",
+            "min_coverage": extra_config.get("min_coverage", 0.05),
             "grad_clip": self.grad_clip,
             "amp": self.use_amp,
             "device": str(self.device),
@@ -154,6 +163,7 @@ class TrainerLOAM:
             project=project,
             name=run_name,
             config=config,
+            group=extra_config.get("group", "loam-alignment"),
             tags=["zone-segmentation", "unet", "film", "loam-aligned", "spatially"],
         )
         wandb.log(

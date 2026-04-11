@@ -10,7 +10,7 @@ set -euo pipefail
 
 python -m model.zone_segmentation.train_loam \
     --data data/training/zoning_segmentation \
-    --epochs 40 \
+    --epochs 15 \
     --batch-size 2 \
     --image-size 1024 \
     --lr 1e-5 \

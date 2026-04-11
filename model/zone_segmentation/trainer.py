@@ -128,10 +128,16 @@ class Trainer:
 
         config = {
             "model": "PatternConditionedUNet",
+            "encoder": "resnet34-pretrained",
+            "variant": "baseline",
+            "optimizer": "AdamW",
+            "momentum": None,
+            "loss": "BCEDiceLoss",
             "epochs": self.epochs,
             "batch_size": self.train_loader.batch_size,
             "learning_rate": lr,
             "weight_decay": weight_decay,
+            "min_coverage": 0.0,
             "grad_clip": self.grad_clip,
             "amp": self.use_amp,
             "device": str(self.device),
@@ -145,6 +151,7 @@ class Trainer:
             project=project,
             name=run_name,
             config=config,
+            group=extra_config.get("group"),
             tags=["zone-segmentation", "unet", "film", "spatially"],
         )
         wandb.log(
