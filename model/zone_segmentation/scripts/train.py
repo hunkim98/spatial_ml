@@ -1,7 +1,7 @@
 """Entry point for training the zone segmentation model.
 
 Usage (local):
-    python -m model.zone_segmentation.train \
+    python -m model.zone_segmentation.scripts.train \
         --data data/training/zoning_segmentation \
         --epochs 50 \
         --batch-size 4 \
@@ -19,9 +19,9 @@ import sys
 
 import torch
 
-from .dataset import StratificationConfig, get_dataloaders
-from .trainer import Trainer
-from .unet import PatternConditionedUNet
+from ..dataset import StratificationConfig, get_dataloaders
+from ..trainer import Trainer
+from ..unet import PatternConditionedUNet
 
 
 def _pick_device() -> str:

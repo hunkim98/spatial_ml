@@ -8,7 +8,7 @@
 #   40 epochs (was 15), 5% min coverage filter (was none)
 set -euo pipefail
 
-python -m model.zone_segmentation.train_loam \
+python -m model.zone_segmentation.scripts.train_loam \
     --data data/training/zoning_segmentation \
     --epochs 15 \
     --batch-size 2 \

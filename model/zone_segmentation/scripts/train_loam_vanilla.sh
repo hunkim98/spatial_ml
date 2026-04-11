@@ -4,7 +4,7 @@
 # This matches LOAM's encoder architecture more closely.
 set -euo pipefail
 
-python -m model.zone_segmentation.train_loam_vanilla \
+python -m model.zone_segmentation.scripts.train_loam_vanilla \
     --data data/training/zoning_segmentation \
     --epochs 15 \
     --batch-size 2 \

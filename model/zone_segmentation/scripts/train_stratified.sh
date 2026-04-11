@@ -3,7 +3,7 @@
 # Same config as previous run, but with source-aware split + density-balanced batches.
 set -euo pipefail
 
-python -m model.zone_segmentation.train \
+python -m model.zone_segmentation.scripts.train \
     --data data/training/zoning_segmentation \
     --epochs 15 \
     --batch-size 32 \

@@ -22,9 +22,9 @@ import sys
 
 import torch
 
-from .dataset import StratificationConfig, get_dataloaders
-from .trainer_loam import TrainerLOAM
-from .unet import PatternConditionedUNet
+from ..dataset import StratificationConfig, get_dataloaders
+from ..trainer_loam import TrainerLOAM
+from ..unet import PatternConditionedUNet
 
 
 def _pick_device() -> str:
