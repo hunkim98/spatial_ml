@@ -19,7 +19,7 @@ import sys
 
 import torch
 
-from .dataset import get_dataloaders
+from .dataset import StratificationConfig, get_dataloaders
 from .trainer import Trainer
 from .unet import PatternConditionedUNet
 
@@ -52,6 +52,15 @@ def main():
         default="spatially-zone-segmentation",
         help="W&B project name",
     )
+    parser.add_argument(
+        "--no-stratify",
+        action="store_true",
+        help="Disable stratified batch sampling (use standard shuffle)",
+    )
+    parser.add_argument(
+        "--val-fraction", type=float, default=0.15,
+        help="Fraction of source GeoJSONs to hold out for validation",
+    )
     args = parser.parse_args()
 
     # Send logs to stdout (matches ac215_Spatially convention so GCP doesn't flag them as errors).
@@ -79,14 +88,21 @@ def main():
     print(f"W&B:        {'enabled (' + args.wandb_project + ')' if use_wandb else 'disabled'}")
     if not has_wandb_key:
         print("            (set WANDB_API_KEY in env or via secrets/*.env to enable)")
+    print(f"Stratified: {'disabled' if args.no_stratify else 'enabled'}")
+    print(f"Val frac:   {args.val_fraction}")
     print("=" * 80)
 
     # Data
+    strat_config = StratificationConfig(
+        val_fraction=args.val_fraction,
+        use_stratified_batches=not args.no_stratify,
+    )
     train_loader, val_loader = get_dataloaders(
         root=args.data,
         image_size=(args.image_size, args.image_size),
         batch_size=args.batch_size,
         num_workers=args.num_workers,
+        stratification=strat_config,
     )
     logger.info(
         f"Train: {len(train_loader.dataset)} pairs, "

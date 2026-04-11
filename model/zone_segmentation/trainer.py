@@ -283,6 +283,12 @@ class Trainer:
         )
 
         for epoch in range(1, self.epochs + 1):
+            # Update batch sampler RNG so each epoch gets a different ordering
+            if hasattr(self.train_loader, "batch_sampler") and hasattr(
+                self.train_loader.batch_sampler, "set_epoch"
+            ):
+                self.train_loader.batch_sampler.set_epoch(epoch)
+
             start = time.time()
 
             train_metrics = self.train_one_epoch(epoch)
