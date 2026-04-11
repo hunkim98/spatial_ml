@@ -59,10 +59,13 @@ def make_prediction_grid(
     model,
     loader,
     device: str,
-    n: int = 4,
+    n: int = 8,
     threshold: float = 0.5,
 ):
     """Build a matplotlib figure with image / pattern / GT / pred / overlay columns.
+
+    Samples from spread-out batches so the grid shows diverse sources,
+    not just consecutive items from one batch.
 
     Returns the matplotlib figure. Caller is responsible for closing it.
     """
@@ -71,27 +74,40 @@ def make_prediction_grid(
     was_training = model.training
     model.eval()
 
+    # Pick n evenly-spaced batches so we see different sources
+    n_batches = len(loader)
+    if n_batches == 0:
+        model.train(was_training)
+        fig, ax = plt.subplots(1, 1, figsize=(4, 2))
+        ax.text(0.5, 0.5, "No data", ha="center", va="center")
+        ax.axis("off")
+        return fig
+
+    step = max(1, n_batches // n)
+    target_indices = set(range(0, n_batches, step))
+
     rows = []
     with torch.no_grad():
-        for images, patterns, masks in loader:
+        for batch_idx, (images, patterns, masks) in enumerate(loader):
+            if batch_idx not in target_indices:
+                continue
+
             images = images.to(device)
             patterns = patterns.to(device)
             logits = model(images, patterns)
             probs = torch.sigmoid(logits).cpu()
             preds = (probs > threshold).float()
 
-            for i in range(images.size(0)):
-                rows.append(
-                    {
-                        "image": denormalize(images[i]),
-                        "pattern": denormalize(patterns[i]),
-                        "mask": masks[i].squeeze().cpu().numpy(),
-                        "prob": probs[i].squeeze().cpu().numpy(),
-                        "pred": preds[i].squeeze().cpu().numpy(),
-                    }
-                )
-                if len(rows) >= n:
-                    break
+            # Take one sample from each selected batch
+            rows.append(
+                {
+                    "image": denormalize(images[0]),
+                    "pattern": denormalize(patterns[0]),
+                    "mask": masks[0].squeeze().cpu().numpy(),
+                    "prob": probs[0].squeeze().cpu().numpy(),
+                    "pred": preds[0].squeeze().cpu().numpy(),
+                }
+            )
             if len(rows) >= n:
                 break
 

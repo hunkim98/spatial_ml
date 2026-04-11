@@ -45,7 +45,7 @@ class Trainer:
         grad_clip: float = 1.0,
         use_amp: bool | None = None,
         log_every: int = 10,
-        sample_log_every: int = 5,
+        sample_log_every: int = 2,
         wandb_project: str = "spatially-zone-segmentation",
         wandb_run_name: str | None = None,
         wandb_config: dict | None = None,
