@@ -8,6 +8,7 @@ pattern thumbnails for the current map.
 from __future__ import annotations
 
 import logging
+import platform
 from pathlib import Path
 
 from PIL import Image
@@ -117,6 +118,9 @@ def get_context_dataloaders(
         legend_size=legend_size,
     )
 
+    # On Windows, use persistent_workers to avoid respawn deadlocks
+    persistent = num_workers > 0 and platform.system() == "Windows"
+
     if stratification.use_stratified_batches:
         train_sampler = StratifiedBatchSampler(
             train_ds, batch_size=batch_size,
@@ -125,16 +129,19 @@ def get_context_dataloaders(
         train_loader = DataLoader(
             train_ds, batch_sampler=train_sampler,
             num_workers=num_workers, pin_memory=True,
+            persistent_workers=persistent,
         )
     else:
         train_loader = DataLoader(
             train_ds, batch_size=batch_size, shuffle=True,
             num_workers=num_workers, pin_memory=True, drop_last=True,
+            persistent_workers=persistent,
         )
 
     val_loader = DataLoader(
         val_ds, batch_size=batch_size, shuffle=False,
         num_workers=num_workers, pin_memory=True,
+        persistent_workers=persistent,
     )
 
     return train_loader, val_loader

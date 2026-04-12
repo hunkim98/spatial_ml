@@ -57,7 +57,10 @@ class MapRenderer:
             color_map=config.color_map,
         )
 
-        annotations = {"rotation": self.canvas.post_rotation or self.canvas.rotation}
+        annotations = {
+            "rotation": self.canvas.post_rotation or self.canvas.rotation,
+            "zoom": self.canvas.resolved_zoom,
+        }
         label_layers = []
 
         # Phase 1: draw everything except labels

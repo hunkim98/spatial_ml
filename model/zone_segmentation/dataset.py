@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
+import platform
 import random
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
@@ -512,6 +513,9 @@ def get_dataloaders(
     )
 
     # 4. Build loaders
+    # On Windows, use persistent_workers to avoid respawn deadlocks
+    persistent = num_workers > 0 and platform.system() == "Windows"
+
     if stratification.use_stratified_batches:
         train_sampler = StratifiedBatchSampler(
             train_ds, batch_size=batch_size,
@@ -522,16 +526,19 @@ def get_dataloaders(
             batch_sampler=train_sampler,
             num_workers=num_workers,
             pin_memory=True,
+            persistent_workers=persistent,
         )
     else:
         train_loader = torch.utils.data.DataLoader(
             train_ds, batch_size=batch_size, shuffle=True,
             num_workers=num_workers, pin_memory=True, drop_last=True,
+            persistent_workers=persistent,
         )
 
     val_loader = torch.utils.data.DataLoader(
         val_ds, batch_size=batch_size, shuffle=False,
         num_workers=num_workers, pin_memory=True,
+        persistent_workers=persistent,
     )
 
     return train_loader, val_loader

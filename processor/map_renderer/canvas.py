@@ -69,6 +69,7 @@ class Canvas:
             self.post_rotation = 0.0
 
         zoom = self.zoom or random.uniform(0.7, 1.5)
+        self.resolved_zoom = zoom  # store for annotations
         width = self.width or self._auto_width(render_gdf)
         extent = self._compute_extent(render_gdf, zoom)
 
