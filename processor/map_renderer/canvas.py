@@ -45,6 +45,7 @@ class Canvas:
         self.extent = None
         self.original_extent = None  # pre-expansion extent (for correct crop)
         self.post_rotation = 0.0  # rotation to apply after render
+        self.rotation_center = None  # centroid used for rotation (in render CRS)
 
     def create(self, gdf: gpd.GeoDataFrame) -> tuple[plt.Figure, plt.Axes, gpd.GeoDataFrame]:
         """Create figure, axes, and (possibly rotated) GDF.
@@ -60,12 +61,19 @@ class Canvas:
             render_gdf = gdf.to_crs(epsg=3857)
             render_gdf["geometry"] = render_gdf["geometry"].make_valid()
             # Don't rotate GDF — defer to post-render image rotation
+            # Image.rotate pivots around image center = center of total_bounds
+            xmin, ymin, xmax, ymax = render_gdf.total_bounds
+            self.rotation_center = ((xmin + xmax) / 2, (ymin + ymax) / 2)
             self.post_rotation = angle
         else:
             render_gdf = gdf.copy()
             render_gdf["geometry"] = render_gdf["geometry"].make_valid()
             if angle != 0:
+                centroid = render_gdf.union_all().centroid
+                self.rotation_center = (centroid.x, centroid.y)
                 render_gdf = self._rotate_gdf(render_gdf, angle)
+            else:
+                self.rotation_center = None
             self.post_rotation = 0.0
 
         zoom = self.zoom or random.uniform(0.7, 1.5)

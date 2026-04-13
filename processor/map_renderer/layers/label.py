@@ -12,7 +12,6 @@ Mimics real map labeling:
 import random
 
 import matplotlib.pyplot as plt
-import matplotlib.patheffects as pe
 from shapely.ops import unary_union, polylabel
 
 from ..config import MapConfig
@@ -26,18 +25,15 @@ class LabelLayer(BaseLayer):
     Args:
         font: Font family for all zones. None to randomize per zone.
         color: Text color for all zones. None to randomize per zone.
-        halo: Draw outline behind text. None to randomize per zone.
     """
 
     def __init__(
         self,
         font: str | None = None,
         color: str | None = None,
-        halo: bool | None = None,
     ):
         self.font = font
         self.color = color
-        self.halo = halo
 
     def draw(self, ax: plt.Axes, config: MapConfig) -> dict:
         gdf = config.gdf
@@ -61,9 +57,11 @@ class LabelLayer(BaseLayer):
 
                 # Pick the largest polygon in this connected group
                 largest = max(component, key=lambda g: g.area)
-                poly_width = largest.bounds[2] - largest.bounds[0]
+                bounds = largest.bounds  # (minx, miny, maxx, maxy)
+                poly_width = bounds[2] - bounds[0]
+                poly_height = bounds[3] - bounds[1]
 
-                size = self._fit_font_size(poly_width, len(zone_name), map_width)
+                size = self._fit_font_size(poly_width, poly_height, len(zone_name), map_width)
                 if size is None:
                     continue
 
@@ -73,7 +71,7 @@ class LabelLayer(BaseLayer):
                 except Exception:
                     pt = largest.centroid
 
-                txt = ax.text(
+                ax.text(
                     pt.x, pt.y, zone_name,
                     fontsize=size,
                     fontfamily=style["font"],
@@ -84,14 +82,6 @@ class LabelLayer(BaseLayer):
                     va="center",
                     rotation=style["rotation"],
                 )
-
-                if style["halo"]:
-                    txt.set_path_effects([
-                        pe.withStroke(
-                            linewidth=max(1, size * 0.2),
-                            foreground="white",
-                        ),
-                    ])
 
                 label_count += 1
                 labeled_zones.add(zone_name)
@@ -131,7 +121,6 @@ class LabelLayer(BaseLayer):
                 "black", "#222222", "#333333", "#444444",
                 "#1a1a2e", "#2d2d2d",
             ]),
-            "halo": self.halo if self.halo is not None else random.random() < 0.5,
             "rotation": random.choice([0, 0, 0, 0, random.uniform(-15, 15)]),
             # ~30% of zone types get no labels at all
             "label_probability": 0.0 if random.random() < 0.3 else random.uniform(0.3, 0.9),
@@ -140,10 +129,15 @@ class LabelLayer(BaseLayer):
     def _fit_font_size(
         self,
         poly_width: float,
+        poly_height: float,
         text_len: int,
         map_width: float,
     ) -> float | None:
-        """Return a font size that fits the polygon, or None if too small."""
+        """Return a font size that fits inside the polygon, or None if too small.
+
+        Estimates text extent relative to polygon dimensions and picks the
+        largest size that keeps the label within bounds.
+        """
         if map_width <= 0:
             return None
 
@@ -152,5 +146,14 @@ class LabelLayer(BaseLayer):
         if width_ratio < 0.03:
             return None
 
-        size = (width_ratio * 200) / max(1, text_len * 0.15)
-        return max(4, min(size, 24))
+        # Size constrained by width: text of `text_len` chars must fit
+        # Approximate char width ~ 0.6 * fontsize in data units
+        char_width_factor = 0.6
+        size_by_width = (poly_width / (text_len * char_width_factor)) * (72 / map_width) * 50
+
+        # Size constrained by height: single line must fit vertically
+        height_ratio = poly_height / map_width
+        size_by_height = height_ratio * 80
+
+        size = min(size_by_width, size_by_height)
+        return max(4, min(size, 18))

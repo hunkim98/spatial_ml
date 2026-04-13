@@ -10,4 +10,8 @@ dependencies = [
     "shapely>=2.0",
     "rasterio>=1.3",
     "Pillow>=10.0",
+    "matplotlib>=3.7",
+    "numpy>=1.24",
+    "contextily>=1.4",
+    "scipy>=1.11",
 ]

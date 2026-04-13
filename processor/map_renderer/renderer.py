@@ -155,10 +155,17 @@ class MapRenderer:
 
         img.save(str(output_path))
 
-        # Compute WGS84 corners from the original GDF (before rotation/reprojection)
+        # Store both the rendering extent (in the CRS used for rendering)
+        # and the WGS84 corners (for geographic reference)
         corners_wgs84 = self._extent_to_wgs84(original_gdf)
+        render_crs = config.gdf.crs
+        render_extent = list(self.canvas.original_extent)
         if annotations:
             annotations["corners_wgs84"] = corners_wgs84
+            annotations["render_extent"] = render_extent
+            annotations["render_crs"] = str(render_crs) if render_crs else "EPSG:4326"
+            if self.canvas.rotation_center:
+                annotations["rotation_center"] = list(self.canvas.rotation_center)
 
         return RenderResult(
             image_path=output_path,
