@@ -32,8 +32,8 @@ from processor.map_renderer.pattern import extract_patterns
 from processor.map_renderer.renderer import MapRenderer
 from processor.map_renderer.postprocess.pipeline import PostProcessPipeline
 from processor.map_renderer.sampling import RandomSampler
-from processor.zoning_map.colors import build_zone_color_map
-from processor.zoning_map.geo_utils import detect_zone_field
+from processor.map_renderer.colors import build_zone_color_map
+from processor.map_renderer.geo_utils import detect_zone_field
 
 logger = logging.getLogger(__name__)
 

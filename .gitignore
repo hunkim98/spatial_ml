@@ -24,3 +24,4 @@ uv.lock
 
 data/*
 /data
+test_output
