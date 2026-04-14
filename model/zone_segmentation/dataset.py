@@ -59,7 +59,7 @@ class SampleMetadata:
 @dataclass
 class StratificationConfig:
     """Configuration for dataset stratification and splitting."""
-    val_fraction: float = 0.15
+    val_fraction: float = 0.05
     seed: int = 42
     density_bins: dict[str, tuple[int, int]] = field(default_factory=lambda: {
         "sparse": (1, 4),
@@ -157,7 +157,7 @@ def _load_sample_index(
 
 def _source_aware_split(
     samples: list[SampleMetadata],
-    val_fraction: float = 0.15,
+    val_fraction: float = 0.05,
     seed: int = 42,
 ) -> tuple[list[SampleMetadata], list[SampleMetadata]]:
     """Split samples so all samples from the same source go to one split.

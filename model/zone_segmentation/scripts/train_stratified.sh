@@ -11,5 +11,5 @@ python -m model.zone_segmentation.scripts.train \
     --lr 1e-4 \
     --num-workers 4 \
     --save-dir checkpoints/zone_seg_stratified \
-    --val-fraction 0.15 \
+    --val-fraction 0.05 \
     "$@"

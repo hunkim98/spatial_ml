@@ -58,7 +58,7 @@ def main():
         help="Disable stratified batch sampling (use standard shuffle)",
     )
     parser.add_argument(
-        "--val-fraction", type=float, default=0.15,
+        "--val-fraction", type=float, default=0.05,
         help="Fraction of source GeoJSONs to hold out for validation",
     )
     args = parser.parse_args()

@@ -52,7 +52,7 @@ def main():
     parser.add_argument("--no-wandb", action="store_true")
     parser.add_argument("--wandb-project", default="spatially-zone-segmentation")
     parser.add_argument("--no-stratify", action="store_true")
-    parser.add_argument("--val-fraction", type=float, default=0.15)
+    parser.add_argument("--val-fraction", type=float, default=0.05)
     args = parser.parse_args()
 
     logging.basicConfig(

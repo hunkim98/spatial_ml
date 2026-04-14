@@ -11,6 +11,10 @@ Usage:
     python -m processor.map_renderer.generate --resume                   # skip existing
 """
 
+"""
+uv run python -m processor.map_renderer.generate --output data/training/zoning_segmentation_v2 
+"""
+
 import argparse
 import json
 import logging
@@ -32,16 +36,25 @@ logger = logging.getLogger(__name__)
 def parse_args():
     p = argparse.ArgumentParser(description="Parallel training data generation")
     p.add_argument("--source", default="data/maps", help="GeoJSON source dir")
-    p.add_argument("--output", default="data/training/zoning_segmentation",
-                   help="Output root dir")
-    p.add_argument("--samples-per-file", type=int, default=20,
-                   help="Samples per GeoJSON file")
+    p.add_argument(
+        "--output", default="data/training/zoning_segmentation", help="Output root dir"
+    )
+    p.add_argument(
+        "--samples-per-file", type=int, default=20, help="Samples per GeoJSON file"
+    )
     p.add_argument("--dpi", type=int, default=200, help="Image resolution")
-    p.add_argument("--workers", type=int, default=None,
-                   help="Number of workers (default: all CPUs)")
+    p.add_argument(
+        "--workers",
+        type=int,
+        default=None,
+        help="Number of workers (default: all CPUs)",
+    )
     p.add_argument("--seed", type=int, default=42, help="Base random seed")
-    p.add_argument("--resume", action="store_true",
-                   help="Skip samples whose annotation already exists")
+    p.add_argument(
+        "--resume",
+        action="store_true",
+        help="Skip samples whose annotation already exists",
+    )
     return p.parse_args()
 
 
@@ -96,6 +109,7 @@ def main():
 
     # Discover all geojson files
     from processor.map_renderer.run import find_all_geojsons
+
     files = find_all_geojsons(source)
     logger.info(f"Found {len(files)} GeoJSON files")
 
@@ -104,19 +118,23 @@ def main():
     idx = 0
     for path in files:
         for _ in range(args.samples_per_file):
-            work.append((
-                str(path),
-                idx,
-                args.seed + idx,  # unique seed per sample
-                str(output),
-                args.dpi,
-                args.resume,
-            ))
+            work.append(
+                (
+                    str(path),
+                    idx,
+                    args.seed + idx,  # unique seed per sample
+                    str(output),
+                    args.dpi,
+                    args.resume,
+                )
+            )
             idx += 1
 
     total = len(work)
-    logger.info(f"Total: {total} samples "
-                f"({len(files)} files x {args.samples_per_file} each)")
+    logger.info(
+        f"Total: {total} samples "
+        f"({len(files)} files x {args.samples_per_file} each)"
+    )
 
     n_workers = min(args.workers or mp.cpu_count(), total)
     logger.info(f"Workers: {n_workers} (CPUs: {mp.cpu_count()})")

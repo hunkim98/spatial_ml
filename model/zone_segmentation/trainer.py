@@ -42,6 +42,7 @@ class Trainer:
         epochs: int = 50,
         device: str = "cuda",
         save_dir: str = "checkpoints",
+        max_val_batches: int = 200,
         grad_clip: float = 1.0,
         use_amp: bool | None = None,
         log_every: int = 10,
@@ -59,6 +60,7 @@ class Trainer:
         self.save_dir = Path(save_dir)
         self.save_dir.mkdir(parents=True, exist_ok=True)
 
+        self.max_val_batches = max_val_batches
         self.grad_clip = grad_clip
         self.log_every = log_every
         self.sample_log_every = sample_log_every
@@ -227,6 +229,10 @@ class Trainer:
     @torch.no_grad()
     def validate(self) -> dict:
         self.model.eval()
+        if self.device == "cuda":
+            torch.cuda.empty_cache()
+        elif self.device == "mps":
+            torch.mps.empty_cache()
         total_loss = 0.0
         total_iou = 0.0
         total_dice = 0.0
@@ -234,6 +240,9 @@ class Trainer:
         n_batches = 0
 
         for images, patterns, masks in self.val_loader:
+            if self.max_val_batches and n_batches >= self.max_val_batches:
+                break
+
             images = images.to(self.device, non_blocking=True)
             patterns = patterns.to(self.device, non_blocking=True)
             masks = masks.to(self.device, non_blocking=True)

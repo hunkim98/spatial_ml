@@ -15,5 +15,5 @@ python -m model.zone_segmentation.scripts.train_loam_context \
     --min-coverage 0.05 \
     --num-workers 4 \
     --save-dir checkpoints/zone_seg_context \
-    --val-fraction 0.15 \
+    --val-fraction 0.05 \
     "$@"
