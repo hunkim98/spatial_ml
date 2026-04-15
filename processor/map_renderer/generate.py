@@ -12,7 +12,7 @@ Usage:
 """
 
 """
-uv run python -m processor.map_renderer.generate --output data/training/zoning_segmentation_v2 
+uv run python -m processor.map_renderer.generate --output data/training/zoning_segmentation_v2
 """
 
 import argparse
@@ -23,6 +23,8 @@ import random
 import sys
 import time
 from pathlib import Path
+
+from tqdm import tqdm
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -108,15 +110,26 @@ def main():
         (output / d).mkdir(parents=True, exist_ok=True)
 
     # Discover all geojson files
-    from processor.map_renderer.run import find_all_geojsons
+    from processor.map_renderer.run import find_all_geojsons, load_gdf
 
     files = find_all_geojsons(source)
     logger.info(f"Found {len(files)} GeoJSON files")
 
+    # Pre-filter: only keep files that have a valid zone column
+    valid_files = []
+    for path in tqdm(files, desc="Validating GeoJSONs", unit="file"):
+        loaded = load_gdf(path)
+        if loaded is not None:
+            valid_files.append(path)
+    logger.info(
+        f"Valid files: {len(valid_files)}/{len(files)} "
+        f"({len(files) - len(valid_files)} skipped — no zone column)"
+    )
+
     # Build work items: (geojson_path, sample_index, seed)
     work = []
     idx = 0
-    for path in files:
+    for path in valid_files:
         for _ in range(args.samples_per_file):
             work.append(
                 (
@@ -133,39 +146,39 @@ def main():
     total = len(work)
     logger.info(
         f"Total: {total} samples "
-        f"({len(files)} files x {args.samples_per_file} each)"
+        f"({len(valid_files)} valid files x {args.samples_per_file} each)"
     )
 
     n_workers = min(args.workers or mp.cpu_count(), total)
     logger.info(f"Workers: {n_workers} (CPUs: {mp.cpu_count()})")
 
-    start = time.time()
-    done = 0
+    generated = 0
     failed = 0
     skipped = 0
 
+    pbar = tqdm(
+        total=total,
+        desc="Generating",
+        unit="sample",
+        bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}] {postfix}",
+    )
+
     with mp.Pool(n_workers) as pool:
         for name, ok, msg in pool.imap_unordered(_worker, work):
-            done += 1
+            pbar.update(1)
             if msg == "skipped":
                 skipped += 1
             elif not ok:
                 failed += 1
-                logger.warning(f"FAIL {name}: {msg}")
+                tqdm.write(f"FAIL {name}: {msg}")
+            else:
+                generated += 1
 
-            if done % 50 == 0 or done == total:
-                elapsed = time.time() - start
-                generated = done - failed - skipped
-                rate = generated / elapsed if elapsed > 0 else 0
-                eta = (total - done) / max(rate, 0.01) / 60
-                logger.info(
-                    f"[{done}/{total}] "
-                    f"{generated} ok, {failed} failed, {skipped} skipped "
-                    f"({rate:.1f}/s, ~{eta:.0f}min left)"
-                )
+            pbar.set_postfix(ok=generated, fail=failed, skip=skipped, refresh=False)
 
-    elapsed = time.time() - start
-    generated = done - failed - skipped
+    pbar.close()
+
+    elapsed = pbar.format_dict["elapsed"]
     logger.info(
         f"Done: {generated} generated, {skipped} skipped, {failed} failed "
         f"in {elapsed/60:.1f} min"
@@ -182,6 +195,7 @@ def main():
         "samples_per_file": args.samples_per_file,
         "seed": args.seed,
         "n_geojsons": len(files),
+        "n_valid_geojsons": len(valid_files),
     }
     with open(output / "metadata.json", "w") as f:
         json.dump(meta, f, indent=2)

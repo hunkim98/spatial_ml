@@ -503,13 +503,14 @@ def get_dataloaders(
     logger.info(f"Train density bins: {dict(train_bins)}")
     logger.info(f"Train strat keys (top 6): {train_strat.most_common(6)}")
 
-    # 3. Build datasets (apply coverage filter to train only)
+    # 3. Build datasets (apply coverage filter to both train and val)
     train_ds = ZoneSegmentationDataset(
         root, train_samples, image_size=image_size, augment=True,
         min_coverage=stratification.min_coverage,
     )
     val_ds = ZoneSegmentationDataset(
         root, val_samples, image_size=image_size, augment=False,
+        min_coverage=stratification.min_coverage,
     )
 
     # 4. Build loaders

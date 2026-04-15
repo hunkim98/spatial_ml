@@ -115,7 +115,7 @@ def get_context_dataloaders(
     )
     val_ds = ContextDataset(
         root, val_samples, image_size=image_size, augment=False,
-        legend_size=legend_size,
+        min_coverage=stratification.min_coverage, legend_size=legend_size,
     )
 
     # On Windows, use persistent_workers to avoid respawn deadlocks

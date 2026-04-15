@@ -23,6 +23,8 @@ import torch.nn as nn
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
+from tqdm import tqdm
+
 from .losses import BCEDiceLoss
 from .metrics import dice_score, iou_score, precision_recall_f1
 
@@ -178,7 +180,13 @@ class Trainer:
         total_iou = 0.0
         n_batches = 0
 
-        for batch_idx, (images, patterns, masks) in enumerate(self.train_loader):
+        pbar = tqdm(
+            self.train_loader,
+            desc=f"Epoch {epoch}/{self.epochs} [train]",
+            leave=False,
+            unit="batch",
+        )
+        for batch_idx, (images, patterns, masks) in enumerate(pbar):
             images = images.to(self.device, non_blocking=True)
             patterns = patterns.to(self.device, non_blocking=True)
             masks = masks.to(self.device, non_blocking=True)
@@ -208,11 +216,9 @@ class Trainer:
             n_batches += 1
             self.global_step += 1
 
+            pbar.set_postfix(loss=f"{loss.item():.4f}", iou=f"{total_iou/n_batches:.4f}")
+
             if batch_idx % self.log_every == 0:
-                logger.info(
-                    f"Epoch {epoch} [{batch_idx}/{len(self.train_loader)}] "
-                    f"loss={loss.item():.4f}"
-                )
                 self._wandb_log(
                     {
                         "train/batch_loss": loss.item(),
@@ -239,7 +245,15 @@ class Trainer:
         total_f1 = 0.0
         n_batches = 0
 
-        for images, patterns, masks in self.val_loader:
+        val_total = min(len(self.val_loader), self.max_val_batches) if self.max_val_batches else len(self.val_loader)
+        pbar = tqdm(
+            self.val_loader,
+            desc="Validating",
+            leave=False,
+            total=val_total,
+            unit="batch",
+        )
+        for images, patterns, masks in pbar:
             if self.max_val_batches and n_batches >= self.max_val_batches:
                 break
 
@@ -256,6 +270,8 @@ class Trainer:
             total_dice += dice_score(logits, masks)
             total_f1 += f1
             n_batches += 1
+
+            pbar.set_postfix(iou=f"{total_iou/n_batches:.4f}", dice=f"{total_dice/n_batches:.4f}")
 
         return {
             "val_loss": total_loss / max(1, n_batches),

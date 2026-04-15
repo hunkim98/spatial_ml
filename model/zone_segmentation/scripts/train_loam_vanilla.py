@@ -37,7 +37,7 @@ def main():
     parser.add_argument("--lr", type=float, default=1e-5)
     parser.add_argument("--momentum", type=float, default=0.999)
     parser.add_argument("--weight-decay", type=float, default=1e-8)
-    parser.add_argument("--min-coverage", type=float, default=0.05)
+    parser.add_argument("--min-coverage", type=float, default=0.005)
     parser.add_argument("--device", default=_pick_device())
     parser.add_argument("--save-dir", default="checkpoints/zone_seg_loam_vanilla")
     parser.add_argument("--num-workers", type=int, default=4)

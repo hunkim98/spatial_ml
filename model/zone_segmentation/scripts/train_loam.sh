@@ -16,7 +16,7 @@ python -m model.zone_segmentation.scripts.train_loam \
     --lr 1e-5 \
     --momentum 0.999 \
     --weight-decay 1e-8 \
-    --min-coverage 0.05 \
+    --min-coverage 0.005 \
     --num-workers 4 \
     --save-dir checkpoints/zone_seg_loam \
     --val-fraction 0.05 \

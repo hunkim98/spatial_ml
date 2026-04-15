@@ -24,6 +24,8 @@ import torch.nn as nn
 from torch.optim import SGD
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
+from tqdm import tqdm
+
 from .losses import DiceLoss
 from .metrics import dice_score, iou_score, precision_recall_f1
 
@@ -151,7 +153,7 @@ class TrainerLOAM:
             "batch_size": self.train_loader.batch_size,
             "learning_rate": lr,
             "weight_decay": weight_decay,
-            "min_coverage": extra_config.get("min_coverage", 0.05),
+            "min_coverage": extra_config.get("min_coverage", 0.005),
             "grad_clip": self.grad_clip,
             "amp": self.use_amp,
             "device": str(self.device),
@@ -190,7 +192,13 @@ class TrainerLOAM:
         total_iou = 0.0
         n_batches = 0
 
-        for batch_idx, (images, patterns, masks) in enumerate(self.train_loader):
+        pbar = tqdm(
+            self.train_loader,
+            desc=f"Epoch {epoch}/{self.epochs} [train]",
+            leave=False,
+            unit="batch",
+        )
+        for batch_idx, (images, patterns, masks) in enumerate(pbar):
             images = images.to(self.device, non_blocking=True)
             patterns = patterns.to(self.device, non_blocking=True)
             masks = masks.to(self.device, non_blocking=True)
@@ -220,11 +228,9 @@ class TrainerLOAM:
             n_batches += 1
             self.global_step += 1
 
+            pbar.set_postfix(loss=f"{loss.item():.4f}", iou=f"{total_iou/n_batches:.4f}")
+
             if batch_idx % self.log_every == 0:
-                logger.info(
-                    f"Epoch {epoch} [{batch_idx}/{len(self.train_loader)}] "
-                    f"loss={loss.item():.4f}"
-                )
                 self._wandb_log(
                     {
                         "train/batch_loss": loss.item(),
@@ -251,7 +257,15 @@ class TrainerLOAM:
         total_f1 = 0.0
         n_batches = 0
 
-        for images, patterns, masks in self.val_loader:
+        val_total = min(len(self.val_loader), self.max_val_batches) if self.max_val_batches else len(self.val_loader)
+        pbar = tqdm(
+            self.val_loader,
+            desc="Validating",
+            leave=False,
+            total=val_total,
+            unit="batch",
+        )
+        for images, patterns, masks in pbar:
             if self.max_val_batches and n_batches >= self.max_val_batches:
                 break
 
@@ -268,6 +282,8 @@ class TrainerLOAM:
             total_dice += dice_score(logits, masks)
             total_f1 += f1
             n_batches += 1
+
+            pbar.set_postfix(iou=f"{total_iou/n_batches:.4f}", dice=f"{total_dice/n_batches:.4f}")
 
         return {
             "val_loss": total_loss / max(1, n_batches),
