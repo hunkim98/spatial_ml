@@ -26,6 +26,15 @@ This is the active research focus. See `model/zone_segmentation/NOTES.md` for fu
 - **Baseline comparison**: LOAM (SIGSPATIAL '23, median F1=0.809) — uses 5 hand-crafted preprocessing channels; ours is end-to-end with zero manual annotation
 - **Key contribution**: Synthetic data pipeline generating unlimited (image, pattern, mask) training pairs
 
+## USGS AI4CMA Evaluation (model/zone_segmentation/scripts/eval_usgs.py)
+Evaluates our model against the USGS AI4CMA geological map benchmark — the same data LOAM uses (median F1=0.809). This is a **domain transfer** test: model trained on synthetic zoning maps, evaluated on real geological maps.
+
+- **Data**: `usgs/` directory contains archives (validation.tar.gz, evaluation.tar.gz, answer keys). Script auto-extracts to a work directory.
+- **Tiled inference**: Large USGS maps (6K–18K px) are tiled into overlapping 512×512 patches with overlap averaging, matching LOAM's tiling approach.
+- **Legend swatch → pattern**: The JSON annotations provide legend swatch bounding boxes. Raw crops contain text labels + borders that don't match our training patterns (pure color/hatching from zone interiors). A cleaning step extracts the dominant fill color by computing the median RGB and replacing outlier (text/border) pixels. Use `--no-clean-pattern` to skip.
+- **Metrics**: IoU, Dice, F1, precision, recall per feature. Reports unweighted F1 (LOAM uses pixel-weighted F1 with easy/hard distinction).
+- **Usage**: `python -m model.zone_segmentation.scripts.eval_usgs --checkpoint <path> --usgs-dir usgs/ --dataset validation --device mps --save-viz`
+
 ## Tech Stack
 - Python 3.11 (uv for package management)
 - PyTorch (segmentation model)
