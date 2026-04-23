@@ -1,0 +1,30 @@
+C:\Users\piljo\Github\spatial_ml>uv run python -m processor.map_renderer.generate --output data/training/zoning_segmentation --resume --workers 1
+2026-04-23 17:37:24,031 [MainProcess] Found 219 GeoJSON files
+Validating GeoJSONs:   8%|████▌                                                     | 17/219 [00:15<03:01,  1.11file/s]2026-04-23 17:37:40,024 [MainProcess] No zone column found in Leeds_St_Clair_County.geojson
+Validating GeoJSONs:   9%|█████                                                     | 19/219 [00:15<01:51,  1.80file/s]2026-04-23 17:37:40,068 [MainProcess] No zone column found in Madison_Commercial_and_Mixed_Use.geojson
+2026-04-23 17:37:40,087 [MainProcess] No valid zone data in Madison_Industrial_and_Medical_Zoning.geojson
+2026-04-23 17:37:40,143 [MainProcess] No zone column found in Madison_Residential_and_AG.geojson
+Validating GeoJSONs:  11%|██████▌                                                   | 25/219 [00:31<07:03,  2.18s/file]2026-04-23 17:37:55,822 [MainProcess] No zone column found in Orange_Beach.geojson
+Validating GeoJSONs:  14%|████████▏                                                 | 31/219 [00:36<04:00,  1.28s/file]2026-04-23 17:38:05,493 [MainProcess] No valid zone data in Bella_Vista.geojson
+Validating GeoJSONs:  18%|██████████▎                                               | 39/219 [00:43<01:36,  1.87file/s]2026-04-23 17:38:09,780 [MainProcess] No zone column found in Fayetteville.geojson
+Validating GeoJSONs:  26%|███████████████▎                                          | 58/219 [00:51<01:24,  1.90file/s]2026-04-23 17:38:15,556 [MainProcess] No zone column found in Springdale.geojson
+Validating GeoJSONs:  27%|███████████████▋                                          | 59/219 [00:51<01:14,  2.16file/s]2026-04-23 17:38:15,693 [MainProcess] No zone column found in Tontitown.geojson
+Validating GeoJSONs:  32%|██████████████████▎                                       | 69/219 [00:56<00:52,  2.88file/s]2026-04-23 17:38:22,789 [MainProcess] No zone column found in Flagstaff.geojson
+Validating GeoJSONs:  32%|██████████████████▌                                       | 70/219 [00:58<02:06,  1.18file/s]2026-04-23 17:38:23,375 [MainProcess] No zone column found in Gilbert.geojson
+Validating GeoJSONs:  38%|██████████████████████▏                                   | 84/219 [01:05<01:19,  1.69file/s]C:\Users\piljo\Github\spatial_ml\.venv\Lib\site-packages\pyogrio\raw.py:200: RuntimeWarning: Several features with id = 5164129 have been found. Altering it to be unique. This warning will not be emitted anymore for this layer
+  return ogr_read(
+Validating GeoJSONs:  39%|██████████████████████▊                                   | 86/219 [01:09<02:30,  1.13s/file]2026-04-23 17:38:33,861 [MainProcess] No zone column found in Wickenburg.geojson
+Validating GeoJSONs:  51%|█████████████████████████████▏                           | 112/219 [01:55<03:43,  2.09s/file]2026-04-23 17:39:19,697 [MainProcess] No valid zone data in city_of_oakland.geojson
+Validating GeoJSONs:  52%|█████████████████████████████▋                           | 114/219 [01:55<02:06,  1.20s/file]2026-04-23 17:39:19,977 [MainProcess] No zone column found in Cloverdale.geojson
+Validating GeoJSONs:  57%|████████████████████████████████▎                        | 124/219 [01:59<00:42,  2.23file/s]C:\Users\piljo\Github\spatial_ml\.venv\Lib\site-packages\pyogrio\raw.py:200: RuntimeWarning: CRS EPSG:3785 is deprecated. Its non-deprecated replacement EPSG:3857 will be used instead. To use the original CRS, set the OSR_USE_NON_DEPRECATED configuration option to NO.
+  return ogr_read(
+Validating GeoJSONs:  72%|████████████████████████████████████████▊                | 157/219 [02:55<01:15,  1.22s/file]2026-04-23 17:40:19,792 [MainProcess] No zone column found in La_Habra.geojson
+Validating GeoJSONs:  72%|█████████████████████████████████████████                | 158/219 [02:55<01:05,  1.08s/file]2026-04-23 17:40:21,434 [MainProcess] No zone column found in La_Puente.geojson
+Validating GeoJSONs:  79%|█████████████████████████████████████████████▎           | 174/219 [04:02<12:04, 16.09s/file]2026-04-23 17:41:27,320 [MainProcess] No zone column found in Lynwood.geojson
+Validating GeoJSONs:  81%|██████████████████████████████████████████████▎          | 178/219 [04:05<03:00,  4.40s/file]2026-04-23 17:41:30,072 [MainProcess] No zone column found in Manteca.geojson
+Validating GeoJSONs:  93%|████████████████████████████████████████████████████▊    | 203/219 [05:24<01:06,  4.16s/file]2026-04-23 17:42:49,067 [MainProcess] No zone column found in Pico_Rivera.geojson
+Validating GeoJSONs:  96%|██████████████████████████████████████████████████████▋  | 210/219 [05:35<00:16,  1.86s/file]2026-04-23 17:42:59,403 [MainProcess] No zone column found in ODC_INDX_SRVQTRSECTION_A_-4335986555762631488.geojson
+Validating GeoJSONs: 100%|█████████████████████████████████████████████████████████| 219/219 [05:42<00:00,  1.56s/file]
+2026-04-23 17:43:06,259 [MainProcess] Valid files: 199/219 (20 skipped — no zone column)
+2026-04-23 17:43:06,260 [MainProcess] Total: 3980 samples (199 valid files x 20 each)
+2026-04-23 17:43:06,260 [MainProcess] Workers: 1 (CPUs: 12)

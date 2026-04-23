@@ -1,0 +1,10 @@
+{"time":"2026-04-11T12:45:38.6153164-04:00","level":"INFO","msg":"using version","core version":"0.18.7"}
+{"time":"2026-04-11T12:45:38.6153164-04:00","level":"INFO","msg":"created symlink","path":"C:\\Users\\piljo\\Github\\spatial_ml\\wandb\\run-20260411_124538-vuv9bktk\\logs\\debug-core.log"}
+{"time":"2026-04-11T12:45:38.7352321-04:00","level":"INFO","msg":"created new stream","id":"vuv9bktk"}
+{"time":"2026-04-11T12:45:38.7352321-04:00","level":"INFO","msg":"stream: started","id":"vuv9bktk"}
+{"time":"2026-04-11T12:45:38.736233-04:00","level":"INFO","msg":"handler: started","stream_id":"vuv9bktk"}
+{"time":"2026-04-11T12:45:38.736233-04:00","level":"INFO","msg":"sender: started","stream_id":"vuv9bktk"}
+{"time":"2026-04-11T12:45:38.736233-04:00","level":"INFO","msg":"writer: Do: started","stream_id":"vuv9bktk"}
+{"time":"2026-04-11T12:45:39.0629956-04:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2026-04-12T07:17:02.166159-04:00","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/graphql\": dial tcp: lookup api.wandb.ai: no such host"}
+{"time":"2026-04-12T07:17:04.573056-04:00","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/graphql\": dial tcp: lookup api.wandb.ai: no such host"}

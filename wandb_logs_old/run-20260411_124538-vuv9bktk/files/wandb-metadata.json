@@ -1,0 +1,65 @@
+{
+  "os":  "Windows-10-10.0.19045-SP0",
+  "python":  "3.11.9",
+  "startedAt":  "2026-04-11T16:45:38.612647Z",
+  "args":  [
+    "--data",
+    "data/training/zoning_segmentation",
+    "--epochs",
+    "15",
+    "--batch-size",
+    "2",
+    "--image-size",
+    "1024",
+    "--lr",
+    "1e-5",
+    "--momentum",
+    "0.999",
+    "--weight-decay",
+    "1e-8",
+    "--min-coverage",
+    "0.05",
+    "--num-workers",
+    "4",
+    "--save-dir",
+    "checkpoints/zone_seg_loam_vanilla",
+    "--val-fraction",
+    "0.15"
+  ],
+  "program":  "-m model.zone_segmentation.train_loam_vanilla",
+  "git":  {
+    "remote":  "git@github.com:hunkim98/spatial_ml.git",
+    "commit":  "9044893c6d8d464aa8524c4d9ad1270267b744cc"
+  },
+  "email":  "hunkim98@gmail.com",
+  "root":  "C:\\Users\\piljo\\Github\\spatial_ml",
+  "host":  "desktop-donghunkim",
+  "username":  "kimdonghun",
+  "executable":  "C:\\Users\\piljo\\Github\\spatial_ml\\.venv\\Scripts\\python.exe",
+  "cpu_count":  6,
+  "cpu_count_logical":  12,
+  "gpu":  "NVIDIA GeForce RTX 3060",
+  "gpu_count":  1,
+  "disk":  {
+    "/":  {
+      "total":  "997964378112",
+      "used":  "539729829888"
+    }
+  },
+  "memory":  {
+    "total":  "51420483584"
+  },
+  "cpu":  {
+    "count":  6,
+    "countLogical":  12
+  },
+  "gpu_nvidia":  [
+    {
+      "name":  "NVIDIA GeForce RTX 3060",
+      "memoryTotal":  "12884901888",
+      "cudaCores":  3584,
+      "architecture":  "Ampere"
+    }
+  ],
+  "cudaVersion":  "12.6"
+}

@@ -1,0 +1,27 @@
+2026-04-11 12:14:16,137 INFO W&B run started: unet-film-loam-e15-bsNone-20260411-121414 (project=spatially-zone-segmentation)
+2026-04-11 12:14:16,138 INFO Training (LOAM-aligned): 15 epochs, 3482 train batches, 41132 val batches, amp=True, wandb=True
+2026-04-11 12:14:55,197 INFO Epoch 1 [0/3482] loss=0.7639
+2026-04-11 12:16:49,575 INFO Epoch 1 [10/3482] loss=0.8259
+2026-04-11 12:18:47,992 INFO Epoch 1 [20/3482] loss=0.8548
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\piljo\Github\spatial_ml\model\zone_segmentation\train_loam_vanilla.py", line 136, in <module>
+    main()
+  File "C:\Users\piljo\Github\spatial_ml\model\zone_segmentation\train_loam_vanilla.py", line 125, in main
+    trainer.train()
+  File "C:\Users\piljo\Github\spatial_ml\model\zone_segmentation\trainer_loam.py", line 313, in train
+    train_metrics = self.train_one_epoch(epoch)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\piljo\Github\spatial_ml\model\zone_segmentation\trainer_loam.py", line 209, in train_one_epoch
+    self.scaler.step(self.optimizer)
+  File "C:\Users\piljo\Github\spatial_ml\.venv\Lib\site-packages\torch\amp\grad_scaler.py", line 457, in step
+    retval = self._maybe_opt_step(optimizer, optimizer_state, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\piljo\Github\spatial_ml\.venv\Lib\site-packages\torch\amp\grad_scaler.py", line 351, in _maybe_opt_step
+    if not sum(v.item() for v in optimizer_state["found_inf_per_device"].values()):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\piljo\Github\spatial_ml\.venv\Lib\site-packages\torch\amp\grad_scaler.py", line 351, in <genexpr>
+    if not sum(v.item() for v in optimizer_state["found_inf_per_device"].values()):
+               ^^^^^^^^
+KeyboardInterrupt
