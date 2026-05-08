@@ -16,7 +16,7 @@ $Checkpoint = "checkpoints\zone_seg_loam_vanilla_v2\best.pt"
 $UsgsDir    = "usgs"
 $Dataset    = "validation"
 $WorkDir    = "$env:TEMP\usgs_eval"
-$OutputDir  = if ($NoTile) { "results\usgs_eval_vanilla_v2_notile" } else { "results\usgs_eval_vanilla_v2_tiled" }
+$OutputDir  = $(if ($NoTile) { "results\usgs_eval_vanilla_v2_notile" } else { "results\usgs_eval_vanilla_v2_tiled" })
 $TileSize   = 512
 $TileOverlap = 128
 $Threshold  = 0.5
@@ -55,7 +55,7 @@ if (-not (Test-Path "$UsgsDir\validation.tar.gz")) {
 New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 
 # --- Build command ---------------------------------------------------------
-$args = @(
+$pyArgs = @(
     "-m", "model.zone_segmentation.scripts.eval_usgs",
     "--checkpoint", $Checkpoint,
     "--usgs-dir", $UsgsDir,
@@ -71,13 +71,13 @@ $args = @(
 )
 
 if ($NoTile) {
-    $args += "--no-tile"
+    $pyArgs += "--no-tile"
 }
 if (-not $NoViz) {
-    $args += "--save-viz"
+    $pyArgs += "--save-viz"
 }
 if ($MaxMaps -gt 0) {
-    $args += @("--max-maps", $MaxMaps)
+    $pyArgs += @("--max-maps", $MaxMaps)
 }
 
 # --- Run -------------------------------------------------------------------
@@ -91,7 +91,7 @@ Write-Host ""
 
 $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 
-& python @args
+& python @pyArgs
 
 $exitCode = $LASTEXITCODE
 $stopwatch.Stop()
