@@ -315,10 +315,6 @@ INPUT /opt/homebrew/Cellar/texlive/20260301/share/texmf-dist/fonts/tfm/public/ne
 INPUT /opt/homebrew/Cellar/texlive/20260301/share/texmf-dist/fonts/tfm/public/libertine/LinLibertineTB-tlf-t1.tfm
 INPUT /opt/homebrew/Cellar/texlive/20260301/share/texmf-dist/fonts/tfm/public/libertine/LinLibertineTB-tlf-t1.tfm
 INPUT /opt/homebrew/Cellar/texlive/20260301/share/texmf-dist/fonts/tfm/public/libertine/LinLibertineTI-tlf-t1.tfm
-INPUT /opt/homebrew/Cellar/texlive/20260301/share/texmf-dist/tex/latex/libertine/TS1LinuxLibertineT-TLF.fd
-INPUT /opt/homebrew/Cellar/texlive/20260301/share/texmf-dist/tex/latex/libertine/TS1LinuxLibertineT-TLF.fd
-INPUT /opt/homebrew/Cellar/texlive/20260301/share/texmf-dist/tex/latex/libertine/TS1LinuxLibertineT-TLF.fd
-INPUT /opt/homebrew/Cellar/texlive/20260301/share/texmf-dist/fonts/tfm/public/libertine/LinLibertineT-tlf-ts1.tfm
 INPUT /opt/homebrew/Cellar/texlive/20260301/share/texmf-dist/fonts/tfm/public/libertine/LinLibertineT-tlf-ot1.tfm
 INPUT /opt/homebrew/Cellar/texlive/20260301/share/texmf-dist/fonts/tfm/public/libertine/LinLibertineT-tlf-ot1.tfm
 INPUT /opt/homebrew/Cellar/texlive/20260301/share/texmf-dist/fonts/tfm/public/newtx/nxlmi.tfm
@@ -339,6 +335,10 @@ INPUT /opt/homebrew/Cellar/texlive/20260301/share/texmf-dist/fonts/tfm/public/ne
 INPUT /opt/homebrew/Cellar/texlive/20260301/share/texmf-dist/fonts/tfm/public/newtx/ntxsyc.tfm
 INPUT /opt/homebrew/Cellar/texlive/20260301/share/texmf-dist/fonts/tfm/public/newtx/ntxexa.tfm
 INPUT /opt/homebrew/Cellar/texlive/20260301/share/texmf-dist/fonts/tfm/public/newtx/ntxexa.tfm
+INPUT /opt/homebrew/Cellar/texlive/20260301/share/texmf-dist/tex/latex/libertine/TS1LinuxLibertineT-TLF.fd
+INPUT /opt/homebrew/Cellar/texlive/20260301/share/texmf-dist/tex/latex/libertine/TS1LinuxLibertineT-TLF.fd
+INPUT /opt/homebrew/Cellar/texlive/20260301/share/texmf-dist/tex/latex/libertine/TS1LinuxLibertineT-TLF.fd
+INPUT /opt/homebrew/Cellar/texlive/20260301/share/texmf-dist/fonts/tfm/public/libertine/LinLibertineT-tlf-ts1.tfm
 INPUT /opt/homebrew/Cellar/texlive/20260301/share/texmf-dist/fonts/vf/public/libertine/LinBiolinumTB-tlf-t1.vf
 INPUT /opt/homebrew/Cellar/texlive/20260301/share/texmf-dist/fonts/tfm/public/libertine/LinBiolinumTB-tlf-t1--base.tfm
 INPUT /opt/homebrew/Cellar/texlive/20260301/share/texmf-dist/fonts/map/pdftex/updmap/pdftex.map
