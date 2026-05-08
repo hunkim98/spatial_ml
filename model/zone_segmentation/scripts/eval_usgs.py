@@ -821,12 +821,37 @@ def main():
         json_files = json_files[:args.max_maps]
         logger.info("Limiting to %d maps", args.max_maps)
 
-    # 4. Evaluate each map
+    # 4. Evaluate each map (with incremental saving and resume support)
     all_results = []
     viz_dir = output_dir / "viz" if args.save_viz else None
+    results_path = output_dir / "results.json"
+    summary_path = output_dir / "summary.txt"
+
+    # Resume: load previously completed results and skip those maps
+    completed_maps = set()
+    if results_path.exists():
+        try:
+            with open(results_path) as f:
+                prev = json.load(f)
+            prev_results = prev.get("per_feature", [])
+            if prev_results:
+                all_results.extend(prev_results)
+                completed_maps = {r["map"] for r in prev_results}
+                logger.info(
+                    "Resumed %d previous results from %d maps: %s",
+                    len(prev_results), len(completed_maps),
+                    ", ".join(sorted(completed_maps)),
+                )
+        except (json.JSONDecodeError, KeyError):
+            logger.warning("Could not parse existing results.json — starting fresh")
 
     for json_path in tqdm(json_files, desc="Maps"):
         map_stem = json_path.stem
+
+        # Skip already-completed maps (resume support)
+        if map_stem in completed_maps:
+            logger.info("Skipping %s (already completed in previous run)", map_stem)
+            continue
 
         # Find corresponding TIF
         map_path = map_dir / f"{map_stem}.tif"
@@ -867,20 +892,24 @@ def main():
         )
         all_results.extend(results)
 
-    # 5. Aggregate and save
+        # Incremental save after each map so progress is not lost
+        agg = aggregate_results(all_results)
+        with open(results_path, "w") as f:
+            json.dump({"summary": agg, "per_feature": all_results}, f, indent=2)
+        logger.info("Saved incremental results (%d features so far)", len(all_results))
+
+    # 5. Final aggregate and save
     agg = aggregate_results(all_results)
     summary_text = format_summary(agg, all_results)
 
     print("\n" + summary_text)
 
-    # Save detailed results
-    results_path = output_dir / "results.json"
+    # Save final results
     with open(results_path, "w") as f:
         json.dump({"summary": agg, "per_feature": all_results}, f, indent=2)
     logger.info("Detailed results saved to %s", results_path)
 
     # Save summary
-    summary_path = output_dir / "summary.txt"
     with open(summary_path, "w") as f:
         f.write(summary_text)
     logger.info("Summary saved to %s", summary_path)

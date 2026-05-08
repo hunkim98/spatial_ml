@@ -1,6 +1,6 @@
 # Fdb version 4
-["pdflatex"] 1778211488.16172 "/Users/hunkim/Github/spatial_ml/paper/sigspatial_zone_segmentation.tex" "sigspatial_zone_segmentation.pdf" "sigspatial_zone_segmentation" 1778211489.0283 0
-  "/Users/hunkim/Github/spatial_ml/paper/sigspatial_zone_segmentation.tex" 1778211487.99603 31921 2997dccde122e71ece3218d37eeda663 ""
+["pdflatex"] 1778211638.65174 "/Users/hunkim/Github/spatial_ml/paper/sigspatial_zone_segmentation.tex" "sigspatial_zone_segmentation.pdf" "sigspatial_zone_segmentation" 1778211639.58113 0
+  "/Users/hunkim/Github/spatial_ml/paper/sigspatial_zone_segmentation.tex" 1778211637.53514 31773 5ee64ef6b4255fa212972cf92a7440a4 ""
   "/opt/homebrew/Cellar/texlive/20260301/share/texmf-dist/fonts/enc/dvips/libertine/lbtn_25tcsq.enc" 1772380719 2921 8ca0eb0831f9bc5da080d3697cfe67bf ""
   "/opt/homebrew/Cellar/texlive/20260301/share/texmf-dist/fonts/enc/dvips/libertine/lbtn_76gpa5.enc" 1772380719 2933 9ad527ce78d7c5fa0a642dead095f172 ""
   "/opt/homebrew/Cellar/texlive/20260301/share/texmf-dist/fonts/enc/dvips/libertine/lbtn_7grukw.enc" 1772380719 2934 a4a9158faed2e9e89c771b4e3b7fc12f ""
@@ -198,9 +198,9 @@
   "/opt/homebrew/Cellar/texlive/20260301/share/texmf-dist/tex/latex/xkeyval/xkeyval.sty" 1772380719 5006 d7e899bb5d9717c7f214e9bc0284de7b ""
   "/opt/homebrew/Cellar/texlive/20260301/share/texmf-dist/web2c/texmf.cnf" 1772380719 43633 14bbc273cebd985e64ab1a698333eaf9 ""
   "/opt/homebrew/Cellar/texlive/20260301/share/texmf-var/web2c/pdftex/pdflatex.fmt" 1772380719 3636958 d2062700e4b629ba1467c28603bfdc8d ""
-  "sigspatial_zone_segmentation.aux" 1778211488.85479 8932 b958e1716dece88e49944c3cfe85cadc "pdflatex"
-  "sigspatial_zone_segmentation.out" 1778211488.85574 2571 53a6842941113c51ab7c95eba56ba493 "pdflatex"
-  "sigspatial_zone_segmentation.tex" 1778211487.99603 31921 2997dccde122e71ece3218d37eeda663 ""
+  "sigspatial_zone_segmentation.aux" 1778211639.41139 8932 4ca8078821148af55364240ebcaeaa85 "pdflatex"
+  "sigspatial_zone_segmentation.out" 1778211639.41227 2571 53a6842941113c51ab7c95eba56ba493 "pdflatex"
+  "sigspatial_zone_segmentation.tex" 1778211637.53514 31773 5ee64ef6b4255fa212972cf92a7440a4 ""
   (generated)
   "sigspatial_zone_segmentation.aux"
   "sigspatial_zone_segmentation.log"

@@ -21,7 +21,7 @@
   \state{MA}
   \country{USA}
 }
-\email{donghunkim@g.harvard.edu}
+\email{donghunkim@mde.harvard.edu}
 
 \begin{abstract}
 Extracting polygonal features from historical raster maps---geological survey sheets, zoning plans, cadastral records---remains a bottleneck for digitizing geospatial archives.
@@ -31,7 +31,6 @@ We present a synthetic data pipeline that generates unlimited (image, pattern, m
 A FiLM-conditioned U-Net trained on these synthetic maps achieves 0.559 IoU on held-out synthetic data.
 Without any fine-tuning or domain-specific engineering, the same model segments real USGS geological maps from the DARPA Critical Mineral Assessment benchmark---a domain it has never seen---achieving per-feature F1 scores up to 0.930 on color-distinctive geological units across 14 maps and 626 polygon features.
 Our approach requires zero manual annotation and no domain expertise, suggesting that models trained on synthetic maps can generalize beyond their original domain.
-All training runs are reproducible via Weights \& Biases\footnote{\url{https://wandb.ai/hunkim98-harvard/spatially-zone-segmentation/runs/cogrs48v}}.
 \end{abstract}
 
 \begin{CCSXML}
