@@ -33,6 +33,7 @@ from torchvision import transforms
 from tqdm import tqdm
 
 from ..unet import PatternConditionedUNet
+from ..unet_vanilla import VanillaUNet
 
 logger = logging.getLogger(__name__)
 
@@ -287,11 +288,15 @@ def load_gt_raster(gt_dir: Path, map_stem: str, label: str) -> np.ndarray | None
 class TiledSegmenter:
     """Wraps the model for tiled inference on large images."""
 
-    def __init__(self, checkpoint: str, device: str = "cuda", tile_size: int = 512):
+    def __init__(self, checkpoint: str, device: str = "cuda", tile_size: int = 512,
+                 model_type: str = "resnet"):
         self.device = device
         self.tile_size = tile_size
 
-        self.model = PatternConditionedUNet(pretrained=False)
+        if model_type == "vanilla":
+            self.model = VanillaUNet()
+        else:
+            self.model = PatternConditionedUNet(pretrained=False)
         state = torch.load(checkpoint, map_location=device, weights_only=True)
         self.model.load_state_dict(state)
         self.model.to(device)
@@ -335,6 +340,43 @@ class TiledSegmenter:
         prob_img = prob_img.resize((orig_w, orig_h), Image.BILINEAR)
         return np.array(prob_img).astype(np.float32) / 255.0
 
+    @torch.no_grad()
+    def predict_tiles_batch(
+        self, tiles: list[Image.Image], pattern: Image.Image, batch_size: int = 16
+    ) -> list[np.ndarray]:
+        """Predict probability maps for a batch of tiles with the same pattern.
+
+        Args:
+            tiles: list of map tile images
+            pattern: 32x32 pattern thumbnail (same for all tiles)
+            batch_size: number of tiles to process at once
+
+        Returns:
+            list of (tile_h, tile_w) float32 probability maps
+        """
+        pat_t = self.pattern_transform(pattern).to(self.device)
+        results = []
+
+        for i in range(0, len(tiles), batch_size):
+            batch_tiles = tiles[i:i + batch_size]
+            orig_sizes = [(t.size[0], t.size[1]) for t in batch_tiles]
+
+            img_batch = torch.stack(
+                [self.image_transform(t) for t in batch_tiles]
+            ).to(self.device)
+            pat_batch = pat_t.unsqueeze(0).expand(len(batch_tiles), -1, -1, -1)
+
+            logits = self.model(img_batch, pat_batch)
+            probs = torch.sigmoid(logits).squeeze(1).cpu().numpy()
+
+            for j, (ow, oh) in enumerate(orig_sizes):
+                prob = probs[j]
+                prob_img = Image.fromarray((prob * 255).astype(np.uint8))
+                prob_img = prob_img.resize((ow, oh), Image.BILINEAR)
+                results.append(np.array(prob_img).astype(np.float32) / 255.0)
+
+        return results
+
 
 def predict_tiled(
     segmenter: TiledSegmenter,
@@ -342,6 +384,7 @@ def predict_tiled(
     pattern_pil: Image.Image,
     tile_size: int = 512,
     overlap: int = 128,
+    batch_size: int = 16,
 ) -> np.ndarray:
     """Run tiled inference on a full-resolution map.
 
@@ -351,6 +394,7 @@ def predict_tiled(
         pattern_pil: 32x32 pattern thumbnail
         tile_size: tile size in pixels
         overlap: overlap between adjacent tiles
+        batch_size: number of tiles per batch
 
     Returns:
         (H, W) float32 probability map at original resolution
@@ -367,24 +411,30 @@ def predict_tiled(
     x_starts = list(range(0, w, stride))
 
     total_tiles = len(y_starts) * len(x_starts)
-    logger.info("  Tiling: %dx%d map → %d tiles (size=%d, overlap=%d)",
-                w, h, total_tiles, tile_size, overlap)
+    logger.info("  Tiling: %dx%d map → %d tiles (size=%d, overlap=%d, batch=%d)",
+                w, h, total_tiles, tile_size, overlap, batch_size)
 
+    # Collect all tiles and their coordinates
+    tiles = []
+    coords = []
     for y0 in y_starts:
         for x0 in x_starts:
-            # Clamp tile to image bounds
             y1 = min(y0 + tile_size, h)
             x1 = min(x0 + tile_size, w)
-            # Adjust start if tile is smaller than tile_size at edge
             y0_adj = max(0, y1 - tile_size)
             x0_adj = max(0, x1 - tile_size)
 
             tile = map_pil.crop((x0_adj, y0_adj, x1, y1))
-            prob = segmenter.predict_tile(tile, pattern_pil)
+            tiles.append(tile)
+            coords.append((y0_adj, x0_adj, y1, x1))
 
-            # Accumulate
-            prob_sum[y0_adj:y1, x0_adj:x1] += prob
-            count[y0_adj:y1, x0_adj:x1] += 1.0
+    # Batched inference
+    probs = segmenter.predict_tiles_batch(tiles, pattern_pil, batch_size=batch_size)
+
+    # Accumulate
+    for prob, (y0_adj, x0_adj, y1, x1) in zip(probs, coords):
+        prob_sum[y0_adj:y1, x0_adj:x1] += prob
+        count[y0_adj:y1, x0_adj:x1] += 1.0
 
     # Average overlapping predictions
     count = np.maximum(count, 1.0)
@@ -726,6 +776,11 @@ def main():
                         help="Skip legend swatch cleaning (use raw crops with text/borders)")
     parser.add_argument("--save-viz", action="store_true",
                         help="Save visualization panels for each feature")
+    parser.add_argument("--model-type", default="resnet",
+                        choices=["resnet", "vanilla"],
+                        help="Model architecture (default: resnet)")
+    parser.add_argument("--skip-no-gt", action="store_true",
+                        help="Skip maps that have no ground truth rasters (faster)")
     parser.add_argument("--max-maps", type=int, default=0,
                         help="Max maps to process (0 = all)")
     args = parser.parse_args()
@@ -755,6 +810,7 @@ def main():
         checkpoint=args.checkpoint,
         device=args.device,
         tile_size=args.tile_size,
+        model_type=args.model_type,
     )
 
     # 3. Discover maps with JSON annotations
@@ -783,6 +839,16 @@ def main():
         if not features:
             logger.info("No _poly features in %s — skipping", json_path.name)
             continue
+
+        # Optionally skip maps without GT rasters
+        if args.skip_no_gt and gt_dir is not None:
+            has_any_gt = any(
+                (gt_dir / f"{map_stem}_{f['label']}.tif").exists()
+                for f in features
+            )
+            if not has_any_gt:
+                logger.info("No GT rasters for %s — skipping (--skip-no-gt)", map_stem)
+                continue
 
         logger.info("Processing %s (%d poly features)", map_stem, len(features))
 

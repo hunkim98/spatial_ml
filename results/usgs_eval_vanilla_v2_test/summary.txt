@@ -1,0 +1,9 @@
+======================================================================
+USGS AI4CMA Evaluation Results
+======================================================================
+Total features evaluated:  21
+Features with ground truth: 0
+Unique maps:               0
+
+No ground truth available for any features
+======================================================================

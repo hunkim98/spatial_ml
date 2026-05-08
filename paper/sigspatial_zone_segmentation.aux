@@ -1,0 +1,105 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\citation{chiang2014survey}
+\citation{lin2023loam}
+\@writefile{toc}{\contentsline {section}{Abstract}{1}{section*.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{1}{section.1}\protected@file@percent }
+\newlabel{sec:intro}{{1}{1}{Introduction}{section.1}{}}
+\citation{chiang2014survey}
+\citation{lin2023loam}
+\citation{zhang2021sanet}
+\citation{ronneberger2015unet,chen2018deeplab}
+\citation{wang2019panet,tian2020pfenet}
+\citation{perez2018film}
+\citation{dumoulin2017learned}
+\citation{richter2016gta}
+\citation{frid2018gan}
+\citation{jaderberg2014synthetic}
+\citation{lin2023loam}
+\citation{ronneberger2015unet}
+\@writefile{toc}{\contentsline {section}{\numberline {2}Related Work}{2}{section.2}\protected@file@percent }
+\newlabel{sec:related}{{2}{2}{Related Work}{section.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Map Feature Extraction}{2}{subsection.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Conditioned Segmentation}{2}{subsection.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}Synthetic Data for Segmentation}{2}{subsection.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3}Methodology}{2}{section.3}\protected@file@percent }
+\newlabel{sec:method}{{3}{2}{Methodology}{section.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Synthetic Data Pipeline}{2}{subsection.3.1}\protected@file@percent }
+\newlabel{sec:data_pipeline}{{3.1}{2}{Synthetic Data Pipeline}{subsection.3.1}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.1}Map Rendering}{2}{subsubsection.3.1.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.2}Pattern Extraction}{2}{subsubsection.3.1.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.3}Mask Generation}{2}{subsubsection.3.1.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Model Architecture}{2}{subsection.3.2}\protected@file@percent }
+\newlabel{sec:architecture}{{3.2}{2}{Model Architecture}{subsection.3.2}{}}
+\@writefile{toc}{\contentsline {paragraph}{Image Encoder.}{2}{section*.6}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Overview of the pipeline. GeoJSONs are rendered with randomized styles to produce training triplets. The model conditions a U-Net decoder on the pattern query via FiLM.}}{3}{figure.caption.5}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{fig:pipeline}{{1}{3}{Overview of the pipeline. GeoJSONs are rendered with randomized styles to produce training triplets. The model conditions a U-Net decoder on the pattern query via FiLM}{figure.caption.5}{}}
+\@writefile{toc}{\contentsline {paragraph}{Pattern Encoder.}{3}{section*.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{FiLM-Conditioned Decoder.}{3}{section*.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Training Strategy}{3}{subsection.3.3}\protected@file@percent }
+\newlabel{sec:training}{{3.3}{3}{Training Strategy}{subsection.3.3}{}}
+\@writefile{toc}{\contentsline {paragraph}{Source-Aware Splitting.}{3}{section*.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Stratified Batch Sampling.}{3}{section*.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Optimization.}{3}{section*.11}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4}Experiments}{3}{section.4}\protected@file@percent }
+\newlabel{sec:experiments}{{4}{3}{Experiments}{section.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Synthetic Data Evaluation}{3}{subsection.4.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Validation results on held-out synthetic zoning maps. The source-aware configuration ensures zero geographic overlap between training and validation cities.}}{3}{table.caption.12}\protected@file@percent }
+\newlabel{tab:synthetic_results}{{1}{3}{Validation results on held-out synthetic zoning maps. The source-aware configuration ensures zero geographic overlap between training and validation cities}{table.caption.12}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Cross-Domain Transfer to USGS Geological Maps}{3}{subsection.4.2}\protected@file@percent }
+\newlabel{sec:usgs}{{4.2}{3}{Cross-Domain Transfer to USGS Geological Maps}{subsection.4.2}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.2.1}Domain Differences}{3}{subsubsection.4.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.2.2}Inference Protocol}{3}{subsubsection.4.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Legend Swatch Cleaning.}{3}{section*.13}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Whole-Map Inference.}{3}{section*.14}\protected@file@percent }
+\citation{devlin2019bert}
+\citation{he2016resnet}
+\citation{lin2023loam}
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Cross-domain evaluation on USGS geological maps (14 maps, 626 features). Model trained entirely on synthetic zoning maps with zero geological map data.}}{4}{table.caption.15}\protected@file@percent }
+\newlabel{tab:usgs_results}{{2}{4}{Cross-domain evaluation on USGS geological maps (14 maps, 626 features). Model trained entirely on synthetic zoning maps with zero geological map data}{table.caption.15}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Top and bottom 5 features by F1 score on USGS geological maps. Successful features are color-distinctive units; failures involve similar colors or complex symbology.}}{4}{table.caption.16}\protected@file@percent }
+\newlabel{tab:usgs_topbottom}{{3}{4}{Top and bottom 5 features by F1 score on USGS geological maps. Successful features are color-distinctive units; failures involve similar colors or complex symbology}{table.caption.16}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.2.3}Results}{4}{subsubsection.4.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{F1 Score Distribution.}{4}{section*.17}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Future Improvement: Tiled Inference.}{4}{section*.19}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Distribution of per-feature F1 scores across 626 geological map features.}}{4}{table.caption.18}\protected@file@percent }
+\newlabel{tab:f1_dist}{{4}{4}{Distribution of per-feature F1 scores across 626 geological map features}{table.caption.18}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Discussion}{4}{section.5}\protected@file@percent }
+\newlabel{sec:discussion}{{5}{4}{Discussion}{section.5}{}}
+\@writefile{toc}{\contentsline {paragraph}{What Transfers and What Does Not.}{4}{section*.20}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{The Role of Synthetic Diversity.}{4}{section*.21}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Synthetic Pretraining as a Foundation.}{4}{section*.22}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Scalability.}{4}{section*.23}\protected@file@percent }
+\citation{lin2023loam}
+\bibstyle{ACM-Reference-Format}
+\bibcite{lin2023loam}{{1}{}{{}}{{}}}
+\bibcite{ronneberger2015unet}{{2}{}{{}}{{}}}
+\bibcite{he2016resnet}{{3}{}{{}}{{}}}
+\bibcite{perez2018film}{{4}{}{{}}{{}}}
+\bibcite{chiang2014survey}{{5}{}{{}}{{}}}
+\bibcite{chen2018deeplab}{{6}{}{{}}{{}}}
+\bibcite{zhang2021sanet}{{7}{}{{}}{{}}}
+\bibcite{wang2019panet}{{8}{}{{}}{{}}}
+\bibcite{tian2020pfenet}{{9}{}{{}}{{}}}
+\bibcite{dumoulin2017learned}{{10}{}{{}}{{}}}
+\bibcite{richter2016gta}{{11}{}{{}}{{}}}
+\bibcite{frid2018gan}{{12}{}{{}}{{}}}
+\bibcite{jaderberg2014synthetic}{{13}{}{{}}{{}}}
+\bibcite{devlin2019bert}{{14}{}{{}}{{}}}
+\newlabel{tocindent-1}{0pt}
+\newlabel{tocindent0}{0pt}
+\newlabel{tocindent1}{4.185pt}
+\newlabel{tocindent2}{10.34999pt}
+\newlabel{tocindent3}{18.198pt}
+\newlabel{tocindent4}{18.198pt}
+\newlabel{tocindent5}{0pt}
+\providecommand\NAT@force@numbers{}\NAT@force@numbers
+\@writefile{toc}{\contentsline {paragraph}{Limitations.}{5}{section*.24}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {6}Conclusion}{5}{section.6}\protected@file@percent }
+\newlabel{sec:conclusion}{{6}{5}{Conclusion}{section.6}{}}
+\@writefile{toc}{\contentsline {section}{References}{5}{section*.26}\protected@file@percent }
+\newlabel{TotPages}{{5}{5}{}{page.5}{}}
+\gdef \@abspage@last{5}

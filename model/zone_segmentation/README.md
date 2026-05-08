@@ -66,6 +66,62 @@ Outputs:
 - `checkpoints/zone_segmentation/history.json` — replay metrics offline
 - `checkpoints/zone_segmentation/samples/epoch_NNN.png` — prediction snapshots
 
+## USGS Evaluation (Cross-Domain Transfer)
+
+Evaluate the trained model on USGS geological maps from the DARPA CMA benchmark.
+This tests whether a model trained on synthetic zoning maps can segment real
+geological maps without any fine-tuning.
+
+### macOS / Linux
+```bash
+python -m model.zone_segmentation.scripts.eval_usgs \
+    --checkpoint checkpoints/zone_seg_loam_vanilla_v2/best.pt \
+    --usgs-dir usgs/ \
+    --dataset validation \
+    --device mps \
+    --model-type vanilla \
+    --skip-no-gt \
+    --save-viz
+```
+
+### Windows (PowerShell)
+```powershell
+# Full tiled evaluation (~18 hours on GPU)
+.\scripts\run_usgs_eval_tiled.ps1
+
+# Quick whole-map evaluation (~20 min)
+.\scripts\run_usgs_eval_tiled.ps1 -NoTile
+
+# Limit to first 3 maps for a quick test
+.\scripts\run_usgs_eval_tiled.ps1 -MaxMaps 3
+
+# Use CPU
+.\scripts\run_usgs_eval_tiled.ps1 -Device cpu
+```
+
+### Windows (Command Prompt)
+```cmd
+scripts\run_usgs_eval_tiled.bat
+scripts\run_usgs_eval_tiled.bat cpu
+```
+
+### Key flags
+| Flag | Description |
+|------|-------------|
+| `--model-type vanilla` | Use VanillaUNet (required for `zone_seg_loam_vanilla_v2` checkpoint) |
+| `--skip-no-gt` | Skip maps without ground truth rasters (faster) |
+| `--no-tile` | Downsample whole map to 512x512 instead of tiling (fast but lower quality) |
+| `--save-viz` | Save 4-panel visualizations per feature |
+| `--max-maps N` | Limit to first N maps (0 = all) |
+| `--tile-size 512` | Tile size in pixels (default: 512) |
+| `--tile-overlap 128` | Overlap between tiles (default: 128) |
+
+### Output
+Results are saved to `results/usgs_eval_*/`:
+- `results.json` — per-feature metrics (F1, IoU, precision, recall)
+- `summary.txt` — aggregate statistics
+- `viz/` — visualization panels (map, pattern, GT, prediction)
+
 ## Notebook
 ```bash
 jupyter lab model/zone_segmentation/notebooks/zone_segmentation_demo.ipynb
