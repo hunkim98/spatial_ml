@@ -275,12 +275,25 @@ class TrainerContext:
 
     # -------------------------------------------------------------- snapshots
     def _log_prediction_samples(self, epoch: int):
+        """Save a prediction grid figure to disk and log it to W&B if active."""
         try:
-            # Context model needs legend — skip viz for now
-            # (make_prediction_grid expects 3-tuple loader)
-            pass
-        except Exception:
-            pass
+            from .viz import make_prediction_grid_context
+        except Exception as exc:
+            logger.warning(f"Skipping prediction snapshot ({exc})")
+            return
+
+        fig = make_prediction_grid_context(self.model, self.val_loader, self.device, n=4)
+        out_dir = self.save_dir / "samples"
+        out_dir.mkdir(exist_ok=True)
+        path = out_dir / f"epoch_{epoch:03d}.png"
+        fig.savefig(path, dpi=120, bbox_inches="tight")
+
+        if self.use_wandb and self.wandb_run is not None:
+            import wandb
+            self._wandb_log({"val/predictions": wandb.Image(str(path))}, step=self.global_step)
+
+        import matplotlib.pyplot as plt
+        plt.close(fig)
 
     # ------------------------------------------------------------------ main
     def train(self) -> dict:
@@ -349,11 +362,18 @@ class TrainerContext:
                     "best_iou": self.best_iou,
                 }, self.save_dir / f"checkpoint_epoch{epoch}.pt")
 
+            # Periodic prediction snapshots
+            if self.sample_log_every and epoch % self.sample_log_every == 0:
+                self._log_prediction_samples(epoch)
+
             with open(self.save_dir / "history.json", "w") as f:
                 json.dump(self.history, f, indent=2)
 
         torch.save(self.model.state_dict(), self.save_dir / "final.pt")
         logger.info(f"Training complete. Best IoU: {self.best_iou:.4f}")
+
+        # Final snapshot
+        self._log_prediction_samples(self.epochs)
 
         if self.use_wandb and self.wandb_run is not None:
             import wandb

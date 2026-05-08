@@ -1,0 +1,9 @@
+{"time":"2026-04-12T18:06:36.6524462-04:00","level":"INFO","msg":"using version","core version":"0.18.7"}
+{"time":"2026-04-12T18:06:36.6524462-04:00","level":"INFO","msg":"created symlink","path":"C:\\Users\\piljo\\Github\\spatial_ml\\wandb\\run-20260412_180636-1q2oy82v\\logs\\debug-core.log"}
+{"time":"2026-04-12T18:06:36.7758802-04:00","level":"INFO","msg":"created new stream","id":"1q2oy82v"}
+{"time":"2026-04-12T18:06:36.7758802-04:00","level":"INFO","msg":"stream: started","id":"1q2oy82v"}
+{"time":"2026-04-12T18:06:36.7758802-04:00","level":"INFO","msg":"handler: started","stream_id":"1q2oy82v"}
+{"time":"2026-04-12T18:06:36.7758802-04:00","level":"INFO","msg":"writer: Do: started","stream_id":"1q2oy82v"}
+{"time":"2026-04-12T18:06:36.7758802-04:00","level":"INFO","msg":"sender: started","stream_id":"1q2oy82v"}
+{"time":"2026-04-12T18:06:37.0900865-04:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2026-04-13T15:34:18.7658655-04:00","level":"INFO","msg":"api: retrying HTTP error","status":502,"url":"https://api.wandb.ai/files/hunkim98-harvard/spatially-zone-segmentation/1q2oy82v/file_stream"}

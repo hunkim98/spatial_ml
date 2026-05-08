@@ -1,0 +1,9 @@
+{"time":"2026-04-12T16:02:55.2320556-04:00","level":"INFO","msg":"using version","core version":"0.18.7"}
+{"time":"2026-04-12T16:02:55.2320556-04:00","level":"INFO","msg":"created symlink","path":"C:\\Users\\piljo\\Github\\spatial_ml\\wandb\\run-20260412_160255-ipm7r9ag\\logs\\debug-core.log"}
+{"time":"2026-04-12T16:02:55.5408348-04:00","level":"INFO","msg":"created new stream","id":"ipm7r9ag"}
+{"time":"2026-04-12T16:02:55.5408348-04:00","level":"INFO","msg":"stream: started","id":"ipm7r9ag"}
+{"time":"2026-04-12T16:02:55.5408348-04:00","level":"INFO","msg":"writer: Do: started","stream_id":"ipm7r9ag"}
+{"time":"2026-04-12T16:02:55.5408348-04:00","level":"INFO","msg":"sender: started","stream_id":"ipm7r9ag"}
+{"time":"2026-04-12T16:02:55.5408348-04:00","level":"INFO","msg":"handler: started","stream_id":"ipm7r9ag"}
+{"time":"2026-04-12T16:02:55.9830096-04:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2026-04-12T18:03:05.7911942-04:00","level":"ERROR","msg":"monitor: cpu: error sampling metrics: couldn't find pid: 20232"}

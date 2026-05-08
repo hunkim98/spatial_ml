@@ -142,6 +142,92 @@ def make_prediction_grid(
     return fig
 
 
+def make_prediction_grid_context(
+    model,
+    loader,
+    device: str,
+    n: int = 8,
+    threshold: float = 0.5,
+):
+    """Like make_prediction_grid but for context-aware models (4-tuple batches).
+
+    Expects loader to yield (images, patterns, legends, masks).
+    Adds a legend column to the grid.
+    """
+    import matplotlib.pyplot as plt
+
+    was_training = model.training
+    model.eval()
+
+    n_batches = len(loader)
+    if n_batches == 0:
+        model.train(was_training)
+        fig, ax = plt.subplots(1, 1, figsize=(4, 2))
+        ax.text(0.5, 0.5, "No data", ha="center", va="center")
+        ax.axis("off")
+        return fig
+
+    step = max(1, n_batches // n)
+    target_indices = set(range(0, n_batches, step))
+
+    rows = []
+    with torch.no_grad():
+        for batch_idx, (images, patterns, legends, masks) in enumerate(loader):
+            if batch_idx not in target_indices:
+                continue
+
+            images = images.to(device)
+            patterns = patterns.to(device)
+            legends = legends.to(device)
+            logits = model(images, patterns, legends)
+            probs = torch.sigmoid(logits).cpu()
+            preds = (probs > threshold).float()
+
+            rows.append(
+                {
+                    "image": denormalize(images[0]),
+                    "pattern": denormalize(patterns[0]),
+                    "legend": denormalize(legends[0]),
+                    "mask": masks[0].squeeze().cpu().numpy(),
+                    "prob": probs[0].squeeze().cpu().numpy(),
+                    "pred": preds[0].squeeze().cpu().numpy(),
+                }
+            )
+            if len(rows) >= n:
+                break
+
+    if was_training:
+        model.train()
+
+    fig, axes = plt.subplots(len(rows), 6, figsize=(18, 3 * len(rows)))
+    if len(rows) == 1:
+        axes = axes[None, :]
+
+    for r, row in enumerate(rows):
+        axes[r, 0].imshow(row["image"])
+        axes[r, 0].set_title("image")
+        axes[r, 1].imshow(row["pattern"])
+        axes[r, 1].set_title("pattern")
+        axes[r, 2].imshow(row["legend"])
+        axes[r, 2].set_title("legend")
+        axes[r, 3].imshow(row["mask"], cmap="gray", vmin=0, vmax=1)
+        axes[r, 3].set_title("ground truth")
+        axes[r, 4].imshow(row["prob"], cmap="viridis", vmin=0, vmax=1)
+        axes[r, 4].set_title("predicted prob")
+        overlay = row["image"].copy()
+        red = np.zeros_like(overlay)
+        red[..., 0] = 1.0
+        alpha = 0.45 * row["pred"][..., None]
+        overlay = overlay * (1 - alpha) + red * alpha
+        axes[r, 5].imshow(np.clip(overlay, 0, 1))
+        axes[r, 5].set_title("overlay")
+        for c in range(6):
+            axes[r, c].axis("off")
+
+    fig.tight_layout()
+    return fig
+
+
 def plot_history(history: dict, save_path: str | Path | None = None):
     """Plot loss / IoU / Dice curves from a Trainer history dict.
 

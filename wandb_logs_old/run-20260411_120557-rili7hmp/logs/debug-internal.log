@@ -1,0 +1,10 @@
+{"time":"2026-04-11T12:05:57.5428911-04:00","level":"INFO","msg":"using version","core version":"0.18.7"}
+{"time":"2026-04-11T12:05:57.5428911-04:00","level":"INFO","msg":"created symlink","path":"C:\\Users\\piljo\\Github\\spatial_ml\\wandb\\run-20260411_120557-rili7hmp\\logs\\debug-core.log"}
+{"time":"2026-04-11T12:05:57.6580482-04:00","level":"INFO","msg":"created new stream","id":"rili7hmp"}
+{"time":"2026-04-11T12:05:57.6580577-04:00","level":"INFO","msg":"stream: started","id":"rili7hmp"}
+{"time":"2026-04-11T12:05:57.6580577-04:00","level":"INFO","msg":"handler: started","stream_id":"rili7hmp"}
+{"time":"2026-04-11T12:05:57.6580577-04:00","level":"INFO","msg":"writer: Do: started","stream_id":"rili7hmp"}
+{"time":"2026-04-11T12:05:57.6580577-04:00","level":"INFO","msg":"sender: started","stream_id":"rili7hmp"}
+{"time":"2026-04-11T12:05:58.1041225-04:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2026-04-12T07:17:06.8894741-04:00","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/graphql\": dial tcp: lookup api.wandb.ai: no such host"}
+{"time":"2026-04-12T07:17:09.0098909-04:00","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/graphql\": dial tcp: lookup api.wandb.ai: no such host"}

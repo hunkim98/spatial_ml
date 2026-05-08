@@ -1,0 +1,27 @@
+2026-04-11 12:14:15,429 INFO    MainThread:20272 [wandb_setup.py:_flush():79] Current SDK version is 0.18.7
+2026-04-11 12:14:15,429 INFO    MainThread:20272 [wandb_setup.py:_flush():79] Configure stats pid to 20272
+2026-04-11 12:14:15,429 INFO    MainThread:20272 [wandb_setup.py:_flush():79] Loading settings from C:\Users\piljo\.config\wandb\settings
+2026-04-11 12:14:15,430 INFO    MainThread:20272 [wandb_setup.py:_flush():79] Loading settings from C:\Users\piljo\Github\spatial_ml\wandb\settings
+2026-04-11 12:14:15,430 INFO    MainThread:20272 [wandb_setup.py:_flush():79] Loading settings from environment variables: {'api_key': '***REDACTED***'}
+2026-04-11 12:14:15,430 INFO    MainThread:20272 [wandb_setup.py:_flush():79] Applying setup settings: {'mode': None, '_disable_service': None}
+2026-04-11 12:14:15,459 WARNING MainThread:20272 [wandb_setup.py:_flush():79] Could not find program at -m model.zone_segmentation.train_loam_vanilla
+2026-04-11 12:14:15,459 INFO    MainThread:20272 [wandb_setup.py:_flush():79] Inferring run settings from compute environment: {'program_relpath': None, 'program': '-m model.zone_segmentation.train_loam_vanilla'}
+2026-04-11 12:14:15,459 INFO    MainThread:20272 [wandb_setup.py:_flush():79] Applying login settings: {}
+2026-04-11 12:14:15,459 INFO    MainThread:20272 [wandb_init.py:_log_setup():533] Logging user logs to C:\Users\piljo\Github\spatial_ml\wandb\run-20260411_121415-x9y0zs6g\logs\debug.log
+2026-04-11 12:14:15,460 INFO    MainThread:20272 [wandb_init.py:_log_setup():534] Logging internal logs to C:\Users\piljo\Github\spatial_ml\wandb\run-20260411_121415-x9y0zs6g\logs\debug-internal.log
+2026-04-11 12:14:15,460 INFO    MainThread:20272 [wandb_init.py:init():619] calling init triggers
+2026-04-11 12:14:15,460 INFO    MainThread:20272 [wandb_init.py:init():626] wandb.init called with sweep_config: {}
+config: {'model': 'VanillaUNet', 'encoder': 'vanilla', 'variant': 'loam-aligned', 'optimizer': 'SGD', 'momentum': 0.999, 'loss': 'DiceLoss', 'epochs': 15, 'batch_size': None, 'learning_rate': 1e-05, 'weight_decay': 1e-08, 'min_coverage': 0.05, 'grad_clip': 1.0, 'amp': True, 'device': 'cuda', 'train_size': 6964, 'val_size': 82264, 'n_params_m': 37.931073, 'image_size': 1024}
+2026-04-11 12:14:15,460 INFO    MainThread:20272 [wandb_init.py:init():669] starting backend
+2026-04-11 12:14:15,460 INFO    MainThread:20272 [wandb_init.py:init():673] sending inform_init request
+2026-04-11 12:14:15,464 INFO    MainThread:20272 [backend.py:_multiprocessing_setup():104] multiprocessing start_methods=spawn, using: spawn
+2026-04-11 12:14:15,464 INFO    MainThread:20272 [wandb_init.py:init():686] backend started and connected
+2026-04-11 12:14:15,470 INFO    MainThread:20272 [wandb_init.py:init():781] updated telemetry
+2026-04-11 12:14:15,538 INFO    MainThread:20272 [wandb_init.py:init():814] communicating run to backend with 90.0 second timeout
+2026-04-11 12:14:16,048 INFO    MainThread:20272 [wandb_init.py:init():867] starting run threads in backend
+2026-04-11 12:14:16,134 INFO    MainThread:20272 [wandb_run.py:_console_start():2456] atexit reg
+2026-04-11 12:14:16,134 INFO    MainThread:20272 [wandb_run.py:_redirect():2305] redirect: wrap_raw
+2026-04-11 12:14:16,135 INFO    MainThread:20272 [wandb_run.py:_redirect():2370] Wrapping output streams.
+2026-04-11 12:14:16,135 INFO    MainThread:20272 [wandb_run.py:_redirect():2395] Redirects installed.
+2026-04-11 12:14:16,137 INFO    MainThread:20272 [wandb_init.py:init():911] run started, returning control to user process
+2026-04-11 12:43:29,081 WARNING MsgRouterThr:20272 [router.py:message_loop():75] message_loop has been closed

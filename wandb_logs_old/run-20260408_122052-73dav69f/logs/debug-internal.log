@@ -1,0 +1,8 @@
+{"time":"2026-04-08T12:20:52.713826-04:00","level":"INFO","msg":"using version","core version":"0.18.7"}
+{"time":"2026-04-08T12:20:52.713826-04:00","level":"INFO","msg":"created symlink","path":"C:\\Users\\piljo\\Github\\spatial_ml\\wandb\\run-20260408_122052-73dav69f\\logs\\debug-core.log"}
+{"time":"2026-04-08T12:20:52.9674852-04:00","level":"INFO","msg":"created new stream","id":"73dav69f"}
+{"time":"2026-04-08T12:20:52.9674852-04:00","level":"INFO","msg":"handler: started","stream_id":"73dav69f"}
+{"time":"2026-04-08T12:20:52.9674852-04:00","level":"INFO","msg":"writer: Do: started","stream_id":"73dav69f"}
+{"time":"2026-04-08T12:20:52.9688889-04:00","level":"INFO","msg":"stream: started","id":"73dav69f"}
+{"time":"2026-04-08T12:20:52.9674852-04:00","level":"INFO","msg":"sender: started","stream_id":"73dav69f"}
+{"time":"2026-04-08T12:20:53.7215143-04:00","level":"INFO","msg":"Starting system monitor"}
