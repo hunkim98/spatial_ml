@@ -5,6 +5,7 @@ export enum CanvasEvent {
   MODE_CHANGED = "MODE_CHANGED",
   TRANSFORM_CHANGED = "TRANSFORM_CHANGED",
   BOUNDS_CREATED = "BOUNDS_CREATED", // Fired when initial bounds are created via drag
+  GEOJSON_CHANGED = "GEOJSON_CHANGED", // Fired when polygon editing modifies the GeoJSON
 }
 
 export type CanvasEventHandler = (args: Partial<CanvasModel>) => void;

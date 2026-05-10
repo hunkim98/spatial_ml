@@ -2,7 +2,7 @@ import { CanvasModel } from "./model";
 import { CanvasController } from "./controller";
 import { CanvasView } from "./view";
 import { CanvasEvent, CanvasEventListeners } from "./events";
-import { HandleType, Point, ScreenCorners } from "./types";
+import { HandleType, Location, Point, ScreenCorners } from "./types";
 
 // Models
 import { ImageLayerModel } from "./model/layers/imageLayerModel";
@@ -15,11 +15,13 @@ import { TransformSessionModel } from "./model/transformSessionModel";
 import { DragInteractionModel } from "./model/dragInteractionModel";
 import { ToolManagerModel, ToolType } from "./model/tools/toolManagerModel";
 import { ImageTransformToolModel } from "./model/tools/imageTransformToolModel";
+import { GeoJSONEditModel } from "./model/tools/geojsonEditModel";
 import { KeyboardInteractionModel } from "./model/keyboardInteractionModel";
 
 // Views
 import { ImageLayerView } from "./view/imageLayerView";
 import { FrameLayerView } from "./view/frameLayerView";
+import { PolygonLayerView } from "./view/polygonLayerView";
 
 // Controllers
 import { ModeController } from "./controller/modeController";
@@ -30,6 +32,14 @@ import { ImageCreateToolController } from "./controller/tools/imageCreateToolCon
 import { ImageMoveToolController } from "./controller/tools/imageMoveToolController";
 import { ImageResizeToolController } from "./controller/tools/imageResizeToolController";
 import { ImageRotateToolController } from "./controller/tools/imageRotateToolController";
+import { PolygonHitTestController } from "./controller/tools/polygonHitTestController";
+import { PolygonVertexMoveController } from "./controller/tools/polygonVertexMoveController";
+import { PolygonMoveController } from "./controller/tools/polygonMoveController";
+import { PolygonSelectController } from "./controller/tools/polygonSelectController";
+import { PolygonVertexAddController } from "./controller/tools/polygonVertexAddController";
+import { PolygonVertexDeleteController } from "./controller/tools/polygonVertexDeleteController";
+import { PolygonDeleteController } from "./controller/tools/polygonDeleteController";
+import { ProjectionController } from "./controller/projectionController";
 import { PdfUpdateController } from "./controller/input/pdfUpdateController";
 import { ImageUpdateController } from "./controller/input/imageUpdateController";
 import { BufferUpdateController } from "./controller/input/bufferUpdateController";
@@ -102,6 +112,7 @@ export class Editor {
       dragInteractionModel: new DragInteractionModel({}),
       toolManagerModel: new ToolManagerModel({}),
       imageTransformToolModel: new ImageTransformToolModel({}),
+      geojsonEditModel: new GeoJSONEditModel(),
       keyboardInteractionModel: new KeyboardInteractionModel(),
       transformSessionModel: new TransformSessionModel(),
     };
@@ -111,6 +122,7 @@ export class Editor {
     return {
       frameLayerView: new FrameLayerView(this.models),
       imageLayerView: new ImageLayerView(this.models),
+      polygonLayerView: new PolygonLayerView(this.models),
     };
   }
 
@@ -161,6 +173,46 @@ export class Editor {
         this.views,
         this.listeners
       ),
+      polygonHitTestController: new PolygonHitTestController(
+        this.models,
+        this.views,
+        this.listeners
+      ),
+      polygonVertexMoveController: new PolygonVertexMoveController(
+        this.models,
+        this.views,
+        this.listeners
+      ),
+      polygonMoveController: new PolygonMoveController(
+        this.models,
+        this.views,
+        this.listeners
+      ),
+      polygonSelectController: new PolygonSelectController(
+        this.models,
+        this.views,
+        this.listeners
+      ),
+      polygonVertexAddController: new PolygonVertexAddController(
+        this.models,
+        this.views,
+        this.listeners
+      ),
+      polygonVertexDeleteController: new PolygonVertexDeleteController(
+        this.models,
+        this.views,
+        this.listeners
+      ),
+      polygonDeleteController: new PolygonDeleteController(
+        this.models,
+        this.views,
+        this.listeners
+      ),
+      projectionController: new ProjectionController(
+        this.models,
+        this.views,
+        this.listeners
+      ),
       pdfUpdateController: new PdfUpdateController(
         this.models,
         this.views,
@@ -207,6 +259,39 @@ export class Editor {
     this.controllers.bufferUpdateController.execute({ buffer });
   }
 
+  // ---- Polygon editing public API ----
+
+  /** Load GeoJSON for polygon editing */
+  setGeoJSON(fc: GeoJSON.FeatureCollection | null): void {
+    this.models.geojsonEditModel.reset();
+    this.models.geojsonEditModel.featureCollection = fc;
+    this.render();
+  }
+
+  /** Get the current GeoJSON (with any edits applied) */
+  getGeoJSON(): GeoJSON.FeatureCollection | null {
+    return this.models.geojsonEditModel.featureCollection;
+  }
+
+  /** Bind map projection functions for geo ↔ screen conversion */
+  setProjection(
+    project: (lngLat: Location) => Point,
+    unproject: (point: Point) => Location
+  ): void {
+    this.controllers.projectionController.bind(project, unproject);
+  }
+
+  /** Whether a polygon drag is in progress (vertex move, polygon move) */
+  get isPolygonDragging(): boolean {
+    return this.models.geojsonEditModel.isEditing;
+  }
+
+  private get isPolygonMode(): boolean {
+    return this.models.geojsonEditModel.featureCollection !== null;
+  }
+
+  // ---- Mouse event handlers ----
+
   onMouseDown(e: React.MouseEvent<HTMLCanvasElement>) {
     const worldPos = getWorldPointFromEvent(
       e,
@@ -228,10 +313,14 @@ export class Editor {
       mouseUpScreenPosition: null,
     });
 
-    // Update mouse interaction state
     this.controllers.mouseInteractionController.execute({ e });
-    this.controllers.dragInteractionController.execute({ e });
-    this.controllers.toolManagerController.execute({ e });
+    if (this.isPolygonMode) {
+      this.controllers.projectionController.computeGeoPositions();
+      this.controllers.polygonHitTestController.execute({ e });
+    } else {
+      this.controllers.dragInteractionController.execute({ e });
+      this.controllers.toolManagerController.execute({ e });
+    }
     this.executeInteraction(e);
   }
 
@@ -258,8 +347,13 @@ export class Editor {
     });
 
     this.controllers.mouseInteractionController.execute({ e });
-    this.controllers.dragInteractionController.execute({ e });
-    this.controllers.toolManagerController.execute({ e });
+    if (this.isPolygonMode) {
+      this.controllers.projectionController.computeGeoPositions();
+      this.controllers.polygonHitTestController.execute({ e });
+    } else {
+      this.controllers.dragInteractionController.execute({ e });
+      this.controllers.toolManagerController.execute({ e });
+    }
     this.executeInteraction(e);
   }
 
@@ -284,17 +378,54 @@ export class Editor {
     });
 
     this.controllers.mouseInteractionController.execute({ e });
-    this.controllers.dragInteractionController.execute({ e });
-    this.controllers.toolManagerController.execute({ e });
+    if (this.isPolygonMode) {
+      this.controllers.projectionController.computeGeoPositions();
+    } else {
+      this.controllers.dragInteractionController.execute({ e });
+      this.controllers.toolManagerController.execute({ e });
+    }
     this.executeInteraction(e);
   }
 
   onKeyDown(e: KeyboardEvent): void {
     this.controllers.keyboardInteractionController.execute({ e });
+
+    if (this.isPolygonMode) {
+      const model = this.models.geojsonEditModel;
+
+      if (e.code === "Delete" || e.code === "Backspace") {
+        e.preventDefault();
+        if (model.activeVertex) {
+          this.controllers.polygonVertexDeleteController.execute({
+            vertexRef: model.activeVertex,
+          });
+          this.render();
+        } else if (model.selectedFeatureIndex !== null) {
+          this.controllers.polygonDeleteController.execute({
+            featureIndex: model.selectedFeatureIndex,
+          });
+          this.render();
+        }
+      } else if (e.code === "Escape") {
+        model.selectedFeatureIndex = null;
+        model.activeVertex = null;
+        model.candidateVertex = null;
+        model.candidateEdge = null;
+        this.render();
+      }
+    }
   }
 
   onKeyUp(e: KeyboardEvent): void {
     this.controllers.keyboardInteractionController.execute({ e });
+  }
+
+  onDoubleClick(_e: React.MouseEvent<Element>): void {
+    if (!this.isPolygonMode) return;
+    if (this.models.geojsonEditModel.candidateEdge) {
+      this.controllers.polygonVertexAddController.execute();
+      this.render();
+    }
   }
 
   onWheel(e: WheelEvent): void {
@@ -307,9 +438,17 @@ export class Editor {
   executeInteraction(e: React.MouseEvent<Element>): void {
     if (!this.models.editorStateModel.isLoaded) return;
     const { activeTool } = this.models.toolManagerModel;
+
     if (!activeTool) {
+      // In polygon mode, clicking outside any polygon deselects
+      if (this.isPolygonMode && e.type === "mousedown") {
+        this.models.geojsonEditModel.selectedFeatureIndex = null;
+        this.models.geojsonEditModel.activeVertex = null;
+      }
+      this.render();
       return;
     }
+
     switch (activeTool) {
       case ToolType.IMAGE_CREATE:
         this.controllers.imageCreateToolController.execute({ e });
@@ -323,6 +462,15 @@ export class Editor {
       case ToolType.IMAGE_ROTATE:
         this.controllers.imageRotateToolController.execute({ e });
         break;
+      case ToolType.POLYGON_VERTEX_MOVE:
+        this.controllers.polygonVertexMoveController.execute({ e });
+        break;
+      case ToolType.POLYGON_MOVE:
+        this.controllers.polygonMoveController.execute({ e });
+        break;
+      case ToolType.POLYGON_SELECT:
+        this.controllers.polygonSelectController.execute({ e });
+        break;
     }
     this.render();
   }
@@ -331,7 +479,9 @@ export class Editor {
     this.views.imageLayerView.clear();
     this.views.imageLayerView.render();
     this.views.frameLayerView.clear();
+    this.controllers.projectionController.execute();
     this.views.frameLayerView.render();
+    this.views.polygonLayerView.render();
   }
 
   addEventListener(
@@ -369,7 +519,13 @@ export class Editor {
     const handle = this.models.imageTransformToolModel.candidateHandle;
     const dragStart = this.models.dragInteractionModel.dragStartWorldPosition;
 
+    // Polygon tool cursors
+    if (tool === ToolType.POLYGON_VERTEX_MOVE) return "pointer";
+    if (tool === ToolType.POLYGON_MOVE) return "move";
+    if (tool === ToolType.POLYGON_SELECT) return "pointer";
+
     if (!tool) {
+      if (this.isPolygonMode) return "default";
       if (dragStart) return "grabbing";
       return "grab";
     }

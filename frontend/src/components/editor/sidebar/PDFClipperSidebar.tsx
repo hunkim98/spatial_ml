@@ -1,12 +1,12 @@
 import { Stack, Title, Group, Button, Text, Loader } from "@mantine/core";
 import { IconArrowLeft, IconCrop, IconPlayerSkipForward } from "@tabler/icons-react";
 import { useCallback, useEffect, useState } from "react";
-import { ClipperEditorComponentHandle } from "../canvas/ClipperEditorComponent";
+import { PDFClipperEditorComponentHandle } from "../canvas/PDFClipperEditorComponent";
 import { ClipperEvent } from "@/canvas/clipper/events";
 import { ExportResult } from "@/canvas/clipper/controller/exportController";
 
 interface ClipperSidebarProps {
-  clipperRef: React.RefObject<ClipperEditorComponentHandle | null>;
+  clipperRef: React.RefObject<PDFClipperEditorComponentHandle | null>;
   setClipResult: React.Dispatch<React.SetStateAction<ExportResult | null>>;
   onSkip: () => void;
   onBack: () => void;

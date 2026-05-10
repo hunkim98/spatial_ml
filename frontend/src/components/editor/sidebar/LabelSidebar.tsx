@@ -1,4 +1,4 @@
-import { ClipperEditorComponentHandle } from "../canvas/ClipperEditorComponent";
+import { PDFClipperEditorComponentHandle } from "../canvas/PDFClipperEditorComponent";
 import { OverlayEditorComponentHandle } from "../canvas/OverlayEditorComponent";
 import { MapEditorComponentHandle } from "../canvas/MapEditorComponent";
 import { GeoCorners } from "@/canvas/overlay/types";
@@ -7,7 +7,7 @@ import { GeoLabel, SkippedLabel } from "@/types/labels";
 import { ExportResult } from "@/canvas/clipper/controller/exportController";
 import LoadingSidebar from "./LoadingSidebar";
 import PdfSelectSidebar from "./PdfSelectSidebar";
-import ClipperSidebar from "./ClipperSidebar";
+import PDFClipperSidebar from "./PDFClipperSidebar";
 import OverlaySidebar from "./OverlaySidebar";
 
 interface EditorSidebarProps {
@@ -19,7 +19,7 @@ interface EditorSidebarProps {
   pdfUrl: string | null;
   clipResult: ExportResult | null;
   setClipResult: React.Dispatch<React.SetStateAction<ExportResult | null>>;
-  clipperRef: React.RefObject<ClipperEditorComponentHandle | null>;
+  clipperRef: React.RefObject<PDFClipperEditorComponentHandle | null>;
   overlayRef: React.RefObject<OverlayEditorComponentHandle | null>;
   mapRef: React.RefObject<MapEditorComponentHandle | null>;
   imageGeoCorners: GeoCorners | null;
@@ -31,7 +31,7 @@ interface EditorSidebarProps {
   onBackToClipper: () => void;
 }
 
-export default function EditorSidebar({
+export default function LabelSidebar({
   pdfs,
   labels,
   skippedLabels,
@@ -67,7 +67,7 @@ export default function EditorSidebar({
   }
   if (!clipResult) {
     return (
-      <ClipperSidebar
+      <PDFClipperSidebar
         clipperRef={clipperRef}
         setClipResult={setClipResult}
         onSkip={onSkip}

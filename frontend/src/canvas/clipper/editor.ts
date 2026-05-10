@@ -38,6 +38,7 @@ import { ToolType } from "./types/tool";
 import { DragInteractionModel } from "./model/dragInteractionModel";
 import { DragInteractionController } from "./controller/dragInteractionController";
 import { ExportController } from "./controller/exportController";
+import { ImageUpdateController } from "./controller/imageUpdateController";
 
 export class ClipperEditor {
   private models: ClipperModel = {} as ClipperModel;
@@ -169,6 +170,11 @@ export class ClipperEditor {
         this.views,
         this.listeners
       ),
+      imageUpdateController: new ImageUpdateController(
+        this.models,
+        this.views,
+        this.listeners
+      ),
     };
   }
 
@@ -177,6 +183,10 @@ export class ClipperEditor {
       resourceUrl,
       pageNumber,
     });
+  }
+
+  public updateImage(imageUrl: string): void {
+    this.controllers.imageUpdateController.execute({ imageUrl });
   }
 
   onMouseDown(e: React.MouseEvent<HTMLCanvasElement>) {

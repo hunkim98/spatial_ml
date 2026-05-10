@@ -5,6 +5,7 @@ import { NavigationModel } from "./navigationModel";
 import { DragInteractionModel } from "./dragInteractionModel";
 import { ToolManagerModel } from "./tools/toolManagerModel";
 import { ImageTransformToolModel } from "./tools/imageTransformToolModel";
+import { GeoJSONEditModel } from "./tools/geojsonEditModel";
 import { ImageLayerModel } from "./layers/imageLayerModel";
 import { FrameLayerModel } from "./layers/frameLayerModel";
 import { KeyboardInteractionModel } from "./keyboardInteractionModel";
@@ -20,6 +21,7 @@ export type CanvasModel = {
   dragInteractionModel: DragInteractionModel;
   toolManagerModel: ToolManagerModel;
   imageTransformToolModel: ImageTransformToolModel;
+  geojsonEditModel: GeoJSONEditModel;
   keyboardInteractionModel: KeyboardInteractionModel;
   transformSessionModel: TransformSessionModel;
 };

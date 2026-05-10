@@ -192,7 +192,7 @@ function OverlaySidebar({
           onClick={onSaveLabel}
           loading={isSaving}
         >
-          Submit Georeference
+          Generate Polygons
         </Button>
       )}
     </Stack>

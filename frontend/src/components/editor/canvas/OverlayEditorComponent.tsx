@@ -40,7 +40,14 @@ export const OverlayEditorComponent = forwardRef<
   OverlayEditorComponentHandle,
   OverlayEditorComponentProps
 >(function OverlayEditorComponent(
-  { imageBuffer, mapRef, imageGeoCorners, onImageGeoCornersChange, initialBounds, initialImage },
+  {
+    imageBuffer,
+    mapRef,
+    imageGeoCorners,
+    onImageGeoCornersChange,
+    initialBounds,
+    initialImage,
+  },
   ref
 ) {
   const imageCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -54,7 +61,7 @@ export const OverlayEditorComponent = forwardRef<
     containerRef,
     imageBuffer
   );
-  const onMapClick = useCallback((lngLat: Corner) => {}, []);
+  const onMapClick = useCallback((_lngLat: Corner) => {}, []);
   const [canvasInteractive, setCanvasInteractive] = useState(false);
   const [mapCursor, setMapCursor] = useState<string | undefined>(undefined);
   const [opacity, setOpacity] = useState(0.7);
@@ -124,7 +131,7 @@ export const OverlayEditorComponent = forwardRef<
   }, [imageGeoCorners, mapRef]);
 
   const liftImageToCanvas = useCallback(
-    (e: React.MouseEvent<Element>) => {
+    (_e: React.MouseEvent<Element>) => {
       const screenCorners = projectGeoCornersToScreen();
       if (!screenCorners || !editor) return;
 
@@ -158,7 +165,7 @@ export const OverlayEditorComponent = forwardRef<
     setCanvasInteractive(false);
   }, [editor, mapRef, onImageGeoCornersChange, opacity]);
 
-  // ========== Keyboard events: delegate to editor + toggle canvas ==========
+  // ========== Keyboard events ==========
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -172,8 +179,10 @@ export const OverlayEditorComponent = forwardRef<
       editor?.onKeyDown(e);
     };
     const onKeyUp = (e: KeyboardEvent) => {
-      if (e.code === "Space" && editor?.isTransformActive) {
-        setCanvasInteractive(true);
+      if (e.code === "Space") {
+        if (editor?.isTransformActive) {
+          setCanvasInteractive(true);
+        }
       }
       editor?.onKeyUp(e);
     };
@@ -220,8 +229,7 @@ export const OverlayEditorComponent = forwardRef<
         background: "#f0f0f0",
       }}
       onMouseDownCapture={(e) => {
-        // Capture phase: intercept BEFORE the map sees the event
-        // Skip when space is held so the map can be navigated freely
+        // Image overlay: capture phase intercept
         if (
           !canvasInteractive &&
           !editor?.isSpaceHeld &&
@@ -235,7 +243,7 @@ export const OverlayEditorComponent = forwardRef<
         }
       }}
       onMouseDown={(e) => {
-        // Bubble phase: only runs if capture didn't stop propagation (normal map clicks)
+        // Bubble phase: only runs if capture didn't stop propagation
         if (canvasInteractive) {
           editor?.onMouseDown(
             e as unknown as React.MouseEvent<HTMLCanvasElement>
@@ -258,6 +266,19 @@ export const OverlayEditorComponent = forwardRef<
             e as unknown as React.MouseEvent<HTMLCanvasElement>
           );
           dropImageToMap();
+        }
+      }}
+      onWheel={(e) => {
+        // Forward wheel events to map for zoom when canvas is interactive
+        if (canvasInteractive) {
+          const mapCanvas = mapRef.current
+            ?.getMapRef()
+            ?.getMap()
+            ?.getCanvas();
+          if (mapCanvas) {
+            mapCanvas.dispatchEvent(new WheelEvent("wheel", e.nativeEvent));
+            requestAnimationFrame(() => editor?.render());
+          }
         }
       }}
     >

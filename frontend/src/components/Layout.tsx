@@ -19,6 +19,7 @@ interface LayoutProps {
 const NAV_ITEMS = [
   { href: "/", label: "Home" },
   { href: "/labeller", label: "Editor" },
+  { href: "/segment", label: "Segment" },
   { href: "/demo", label: "Demo" },
 ];
 

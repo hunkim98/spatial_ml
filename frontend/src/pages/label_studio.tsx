@@ -1,9 +1,9 @@
 import { GeoCorners } from "@/canvas/overlay/types";
 import { ExportResult } from "@/canvas/clipper/controller/exportController";
-import EditorComponent from "@/components/editor/canvas/EditorComponent";
-import { ClipperEditorComponentHandle } from "@/components/editor/canvas/ClipperEditorComponent";
+import LabelEditorComponent from "@/components/editor/canvas/LabelEditorComponent";
+import { PDFClipperEditorComponentHandle } from "@/components/editor/canvas/PDFClipperEditorComponent";
 import { OverlayEditorComponentHandle } from "@/components/editor/canvas/OverlayEditorComponent";
-import EditorSidebar from "@/components/editor/sidebar/EditorSidebar";
+import LabelSidebar from "@/components/editor/sidebar/LabelSidebar";
 import { GeoReferencerHandle } from "@/components/GeoReferencer";
 import { Layout } from "@/components/Layout";
 import { useLabels } from "@/hooks/useLabels";
@@ -27,7 +27,7 @@ export default function LabelStudioPage() {
 
   // ========== Refs ==========
   const geoReferencerRef = useRef<GeoReferencerHandle>(null);
-  const clipperRef = useRef<ClipperEditorComponentHandle>(null);
+  const clipperRef = useRef<PDFClipperEditorComponentHandle>(null);
   const overlayRef = useRef<OverlayEditorComponentHandle>(null);
   const mapRef = useRef<MapEditorComponentHandle>(null);
   const [selectedPdf, setSelectedPdf] = useState<PdfFile | null>(null);
@@ -105,7 +105,7 @@ export default function LabelStudioPage() {
   return (
     <Layout
       sidebar={
-        <EditorSidebar
+        <LabelSidebar
           pdfs={pdfs}
           labels={labels}
           skippedLabels={skippedLabels}
@@ -134,7 +134,7 @@ export default function LabelStudioPage() {
           backgroundColor: "#f0f0f0",
         }}
       >
-        <EditorComponent
+        <LabelEditorComponent
           clipResult={clipResult}
           isLoadingResources={isLoadingResources}
           pdfUrl={pdfUrl}

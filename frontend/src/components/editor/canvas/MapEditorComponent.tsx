@@ -17,6 +17,17 @@ import { GeoCorners, ScreenCorners } from "@/canvas/overlay/types";
 const DEFAULT_CENTER: Corner = { lng: -85.8316, lat: 33.6598 }; // Anniston, AL
 const IMAGE_SOURCE_ID = "overlay-image-source";
 const IMAGE_LAYER_ID = "overlay-image-layer";
+const GEOJSON_SOURCE_ID = "geojson-result-source";
+const GEOJSON_FILL_LAYER_ID = "geojson-result-fill";
+const GEOJSON_LINE_LAYER_ID = "geojson-result-line";
+
+// Auto-generate distinct colors for zones
+const ZONE_COLORS = [
+  "#e6194b", "#3cb44b", "#ffe119", "#4363d8", "#f58231",
+  "#911eb4", "#42d4f4", "#f032e6", "#bfef45", "#fabed4",
+  "#469990", "#dcbeff", "#9A6324", "#800000", "#aaffc3",
+  "#808000", "#ffd8b1", "#000075", "#a9a9a9",
+];
 
 interface MapEditorComponentProps {
   onMapClick?: (lngLat: Corner) => void;
@@ -43,6 +54,11 @@ export interface MapEditorComponentHandle {
   setImageLayerOpacity: (opacity: number) => void;
   updateImageLayerCorners: (corners: GeoCorners) => void;
   unprojectScreenCorners: (corners: ScreenCorners) => GeoCorners | null;
+  addGeoJSONLayer: (geojson: GeoJSON.FeatureCollection) => void;
+  updateGeoJSONLayer: (geojson: GeoJSON.FeatureCollection) => void;
+  removeGeoJSONLayer: () => void;
+  setGeoJSONLayerVisibility: (visible: boolean) => void;
+  setGeoJSONZoneFilter: (visibleZones: string[]) => void;
   getMapRef: () => MapRef | null;
 }
 
@@ -214,6 +230,148 @@ export const MapEditorComponent = forwardRef<
     []
   );
 
+  const addGeoJSONLayer = useCallback(
+    (geojson: GeoJSON.FeatureCollection) => {
+      const map = mapRef.current?.getMap();
+      if (!map) return;
+
+      const add = () => {
+        // Clean up existing
+        if (map.getLayer(GEOJSON_LINE_LAYER_ID))
+          map.removeLayer(GEOJSON_LINE_LAYER_ID);
+        if (map.getLayer(GEOJSON_FILL_LAYER_ID))
+          map.removeLayer(GEOJSON_FILL_LAYER_ID);
+        if (map.getSource(GEOJSON_SOURCE_ID))
+          map.removeSource(GEOJSON_SOURCE_ID);
+
+        // Build zone → color mapping
+        const zoneNames = [
+          ...new Set(
+            geojson.features.map((f) => (f.properties?.zone as string) ?? "")
+          ),
+        ];
+        const colorMap: Record<string, string> = {};
+        zoneNames.forEach((name, i) => {
+          colorMap[name] = ZONE_COLORS[i % ZONE_COLORS.length];
+        });
+
+        // Add color property to each feature
+        const coloredGeoJSON = {
+          ...geojson,
+          features: geojson.features.map((f) => ({
+            ...f,
+            properties: {
+              ...f.properties,
+              _fill_color:
+                colorMap[(f.properties?.zone as string) ?? ""] ?? "#888",
+            },
+          })),
+        };
+
+        map.addSource(GEOJSON_SOURCE_ID, {
+          type: "geojson",
+          data: coloredGeoJSON,
+        });
+
+        map.addLayer({
+          id: GEOJSON_FILL_LAYER_ID,
+          type: "fill",
+          source: GEOJSON_SOURCE_ID,
+          paint: {
+            "fill-color": ["get", "_fill_color"],
+            "fill-opacity": 0.4,
+          },
+        });
+
+        map.addLayer({
+          id: GEOJSON_LINE_LAYER_ID,
+          type: "line",
+          source: GEOJSON_SOURCE_ID,
+          paint: {
+            "line-color": ["get", "_fill_color"],
+            "line-width": 2,
+          },
+        });
+      };
+
+      if (map.isStyleLoaded()) {
+        add();
+      } else {
+        map.once("load", add);
+      }
+    },
+    []
+  );
+
+  const updateGeoJSONLayer = useCallback(
+    (geojson: GeoJSON.FeatureCollection) => {
+      const map = mapRef.current?.getMap();
+      if (!map) return;
+      const source = map.getSource(GEOJSON_SOURCE_ID);
+      if (!source) {
+        // Source doesn't exist yet — add it instead
+        addGeoJSONLayer(geojson);
+        return;
+      }
+
+      // Build zone → color mapping
+      const zoneNames = [
+        ...new Set(
+          geojson.features.map((f) => (f.properties?.zone as string) ?? "")
+        ),
+      ];
+      const colorMap: Record<string, string> = {};
+      zoneNames.forEach((name, i) => {
+        colorMap[name] = ZONE_COLORS[i % ZONE_COLORS.length];
+      });
+
+      const coloredGeoJSON = {
+        ...geojson,
+        features: geojson.features.map((f) => ({
+          ...f,
+          properties: {
+            ...f.properties,
+            _fill_color:
+              colorMap[(f.properties?.zone as string) ?? ""] ?? "#888",
+          },
+        })),
+      };
+
+      (source as any).setData(coloredGeoJSON);
+    },
+    [addGeoJSONLayer]
+  );
+
+  const removeGeoJSONLayer = useCallback(() => {
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+    if (map.getLayer(GEOJSON_LINE_LAYER_ID))
+      map.removeLayer(GEOJSON_LINE_LAYER_ID);
+    if (map.getLayer(GEOJSON_FILL_LAYER_ID))
+      map.removeLayer(GEOJSON_FILL_LAYER_ID);
+    if (map.getSource(GEOJSON_SOURCE_ID)) map.removeSource(GEOJSON_SOURCE_ID);
+  }, []);
+
+  const setGeoJSONLayerVisibility = useCallback((visible: boolean) => {
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+    const visibility = visible ? "visible" : "none";
+    if (map.getLayer(GEOJSON_FILL_LAYER_ID))
+      map.setLayoutProperty(GEOJSON_FILL_LAYER_ID, "visibility", visibility);
+    if (map.getLayer(GEOJSON_LINE_LAYER_ID))
+      map.setLayoutProperty(GEOJSON_LINE_LAYER_ID, "visibility", visibility);
+  }, []);
+
+  const setGeoJSONZoneFilter = useCallback((visibleZones: string[]) => {
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+    const filter: any = ["in", ["get", "zone"], ["literal", visibleZones]];
+    if (map.getLayer(GEOJSON_FILL_LAYER_ID))
+      map.setFilter(GEOJSON_FILL_LAYER_ID, filter);
+    if (map.getLayer(GEOJSON_LINE_LAYER_ID))
+      map.setFilter(GEOJSON_LINE_LAYER_ID, filter);
+  }, []);
+
   useImperativeHandle(
     ref,
     () => ({
@@ -225,6 +383,11 @@ export const MapEditorComponent = forwardRef<
       setImageLayerOpacity,
       updateImageLayerCorners,
       unprojectScreenCorners,
+      addGeoJSONLayer,
+      updateGeoJSONLayer,
+      removeGeoJSONLayer,
+      setGeoJSONLayerVisibility,
+      setGeoJSONZoneFilter,
       getMapRef: () => mapRef.current,
     }),
     [
@@ -236,6 +399,11 @@ export const MapEditorComponent = forwardRef<
       setImageLayerOpacity,
       updateImageLayerCorners,
       unprojectScreenCorners,
+      addGeoJSONLayer,
+      updateGeoJSONLayer,
+      removeGeoJSONLayer,
+      setGeoJSONLayerVisibility,
+      setGeoJSONZoneFilter,
     ]
   );
 

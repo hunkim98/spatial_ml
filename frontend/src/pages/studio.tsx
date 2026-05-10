@@ -1,63 +1,134 @@
 import { GeoCorners } from "@/canvas/overlay/types";
 import { ExportResult } from "@/canvas/clipper/controller/exportController";
-import EditorComponent from "@/components/editor/canvas/EditorComponent";
-import { ClipperEditorComponentHandle } from "@/components/editor/canvas/ClipperEditorComponent";
+import { PatternCircle } from "@/canvas/pattern_selector/types";
+import StudioEditorComponent from "@/components/editor/canvas/StudioEditorComponent";
+import { ImageClipperEditorComponentHandle } from "@/components/editor/canvas/ImageClipperEditorComponent";
+import { PatternSelectorEditorComponentHandle } from "@/components/editor/canvas/PatternSelectorEditorComponent";
 import { OverlayEditorComponentHandle } from "@/components/editor/canvas/OverlayEditorComponent";
-import EditorSidebar from "@/components/editor/sidebar/EditorSidebar";
-import { Layout } from "@/components/Layout";
-import { useLabels } from "@/hooks/useLabels";
-import { usePdfs } from "@/hooks/usePdfs";
-import { PdfFile } from "@/types/pdf";
+import { UploadEditorComponentHandle } from "@/components/editor/canvas/UploadEditorComponent";
 import { MapEditorComponentHandle } from "@/components/editor/canvas/MapEditorComponent";
+import StudioSidebar from "@/components/editor/sidebar/StudioSidebar";
+import { Layout } from "@/components/Layout";
 import { Box } from "@mantine/core";
 import { useCallback, useRef, useState } from "react";
+import { useSegmentation } from "@/hooks/useSegmentation";
 
 export default function StudioPage() {
-  // ========== Hooks ==========
-  const { pdfs, loading: isFetchingAllPDFs } = usePdfs();
-  const {
-    labels,
-    skippedLabels,
-    loading: isFetchingAllLabels,
-    saveLabel,
-    deleteLabel,
-    skipLabel,
-  } = useLabels();
-
   // ========== Refs ==========
-  const clipperRef = useRef<ClipperEditorComponentHandle>(null);
+  const uploadRef = useRef<UploadEditorComponentHandle>(null);
+  const patternSelectorRef =
+    useRef<PatternSelectorEditorComponentHandle>(null);
+  const clipperRef = useRef<ImageClipperEditorComponentHandle>(null);
   const overlayRef = useRef<OverlayEditorComponentHandle>(null);
   const mapRef = useRef<MapEditorComponentHandle>(null);
-  const [selectedPdf, setSelectedPdf] = useState<PdfFile | null>(null);
-  const [pageNumber, setPageNumber] = useState(1);
-  const [isSaving, setIsSaving] = useState(false);
+
+  // ========== Upload state ==========
+  const [mapImageFile, setMapImageFile] = useState<File | null>(null);
+  const [mapImageUrl, setMapImageUrl] = useState<string | null>(null);
+  const [mapImageDimensions, setMapImageDimensions] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+
+  // ========== Pattern selection state ==========
+  const [patterns, setPatterns] = useState<PatternCircle[]>([]);
+  const [patternsConfirmed, setPatternsConfirmed] = useState(false);
+  const [patternCrops, setPatternCrops] = useState<Record<string, Blob>>({});
+
+  // ========== Clip state ==========
+  const [clipResult, setClipResult] = useState<ExportResult | null>(null);
+  const [initialClipRect, setInitialClipRect] = useState<
+    { x: number; y: number; width: number; height: number } | undefined
+  >(undefined);
+
+  // ========== Georeference state ==========
   const [imageGeoCorners, setImageGeoCorners] = useState<GeoCorners | null>(
     null
   );
-  const [clipResult, setClipResult] = useState<ExportResult | null>(null);
   const [initialBounds, setInitialBounds] = useState<
     [[number, number], [number, number]] | undefined
   >(undefined);
   const [initialImage, setInitialImage] = useState<
     { url: string; corners: GeoCorners; opacity?: number } | undefined
   >(undefined);
-  const [initialClipRect, setInitialClipRect] = useState<
-    { x: number; y: number; width: number; height: number } | undefined
-  >(undefined);
 
-  // ========== Derived Values ==========
-  const pdfUrl = selectedPdf ? `/api/pdf/${selectedPdf.path}` : null;
-  const isLoadingResources = isFetchingAllPDFs || isFetchingAllLabels;
+  // ========== Segmentation ==========
+  const segmentation = useSegmentation();
+  const [segmentationResult, setSegmentationResult] =
+    useState<GeoJSON.FeatureCollection | null>(null);
 
   // ========== Callbacks ==========
 
-  const handleBack = useCallback(() => {
-    setSelectedPdf(null);
+  const handleGeoJSONChange = useCallback(
+    (geojson: GeoJSON.FeatureCollection) => {
+      setSegmentationResult(geojson);
+    },
+    []
+  );
+
+  const handleImageSelect = useCallback(
+    (file: File, url: string, width: number, height: number) => {
+      setMapImageFile(file);
+      setMapImageUrl(url);
+      setMapImageDimensions({ width, height });
+    },
+    []
+  );
+
+  const handleBackToUpload = useCallback(() => {
+    if (mapImageUrl) URL.revokeObjectURL(mapImageUrl);
+    setMapImageFile(null);
+    setMapImageUrl(null);
+    setMapImageDimensions(null);
+    setPatterns([]);
+    setPatternsConfirmed(false);
+    setPatternCrops({});
     setClipResult(null);
     setImageGeoCorners(null);
     setInitialBounds(undefined);
     setInitialImage(undefined);
     setInitialClipRect(undefined);
+    setSegmentationResult(null);
+  }, [mapImageUrl]);
+
+  const handleConfirmPatterns = useCallback(() => {
+    // Export all pattern crops before unmounting the pattern selector
+    const crops: Record<string, Blob> = {};
+
+    for (const pattern of patterns) {
+      const result = patternSelectorRef.current?.exportPatternCrop(pattern.id);
+      if (result) {
+        // Use toDataURL → fetch → blob (synchronous-like, avoids toBlob callback issues)
+        const dataUrl = result.buffer.toDataURL("image/png");
+        const binary = atob(dataUrl.split(",")[1]);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+          bytes[i] = binary.charCodeAt(i);
+        }
+        crops[pattern.id] = new Blob([bytes], { type: "image/png" });
+      }
+    }
+
+    if (Object.keys(crops).length === 0) {
+      console.warn("No pattern crops exported — check pattern selector ref");
+      return;
+    }
+
+    setPatternCrops(crops);
+    setPatternsConfirmed(true);
+  }, [patterns]);
+
+  const handleBackToPatterns = useCallback(() => {
+    setPatternsConfirmed(false);
+    setPatternCrops({});
+    setClipResult(null);
+    setImageGeoCorners(null);
+    setInitialBounds(undefined);
+    setInitialImage(undefined);
+    setInitialClipRect(undefined);
+    setSegmentationResult(null);
+    mapRef.current?.removeGeoJSONLayer();
+    mapRef.current?.removeImageLayer();
   }, []);
 
   const handleBackToClipper = useCallback(() => {
@@ -66,125 +137,91 @@ export default function StudioPage() {
     setImageGeoCorners(null);
     setInitialBounds(undefined);
     setInitialImage(undefined);
+    setSegmentationResult(null);
+    mapRef.current?.removeGeoJSONLayer();
     mapRef.current?.removeImageLayer();
   }, [clipResult]);
 
-  const handlePdfSelect = useCallback(
-    (hash: string | null) => {
-      const pdf = pdfs.find((p) => p.hash === hash) || null;
-      setSelectedPdf(pdf);
-      setPageNumber(1);
-      setInitialBounds(undefined);
-      setInitialImage(undefined);
+  const handleGeneratePolygons = useCallback(async () => {
+    if (!clipResult || !imageGeoCorners || patterns.length === 0) return;
 
-      // If this PDF already has a label, restore clip result and geo corners
-      if (hash && labels[hash]) {
-        const label = labels[hash];
-        const corners: GeoCorners = {
-          corner1: label.corners.topLeft,
-          corner2: label.corners.topRight,
-          corner3: label.corners.bottomLeft,
-          corner4: label.corners.bottomRight,
-        };
-        setImageGeoCorners(corners);
-        const lngs = [corners.corner1.lng, corners.corner2.lng, corners.corner3.lng, corners.corner4.lng];
-        const lats = [corners.corner1.lat, corners.corner2.lat, corners.corner3.lat, corners.corner4.lat];
-        setInitialBounds([
-          [Math.min(...lngs), Math.min(...lats)],
-          [Math.max(...lngs), Math.max(...lats)],
-        ]);
-        setInitialImage({
-          url: label.clippedImageUrl,
-          corners,
-          opacity: 0.7,
-        });
-
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext("2d");
-          ctx?.drawImage(img, 0, 0);
-          setClipResult({
-            buffer: canvas,
-            width: img.width,
-            height: img.height,
-            clipRect: {
-              x: label.clipRect.offsetX,
-              y: label.clipRect.offsetY,
-              width: label.clipRect.width,
-              height: label.clipRect.height,
-            },
-          });
-        };
-        img.src = label.clippedImageUrl;
-      }
-    },
-    [pdfs, labels]
-  );
-
-  const handleSaveLabel = useCallback(async () => {
-    if (!selectedPdf || !clipResult || !imageGeoCorners) return;
-
-    setIsSaving(true);
-    await saveLabel({
-      pdfHash: selectedPdf.hash,
-      pdfPath: selectedPdf.path,
-      corners: {
-        topLeft: imageGeoCorners.corner1,
-        topRight: imageGeoCorners.corner2,
-        bottomRight: imageGeoCorners.corner4,
-        bottomLeft: imageGeoCorners.corner3,
-      },
-      clipRect: clipResult.clipRect,
-      pageNumber,
-      clippedImageBuffer: clipResult.buffer,
+    // Convert clipped image to File
+    const imageBlob = await new Promise<Blob | null>((resolve) => {
+      clipResult.buffer.toBlob((blob) => resolve(blob), "image/png");
     });
-    setIsSaving(false);
+    if (!imageBlob) return;
+    const imageFile = new File([imageBlob], "map.png", { type: "image/png" });
 
-    // Reset state after saving
-    setImageGeoCorners(null);
-    mapRef.current?.removeImageLayer();
-    setClipResult(null);
-    setSelectedPdf(null);
-  }, [selectedPdf, clipResult, imageGeoCorners, pageNumber, saveLabel]);
+    // Compute extent from geo corners
+    const lngs = [
+      imageGeoCorners.corner1.lng,
+      imageGeoCorners.corner2.lng,
+      imageGeoCorners.corner3.lng,
+      imageGeoCorners.corner4.lng,
+    ];
+    const lats = [
+      imageGeoCorners.corner1.lat,
+      imageGeoCorners.corner2.lat,
+      imageGeoCorners.corner3.lat,
+      imageGeoCorners.corner4.lat,
+    ];
+    const extent = {
+      xmin: Math.min(...lngs),
+      ymin: Math.min(...lats),
+      xmax: Math.max(...lngs),
+      ymax: Math.max(...lats),
+    };
 
-  const handleDeleteLabel = useCallback(async () => {
-    if (!selectedPdf) return;
-    await deleteLabel(selectedPdf.hash);
-  }, [selectedPdf, deleteLabel]);
+    // Build pattern array from stored crops
+    const patternArray = patterns
+      .filter((p) => patternCrops[p.id])
+      .map((p) => ({
+        name: p.name,
+        crop: patternCrops[p.id],
+      }));
 
-  const handleSkipLabel = useCallback(async () => {
-    if (!selectedPdf) return;
-    await skipLabel(selectedPdf.hash, selectedPdf.path);
-    setSelectedPdf(null);
-    setClipResult(null);
-  }, [selectedPdf, skipLabel]);
+    if (patternArray.length === 0) {
+      console.error("No pattern crops available. patternCrops:", patternCrops);
+      return;
+    }
+
+    segmentation.mutate(
+      { image: imageFile, patterns: patternArray, extent },
+      {
+        onSuccess: (data) => {
+          setSegmentationResult(data);
+          mapRef.current?.addGeoJSONLayer(data);
+        },
+        onError: (err) => console.error("Segmentation failed:", err),
+      }
+    );
+  }, [clipResult, imageGeoCorners, patterns, patternCrops, segmentation]);
 
   return (
     <Layout
       sidebar={
-        <EditorSidebar
-          pdfs={pdfs}
-          labels={labels}
-          skippedLabels={skippedLabels}
-          onPdfSelect={handlePdfSelect}
+        <StudioSidebar
+          mapImageUrl={mapImageUrl}
+          mapImageFile={mapImageFile}
+          mapImageDimensions={mapImageDimensions}
+          patterns={patterns}
+          patternsConfirmed={patternsConfirmed}
           clipResult={clipResult}
           setClipResult={setClipResult}
-          isLoadingResources={isLoadingResources}
-          pdfUrl={pdfUrl}
+          uploadRef={uploadRef}
+          patternSelectorRef={patternSelectorRef}
           clipperRef={clipperRef}
           overlayRef={overlayRef}
           mapRef={mapRef}
           imageGeoCorners={imageGeoCorners}
           setImageGeoCorners={setImageGeoCorners}
-          onSkip={handleSkipLabel}
-          onSaveLabel={handleSaveLabel}
-          isSaving={isSaving}
-          onBack={handleBack}
+          segmentationResult={segmentationResult}
+          isSegmenting={segmentation.isPending}
+          onBackToUpload={handleBackToUpload}
+          onConfirmPatterns={handleConfirmPatterns}
+          onBackToPatterns={handleBackToPatterns}
           onBackToClipper={handleBackToClipper}
+          onGeneratePolygons={handleGeneratePolygons}
         />
       }
     >
@@ -195,19 +232,24 @@ export default function StudioPage() {
           backgroundColor: "#f0f0f0",
         }}
       >
-        <EditorComponent
+        <StudioEditorComponent
+          mapImageUrl={mapImageUrl}
+          patternsConfirmed={patternsConfirmed}
           clipResult={clipResult}
-          isLoadingResources={isLoadingResources}
-          pdfUrl={pdfUrl}
-          pageNumber={pageNumber}
+          uploadRef={uploadRef}
+          patternSelectorRef={patternSelectorRef}
           clipperRef={clipperRef}
           overlayRef={overlayRef}
           mapRef={mapRef}
           imageGeoCorners={imageGeoCorners}
           onImageGeoCornersChange={setImageGeoCorners}
+          onImageSelect={handleImageSelect}
+          onPatternsChange={setPatterns}
           initialBounds={initialBounds}
           initialImage={initialImage}
           initialClipRect={initialClipRect}
+          segmentationResult={segmentationResult}
+          onGeoJSONChange={handleGeoJSONChange}
         />
       </Box>
     </Layout>

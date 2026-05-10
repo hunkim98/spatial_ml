@@ -1,9 +1,9 @@
 import React from "react";
 import { NoEditorComponent } from "./NoEditorComponent";
 import {
-  ClipperEditorComponent,
-  ClipperEditorComponentHandle,
-} from "./ClipperEditorComponent";
+  PDFClipperEditorComponent,
+  PDFClipperEditorComponentHandle,
+} from "./PDFClipperEditorComponent";
 import {
   OverlayEditorComponent,
   OverlayEditorComponentHandle,
@@ -18,7 +18,7 @@ interface EditorComponentProps {
   pdfUrl: string | null;
   pageNumber: number;
   clipResult: ExportResult | null;
-  clipperRef: React.RefObject<ClipperEditorComponentHandle | null>;
+  clipperRef: React.RefObject<PDFClipperEditorComponentHandle | null>;
   overlayRef: React.RefObject<OverlayEditorComponentHandle | null>;
   mapRef: React.RefObject<MapEditorComponentHandle | null>;
   imageGeoCorners: GeoCorners | null;
@@ -28,7 +28,7 @@ interface EditorComponentProps {
   initialClipRect?: { x: number; y: number; width: number; height: number };
 }
 
-export default function EditorComponent({
+export default function LabelEditorComponent({
   isLoadingResources,
   pdfUrl,
   pageNumber,
@@ -57,7 +57,7 @@ export default function EditorComponent({
   // Clipping phase
   if (!clipResult) {
     return (
-      <ClipperEditorComponent
+      <PDFClipperEditorComponent
         ref={clipperRef}
         pdfUrl={pdfUrl}
         pageNumber={pageNumber}

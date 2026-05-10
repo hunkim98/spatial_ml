@@ -9,11 +9,13 @@ import { ClipRectEditToolController } from "./tools/clipRectEditToolController";
 import { ClipRectRestoreController } from "./tools/clipRectRestoreController";
 import { DragInteractionController } from "./dragInteractionController";
 import { ExportController } from "./exportController";
+import { ImageUpdateController } from "./imageUpdateController";
 
 export type ClipperController = {
   dragInteractionController: DragInteractionController;
   mouseInteractionController: MouseInteractionController;
   pdfUpdateController: PdfUpdateController;
+  imageUpdateController: ImageUpdateController;
   undoController: UndoController;
   redoController: RedoController;
   canvasSizeScaleController: CanvasSizeScaleController;
