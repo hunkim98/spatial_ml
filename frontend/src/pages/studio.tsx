@@ -13,6 +13,48 @@ import { Box } from "@mantine/core";
 import { useCallback, useRef, useState } from "react";
 import { useSegmentation } from "@/hooks/useSegmentation";
 
+// ========== Helpers for regional re-segmentation ==========
+
+function getFeatureCentroid(
+  f: GeoJSON.Feature
+): [number, number] | null {
+  const coords: number[][] = [];
+  const geom = f.geometry;
+  if (geom.type === "Polygon") {
+    for (const c of (geom as GeoJSON.Polygon).coordinates[0]) coords.push(c);
+  } else if (geom.type === "MultiPolygon") {
+    for (const c of (geom as GeoJSON.MultiPolygon).coordinates[0][0])
+      coords.push(c);
+  }
+  if (coords.length === 0) return null;
+  return [
+    coords.reduce((s, c) => s + c[0], 0) / coords.length,
+    coords.reduce((s, c) => s + c[1], 0) / coords.length,
+  ];
+}
+
+function mergeGeoJSON(
+  existing: GeoJSON.FeatureCollection,
+  incoming: GeoJSON.FeatureCollection,
+  extent: { xmin: number; ymin: number; xmax: number; ymax: number }
+): GeoJSON.FeatureCollection {
+  const kept = existing.features.filter((f) => {
+    const centroid = getFeatureCentroid(f);
+    if (!centroid) return true;
+    const [lng, lat] = centroid;
+    return (
+      lng < extent.xmin ||
+      lng > extent.xmax ||
+      lat < extent.ymin ||
+      lat > extent.ymax
+    );
+  });
+  return {
+    type: "FeatureCollection",
+    features: [...kept, ...incoming.features],
+  };
+}
+
 export default function StudioPage() {
   // ========== Refs ==========
   const uploadRef = useRef<UploadEditorComponentHandle>(null);
@@ -131,6 +173,13 @@ export default function StudioPage() {
     mapRef.current?.removeImageLayer();
   }, []);
 
+  const handleBackToGeoreference = useCallback(() => {
+    setSegmentationResult(null);
+    setInitialBounds(undefined);
+    setInitialImage(undefined);
+    mapRef.current?.removeGeoJSONLayer();
+  }, []);
+
   const handleBackToClipper = useCallback(() => {
     setInitialClipRect(clipResult?.clipRect);
     setClipResult(null);
@@ -185,17 +234,163 @@ export default function StudioPage() {
       return;
     }
 
+    // Create image URL for the overlay in Phase 5
+    const imageUrl = clipResult.buffer.toDataURL("image/png");
+
     segmentation.mutate(
       { image: imageFile, patterns: patternArray, extent },
       {
         onSuccess: (data) => {
           setSegmentationResult(data);
+          setInitialImage({
+            url: imageUrl,
+            corners: imageGeoCorners,
+            opacity: 0.5,
+          });
+          setInitialBounds([
+            [extent.xmin, extent.ymin],
+            [extent.xmax, extent.ymax],
+          ]);
           mapRef.current?.addGeoJSONLayer(data);
         },
         onError: (err) => console.error("Segmentation failed:", err),
       }
     );
   }, [clipResult, imageGeoCorners, patterns, patternCrops, segmentation]);
+
+  const handleRegenerateHere = useCallback(async () => {
+    if (
+      !clipResult ||
+      !imageGeoCorners ||
+      !segmentationResult ||
+      patterns.length === 0
+    )
+      return;
+
+    // 1. Get viewport bounds from MapLibre
+    const mapInstance = mapRef.current?.getMapRef();
+    if (!mapInstance) return;
+    const bounds = mapInstance.getMap().getBounds();
+
+    // 2. Compute full image extent from GeoCorners
+    const lngs = [
+      imageGeoCorners.corner1.lng,
+      imageGeoCorners.corner2.lng,
+      imageGeoCorners.corner3.lng,
+      imageGeoCorners.corner4.lng,
+    ];
+    const lats = [
+      imageGeoCorners.corner1.lat,
+      imageGeoCorners.corner2.lat,
+      imageGeoCorners.corner3.lat,
+      imageGeoCorners.corner4.lat,
+    ];
+    const imageExtent = {
+      xmin: Math.min(...lngs),
+      ymin: Math.min(...lats),
+      xmax: Math.max(...lngs),
+      ymax: Math.max(...lats),
+    };
+
+    // 3. Clamp viewport to image extent
+    const clampedExtent = {
+      xmin: Math.max(bounds.getWest(), imageExtent.xmin),
+      ymin: Math.max(bounds.getSouth(), imageExtent.ymin),
+      xmax: Math.min(bounds.getEast(), imageExtent.xmax),
+      ymax: Math.min(bounds.getNorth(), imageExtent.ymax),
+    };
+
+    if (
+      clampedExtent.xmin >= clampedExtent.xmax ||
+      clampedExtent.ymin >= clampedExtent.ymax
+    ) {
+      console.warn("Viewport does not overlap with the image extent");
+      return;
+    }
+
+    // 4. Map clamped geo-extent to pixel coords on clipResult.buffer
+    const imgW = clipResult.buffer.width;
+    const imgH = clipResult.buffer.height;
+    const geoW = imageExtent.xmax - imageExtent.xmin;
+    const geoH = imageExtent.ymax - imageExtent.ymin;
+
+    const pxLeft = Math.max(
+      0,
+      Math.floor(((clampedExtent.xmin - imageExtent.xmin) / geoW) * imgW)
+    );
+    const pxRight = Math.min(
+      imgW,
+      Math.ceil(((clampedExtent.xmax - imageExtent.xmin) / geoW) * imgW)
+    );
+    const pxTop = Math.max(
+      0,
+      Math.floor(((imageExtent.ymax - clampedExtent.ymax) / geoH) * imgH)
+    );
+    const pxBottom = Math.min(
+      imgH,
+      Math.ceil(((imageExtent.ymax - clampedExtent.ymin) / geoH) * imgH)
+    );
+
+    const cropW = pxRight - pxLeft;
+    const cropH = pxBottom - pxTop;
+    if (cropW <= 0 || cropH <= 0) return;
+
+    // 5. Crop using a temp canvas
+    const cropCanvas = document.createElement("canvas");
+    cropCanvas.width = cropW;
+    cropCanvas.height = cropH;
+    const ctx = cropCanvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(
+      clipResult.buffer,
+      pxLeft,
+      pxTop,
+      cropW,
+      cropH,
+      0,
+      0,
+      cropW,
+      cropH
+    );
+
+    const cropBlob = await new Promise<Blob | null>((resolve) => {
+      cropCanvas.toBlob((blob) => resolve(blob), "image/png");
+    });
+    if (!cropBlob) return;
+    const cropFile = new File([cropBlob], "map_crop.png", {
+      type: "image/png",
+    });
+
+    // 6. Build pattern array
+    const patternArray = patterns
+      .filter((p) => patternCrops[p.id])
+      .map((p) => ({ name: p.name, crop: patternCrops[p.id] }));
+    if (patternArray.length === 0) return;
+
+    // 7. Send to API with clamped extent
+    segmentation.mutate(
+      { image: cropFile, patterns: patternArray, extent: clampedExtent },
+      {
+        onSuccess: (newData) => {
+          const merged = mergeGeoJSON(
+            segmentationResult,
+            newData,
+            clampedExtent
+          );
+          setSegmentationResult(merged);
+          mapRef.current?.updateGeoJSONLayer(merged);
+        },
+        onError: (err) => console.error("Regeneration failed:", err),
+      }
+    );
+  }, [
+    clipResult,
+    imageGeoCorners,
+    segmentationResult,
+    patterns,
+    patternCrops,
+    segmentation,
+  ]);
 
   return (
     <Layout
@@ -221,7 +416,9 @@ export default function StudioPage() {
           onConfirmPatterns={handleConfirmPatterns}
           onBackToPatterns={handleBackToPatterns}
           onBackToClipper={handleBackToClipper}
+          onBackToGeoreference={handleBackToGeoreference}
           onGeneratePolygons={handleGeneratePolygons}
+          onRegenerateHere={handleRegenerateHere}
         />
       }
     >

@@ -3,12 +3,13 @@ import {
   Divider,
   Group,
   Paper,
+  Slider,
   Stack,
   Switch,
   Text,
   Title,
 } from "@mantine/core";
-import { IconArrowLeft, IconDownload } from "@tabler/icons-react";
+import { IconArrowLeft, IconDownload, IconRefresh } from "@tabler/icons-react";
 import { PatternCircle } from "@/canvas/pattern_selector/types";
 import { MapEditorComponentHandle } from "../canvas/MapEditorComponent";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -17,6 +18,8 @@ interface ResultsSidebarProps {
   result: GeoJSON.FeatureCollection;
   patterns: PatternCircle[];
   mapRef: React.RefObject<MapEditorComponentHandle | null>;
+  isRegenerating: boolean;
+  onRegenerateHere: () => void;
   onBackToGeoreference: () => void;
 }
 
@@ -24,9 +27,11 @@ export default function ResultsSidebar({
   result,
   patterns,
   mapRef,
+  isRegenerating,
+  onRegenerateHere,
   onBackToGeoreference,
 }: ResultsSidebarProps) {
-  const [imageVisible, setImageVisible] = useState(true);
+  const [imageOpacity, setImageOpacity] = useState(50);
 
   // Zone names from the result
   const zoneNames = useMemo(() => {
@@ -72,13 +77,14 @@ export default function ResultsSidebar({
     setZoneVisibility((prev) => ({ ...prev, [zoneName]: visible }));
   }, []);
 
-  const handleToggleImage = useCallback(
-    (visible: boolean) => {
-      setImageVisible(visible);
-      if (visible) {
-        mapRef.current?.showImageLayer(0.7);
-      } else {
+  const handleImageOpacityChange = useCallback(
+    (value: number) => {
+      setImageOpacity(value);
+      if (value === 0) {
         mapRef.current?.hideImageLayer();
+      } else {
+        mapRef.current?.showImageLayer(value / 100);
+        mapRef.current?.setImageLayerOpacity(value / 100);
       }
     },
     [mapRef]
@@ -124,14 +130,17 @@ export default function ResultsSidebar({
         {result.features.length !== 1 ? "s" : ""} detected.
       </Text>
 
-      <Group justify="space-between">
-        <Text size="sm">Map image</Text>
-        <Switch
-          checked={imageVisible}
-          onChange={(e) => handleToggleImage(e.currentTarget.checked)}
+      <Stack gap={4}>
+        <Text size="sm">Map image opacity</Text>
+        <Slider
+          value={imageOpacity}
+          onChange={handleImageOpacityChange}
+          min={0}
+          max={100}
+          label={(v) => `${v}%`}
           size="sm"
         />
-      </Group>
+      </Stack>
 
       <Divider
         label={
@@ -200,6 +209,16 @@ export default function ResultsSidebar({
           No zones detected.
         </Text>
       )}
+
+      <Button
+        leftSection={<IconRefresh size={16} />}
+        onClick={onRegenerateHere}
+        loading={isRegenerating}
+        variant="light"
+        fullWidth
+      >
+        Regenerate Here
+      </Button>
 
       <Button
         leftSection={<IconDownload size={16} />}

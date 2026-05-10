@@ -34,6 +34,8 @@ interface StudioSidebarProps {
   onBackToPatterns: () => void;
   onBackToClipper: () => void;
   onGeneratePolygons: () => void;
+  onRegenerateHere: () => void;
+  onBackToGeoreference: () => void;
 }
 
 export default function StudioSidebar({
@@ -58,6 +60,8 @@ export default function StudioSidebar({
   onBackToPatterns,
   onBackToClipper,
   onGeneratePolygons,
+  onRegenerateHere,
+  onBackToGeoreference,
 }: StudioSidebarProps) {
   // Phase 1: Upload
   if (!mapImageUrl) {
@@ -101,9 +105,9 @@ export default function StudioSidebar({
         result={segmentationResult}
         patterns={patterns}
         mapRef={mapRef}
-        onBackToGeoreference={() => {
-          // TODO: clear segmentation result and go back
-        }}
+        isRegenerating={isSegmenting}
+        onRegenerateHere={onRegenerateHere}
+        onBackToGeoreference={onBackToGeoreference}
       />
     );
   }

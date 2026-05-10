@@ -104,6 +104,26 @@ export default function PolygonEditorComponent({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor]);
 
+  // ========== Sync external geojson prop changes (e.g. from regenerate) ==========
+
+  const prevGeojsonRef = useRef<GeoJSON.FeatureCollection | null>(null);
+
+  useEffect(() => {
+    if (!editor || !geojson) return;
+    // Skip initial load (handled by the editor setup effect above)
+    if (prevGeojsonRef.current === null) {
+      prevGeojsonRef.current = geojson;
+      return;
+    }
+    if (prevGeojsonRef.current === geojson) return;
+    prevGeojsonRef.current = geojson;
+
+    editor.setGeoJSON(JSON.parse(JSON.stringify(geojson)));
+    mapRef.current?.updateGeoJSONLayer(geojson);
+    editor.controllers.projectionController.execute();
+    editor.render();
+  }, [editor, geojson, mapRef]);
+
   // ========== Keyboard events ==========
 
   useEffect(() => {

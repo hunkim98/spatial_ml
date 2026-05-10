@@ -15,11 +15,11 @@ function UploadSidebar({
 }: UploadSidebarProps) {
   return (
     <Stack gap="md">
-      <Title order={5}>Zone Segmentation</Title>
+      <Title order={5}>Polygon Generation</Title>
 
       <Text size="sm" c="dimmed">
-        Upload a zoning map image to begin. The image will be cropped,
-        georeferenced, and segmented into zone polygons.
+        Upload a map image to begin. The image will be cropped,
+        georeferenced, and segmented into polygons.
       </Text>
 
       {mapImageFile && mapImageDimensions ? (

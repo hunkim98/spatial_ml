@@ -4,11 +4,10 @@ import {
   AppShell,
   Group,
   Title,
-  ThemeIcon,
   Button,
   Divider,
+  Image,
 } from "@mantine/core";
-import { IconMapPin } from "@tabler/icons-react";
 
 interface LayoutProps {
   children: ReactNode;
@@ -17,10 +16,7 @@ interface LayoutProps {
 }
 
 const NAV_ITEMS = [
-  { href: "/", label: "Home" },
-  { href: "/labeller", label: "Editor" },
-  { href: "/segment", label: "Segment" },
-  { href: "/demo", label: "Demo" },
+  { href: "/studio", label: "Studio" },
 ];
 
 export function Layout({ children, sidebar, hideHeader }: LayoutProps) {
@@ -41,13 +37,7 @@ export function Layout({ children, sidebar, hideHeader }: LayoutProps) {
       <AppShell.Header>
         <Group h="100%" px="md" justify="space-between">
           <Group gap="sm">
-            <ThemeIcon
-              size="md"
-              variant="gradient"
-              gradient={{ from: "cyan", to: "teal" }}
-            >
-              <IconMapPin size={16} />
-            </ThemeIcon>
+            <Image src="/icon.png" alt="Spatially" w={32} h={32} />
             <Title order={5}>Spatially</Title>
             <Divider orientation="vertical" mx="xs" />
             <Group gap={4}>

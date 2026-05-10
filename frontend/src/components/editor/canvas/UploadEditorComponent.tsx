@@ -79,7 +79,7 @@ export const UploadEditorComponent = forwardRef<
       >
         <Stack align="center" gap="md">
           <IconPhoto size={48} color="gray" />
-          <Title order={4}>Upload a Zoning Map</Title>
+          <Title order={4}>Upload a Map Image</Title>
           <Text size="sm" c="dimmed" ta="center">
             Drag and drop an image here, or click to browse.
             <br />
