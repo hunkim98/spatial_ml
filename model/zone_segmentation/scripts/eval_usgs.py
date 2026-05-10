@@ -357,7 +357,10 @@ class TiledSegmenter:
         pat_t = self.pattern_transform(pattern).to(self.device)
         results = []
 
-        for i in range(0, len(tiles), batch_size):
+        n_batches = (len(tiles) + batch_size - 1) // batch_size
+        for i in tqdm(range(0, len(tiles), batch_size),
+                       desc="    Tiles", total=n_batches, unit="batch",
+                       leave=False, dynamic_ncols=True):
             batch_tiles = tiles[i:i + batch_size]
             orig_sizes = [(t.size[0], t.size[1]) for t in batch_tiles]
 
@@ -577,6 +580,7 @@ def evaluate_map(
     clean_pattern: bool,
     do_save_viz: bool,
     viz_dir: Path | None,
+    batch_size: int = 4,
 ) -> list[dict]:
     """Evaluate all poly features for one map.
 
@@ -608,6 +612,7 @@ def evaluate_map(
             prob_map = predict_tiled(
                 segmenter, map_pil, pattern_img,
                 tile_size=tile_size, overlap=tile_overlap,
+                batch_size=batch_size,
             )
 
         pred_binary = (prob_map >= threshold).astype(np.uint8)
@@ -783,6 +788,8 @@ def main():
                         help="Skip maps that have no ground truth rasters (faster)")
     parser.add_argument("--max-maps", type=int, default=0,
                         help="Max maps to process (0 = all)")
+    parser.add_argument("--batch-size", type=int, default=4,
+                        help="Tile inference batch size (default: 4; lower = less VRAM)")
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -889,6 +896,7 @@ def main():
             clean_pattern=not args.no_clean_pattern,
             do_save_viz=args.save_viz,
             viz_dir=viz_dir,
+            batch_size=args.batch_size,
         )
         all_results.extend(results)
 

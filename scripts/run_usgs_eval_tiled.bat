@@ -1,8 +1,9 @@
 @echo off
 REM =========================================================================
 REM  Run USGS AI4CMA tiled evaluation on Windows
-REM  Usage: run_usgs_eval_tiled.bat [device]
-REM    device: cuda (default), cpu
+REM  Usage: run_usgs_eval_tiled.bat [device] [max_maps]
+REM    device:   cuda (default), cpu
+REM    max_maps: 0 = all (default 2 for quick sanity check)
 REM =========================================================================
 
 setlocal
@@ -15,13 +16,17 @@ set WORK_DIR=%TEMP%\usgs_eval
 set OUTPUT_DIR=results\usgs_eval_vanilla_v2_tiled
 set TILE_SIZE=512
 set TILE_OVERLAP=128
-set BATCH_SIZE=16
+set BATCH_SIZE=4
 set THRESHOLD=0.5
 set MODEL_TYPE=vanilla
 
 REM --- Device selection ----------------------------------------------------
 set DEVICE=%1
 if "%DEVICE%"=="" set DEVICE=cuda
+
+REM --- Max maps (sanity-check default = 2; pass 0 for all) -----------------
+set MAX_MAPS=%2
+if "%MAX_MAPS%"=="" set MAX_MAPS=2
 
 REM --- Check prerequisites -------------------------------------------------
 echo =========================================================================
@@ -34,6 +39,7 @@ echo  Dataset:     %DATASET%
 echo  Device:      %DEVICE%
 echo  Tile size:   %TILE_SIZE% (overlap %TILE_OVERLAP%)
 echo  Batch size:  %BATCH_SIZE%
+echo  Max maps:    %MAX_MAPS% (0 = all)
 echo  Model type:  %MODEL_TYPE%
 echo  Output dir:  %OUTPUT_DIR%
 echo  Work dir:    %WORK_DIR%
@@ -77,6 +83,8 @@ python -m model.zone_segmentation.scripts.eval_usgs ^
     --output-dir "%OUTPUT_DIR%" ^
     --tile-size %TILE_SIZE% ^
     --tile-overlap %TILE_OVERLAP% ^
+    --batch-size %BATCH_SIZE% ^
+    --max-maps %MAX_MAPS% ^
     --threshold %THRESHOLD% ^
     --device %DEVICE% ^
     --model-type %MODEL_TYPE% ^

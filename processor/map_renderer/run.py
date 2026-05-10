@@ -65,6 +65,20 @@ def load_gdf(geojson_path: Path) -> tuple[gpd.GeoDataFrame, str] | None:
         logger.warning(f"No valid zone data in {geojson_path.name}")
         return None
 
+    # Drop rows with null/empty/invalid geometries
+    gdf = gdf[gdf.geometry.notna() & ~gdf.geometry.is_empty].copy()
+    gdf = gdf[gdf.is_valid | gdf.make_valid().is_valid].copy()
+    if gdf.empty:
+        logger.warning(f"No valid geometries in {geojson_path.name}")
+        return None
+
+    # Check for NaN/Inf bounds
+    import numpy as np
+    bounds = gdf.total_bounds
+    if not np.all(np.isfinite(bounds)):
+        logger.warning(f"Invalid geometry bounds in {geojson_path.name}")
+        return None
+
     gdf[zone_col] = gdf[zone_col].astype(str)
     return gdf, zone_col
 
