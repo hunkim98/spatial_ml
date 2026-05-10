@@ -45,6 +45,9 @@ def _find_safe_center_vector(zone_gdf, extent, img_w, img_h):
     radius_geo = pole.distance(largest.boundary)
     safe_radius = radius_geo * 0.7  # 30% safety margin
 
+    if geo_w <= 0 or geo_h <= 0:
+        return None
+
     px_x = img_w / geo_w
     px_y = img_h / geo_h
     cx = int((pole.x - xmin) * px_x)
