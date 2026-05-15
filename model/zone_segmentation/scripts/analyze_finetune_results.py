@@ -509,7 +509,7 @@ def main():
 
     # Paper-ready LaTeX table snippet — drop-in for the headline table.
     # Reads scratch_lr1e-4 results too if present (for the fair-LR row).
-    sc_fair_path = args.out_dir.parent.parent.parent / "results/finetune_eval_scratch_lr1e-4_e20/results.json"
+    sc_fair_path = Path("results/finetune_eval_scratch_lr1e-4_e20/results.json")
     sc_fair_mean = sc_fair_median = None
     if sc_fair_path.exists():
         try:
