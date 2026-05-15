@@ -242,14 +242,24 @@ $\geq 30$                             &   1        & 0.561 \\
 
 Mean F1 rises monotonically with color distinctiveness (Spearman $r{=}0.21$,
 $p{<}10^{-12}$, $n{=}1{,}141$) and with feature area (Pearson $r{=}0.45$ on
-$\log_{10}$ area fraction, $p{<}10^{-56}$). The model has the right inductive
-bias---it succeeds on individual features up to F1 $0.93$---but the
-\emph{aggregate} ceiling is bounded by the fact that 98\% of swatches have
-a near-twin in their own map. Distinguishing them requires either explicit
-disambiguation machinery (LOAM's color-set auxiliary
-vectors~\cite{lin2023loam}) or substantial real supervision in the confusable
-regime. We adopt neither in the pretrained model; the next section measures
-how much fine-tuning on 2 maps recovers.
+$\log_{10}$ area fraction, $p{<}10^{-56}$). Figure~\ref{fig:deltae} visualizes
+the binned F1 trend. The model has the right inductive bias---it succeeds on
+individual features up to F1 $0.93$---but the \emph{aggregate} ceiling is
+bounded by the fact that 98\% of swatches have a near-twin in their own map.
+Distinguishing them requires either explicit disambiguation machinery (LOAM's
+color-set auxiliary vectors~\cite{lin2023loam}) or substantial real supervision
+in the confusable regime. We adopt neither in the pretrained model; the next
+section measures how much fine-tuning on 2 maps recovers.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\columnwidth]{figures/f1_by_deltaE.png}
+\caption{Zero-shot F1 binned by CIEDE2000 distance to the nearest other
+swatch in the same map. F1 rises monotonically with color distinctiveness,
+but 98\% of features fall in the difficult ${<}15$ regime
+($n{=}1{,}141$ features, 24 maps).}
+\label{fig:deltae}
+\end{figure}
 
 
 %% =====================================================================
@@ -301,6 +311,17 @@ Across the 22 held-out maps, every map shows pretrained$>$zero-shot (22/22)
 and every map shows pretrained$>$matched-LR-scratch (22/22). The gain is
 not driven by outliers: removing the largest-improvement map
 (KY\_WestFranklin) drops the aggregate mean by only $0.001$.
+Figure~\ref{fig:per_map} shows the per-map breakdown.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/per_map_comparison.png}
+\caption{Per-map mean F1 across the 22 held-out USGS maps for three
+conditions: zero-shot pretrained, pretrained$+$2-map fine-tune, and
+random-init$+$2-map fine-tune (matched LR). Maps sorted by relative gain
+of pretrained over zero-shot. All 22 maps show positive gains.}
+\label{fig:per_map}
+\end{figure}
 
 We also tested fine-tune set composition by replacing AK\_Dillingham (typical
 map, $\Delta E{=}6.2$) with AK\_Hughes (hardest, $\Delta E{=}2.5$). Held-out
