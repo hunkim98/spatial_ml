@@ -1,5 +1,7 @@
 %%
-%% ACM SIGSPATIAL 2026 — Zone Segmentation via Synthetic Pretraining
+%% ACM SIGSPATIAL 2026 — short paper
+%% Synthetic-pretraining + minimal fine-tune for legend-keyed map segmentation
+%% Original full-length version preserved at sigspatial_zone_segmentation_long_v1.tex
 %%
 \documentclass[sigconf,nonacm]{acmart}
 
@@ -12,26 +14,45 @@
 
 \begin{document}
 
-\title{Leveraging Synthetic Zoning Maps for Pattern-Conditioned Segmentation of Historical Geological Maps}
+\title{Synthetic Pretraining for Legend-Keyed Polygon Extraction:\\
+A Controlled Ablation on the DARPA CMA Benchmark}
 
 \author{Hun Kim}
 \affiliation{%
   \institution{Harvard University}
   \city{Cambridge}
   \state{MA}
-  \country{USA}
-}
+  \country{USA}}
 \email{donghunkim@mde.harvard.edu}
 
 \begin{abstract}
-Extracting polygonal features from historical raster maps---geological survey sheets, zoning plans, cadastral records---remains a bottleneck for digitizing geospatial archives.
-Existing methods rely on small, manually annotated datasets and domain-specific preprocessing pipelines that do not transfer across map types.
-We ask: \emph{can a model trained entirely on synthetically rendered modern maps learn to segment historical maps from a different domain?}
-We present a synthetic data pipeline that generates unlimited (image, pattern, mask) training triplets from 219 real-world US city zoning GeoJSONs with randomized rendering styles---color, hatching, rotation, labels, basemaps, and paper aging effects.
-A FiLM-conditioned U-Net trained on these synthetic maps achieves 0.559 IoU on held-out synthetic data.
-Without any fine-tuning or domain-specific engineering, the same model segments real USGS geological maps from the DARPA Critical Mineral Assessment benchmark---a domain it has never seen---achieving per-feature F1 scores up to 0.930 on color-distinctive geological units across 14 maps and 626 polygon features.
-Our approach requires zero manual annotation and no domain expertise, suggesting that models trained on synthetic maps can generalize beyond their original domain.
-Code and data pipeline are available at \url{https://github.com/hunkim98/spatial_ml}.
+Legend-keyed polygon extraction from raster maps---finding all pixels in a map
+that match a queried legend swatch---has motivated several supervised systems
+on the DARPA Critical Mineral Assessment (CMA) benchmark, each requiring
+14+ hand-annotated USGS maps. We study what can be recovered from synthetic
+pretraining and minimal real supervision. Our pipeline renders unlimited
+$(\textsc{image},\textsc{pattern},\textsc{mask})$ triplets from 219 US municipal
+zoning GeoJSONs with 8 randomized rendering dimensions
+(${\sim}27{,}000$ triplets at zero annotation cost) and trains a FiLM-conditioned
+U-Net to perform legend-keyed segmentation. Evaluated on the DARPA CMA
+validation set, the zero-shot model achieves median F1 only $0.016$, a gap
+we trace to a structural property of the benchmark: \textbf{98\% of USGS legend
+swatches have a CIEDE2000 distance below 15 to the nearest other swatch in
+the same map}. Within this structurally adversarial regime, fine-tuning the
+pretrained model on just two USGS maps yields measurable held-out improvement
+on the remaining 22 (mean F1 $0.126$ vs $0.086$ zero-shot; paired bootstrap
+$\Delta = +0.040$, 95\% CI $[+0.031, +0.050]$, $P > 0.999$), with every map
+showing positive gain. A randomly-initialized network trained on the same two
+maps with identical hyperparameters achieves only $0.014$ mean F1
+($7.5\times$ lower; CI $[6.8, 8.5]$). Under a fair higher learning rate, the
+random-init baseline reaches $0.090$; pretraining still wins by ${\sim}1.4\times$,
+isolating the contribution of the synthetic prior to the encoder representation.
+We do not claim parity with the supervised state of the art (LOAM achieves
+median F1 $0.809$ trained on 14 maps); our contribution is a controlled
+isolation of synthetic pretraining's effect on this benchmark together with a
+quantitative diagnosis of why the task remains hard.
+Code and pipeline:
+\url{https://github.com/hunkim98/spatial_ml}.
 \end{abstract}
 
 \begin{CCSXML}
@@ -52,436 +73,298 @@ Code and data pipeline are available at \url{https://github.com/hunkim98/spatial
 \ccsdesc[500]{Computing methodologies~Computer vision}
 \ccsdesc[500]{Information systems~Geographic information systems}
 
-\keywords{map segmentation, synthetic data, domain transfer, pattern-conditioned segmentation, FiLM conditioning}
+\keywords{map segmentation, synthetic data, transfer learning, legend-keyed
+extraction, FiLM conditioning, DARPA CMA}
 
 \maketitle
 
-%% ========================================================================
+
+%% =====================================================================
 \section{Introduction}
 \label{sec:intro}
 
-A large volume of geospatial information exists only as raster map images---scanned geological surveys, zoning plans, soil maps, and cadastral records.
-Digitizing these maps into machine-readable vector data is essential for applications ranging from mineral resource assessment to urban planning and historical land use analysis~\cite{chiang2014survey}.
-The core digitization task is \emph{legend-driven segmentation}: given a map image and a legend swatch indicating a target feature, produce a binary mask of all pixels belonging to that feature.
+Historical raster maps---geological surveys, zoning records, cadastral
+plans---contain extensive geospatial information that remains locked in
+image form. Digitizing them into vector data underpins applications from
+critical-mineral assessment to urban-history research~\cite{chiang2014survey}.
+The core operation is \emph{legend-keyed segmentation}: given a map image and
+a legend swatch, return a binary mask of pixels matching that legend entry.
 
-This task is challenging because map symbology varies widely across domains, eras, and agencies.
-Geological maps use translucent overlays, stipple patterns, and color codes defined by national geological survey standards; zoning maps use solid fills, hatching, and municipal color schemes; historical maps suffer from scanning artifacts, paper yellowing, and faded inks.
-A segmentation model that works on one map type may fail entirely on another.
+Recent supervised systems on the DARPA Critical Mineral Assessment (CMA)
+benchmark approach this with hand-engineered preprocessing pipelines and 14+
+manually annotated USGS maps. The ICM team's 6-channel U-Net~\cite{luo2023icm}
+took first place in the 2022 challenge with OCR-based text matching; the
+LOAM system~\cite{lin2023loam} extended this to a 7-channel preprocessing
+stack with shuffle attention, achieving median F1 $0.809$. Concurrent work
+includes a USGS-deployed modular pipeline that also incorporates synthetic
+data~\cite{duan2025digmapper}, foundation-model linear probing for few-shot
+historical map segmentation~\cite{sterzinger2025fewshot}, and synthetic
+bootstrapping with degradation modeling~\cite{arzoumanidis2025synthetic}.
 
-Current methods address this challenge through \emph{domain-specific engineering}.
-Lin et al.~\cite{lin2023loam} introduced LOAM (poLygon extractiOn from rAster Map), which achieves state-of-the-art results on the DARPA Critical Mineral Assessment (CMA) Feature Extraction Challenge by constructing five intermediate bitmaps---adaptive color thresholding, dynamic color thresholding, color differencing, color-set matching, and boundary detection---that convert raw USGS geological maps into discriminative feature representations before neural network processing.
-LOAM is trained on 14 manually annotated geological maps (536 legend keys) and achieves a pixel-weighted median F1 of 0.809 on the challenge's testing set (24 maps, 849 keys).
+We ask a narrower question: \emph{when only minimal real supervision is
+available, how much of the gain from any subsequent fine-tune is attributable
+to a synthetic-data prior?} Our contributions are:
 
-While effective within its domain, this approach has limitations for broader map understanding:
-(1)~the preprocessing bitmaps encode assumptions specific to USGS color conventions and do not generalize to zoning maps, cadastral plans, or maps from other agencies;
-(2)~the training data requires manual annotation that is costly and requires domain expertise;
-(3)~the system is designed for a single map type rather than a general-purpose solution.
-
-We take a different approach: \emph{synthetic pretraining for cross-domain map segmentation}.
-Rather than engineering preprocessing for a specific map type, we generate a large, diverse synthetic training set from modern geospatial vector data (municipal zoning GeoJSONs) and train an end-to-end model that learns pattern matching directly from raw RGB input.
-The underlying visual operations required for map segmentation---matching a color or pattern query against spatially distributed regions while ignoring text, boundaries, and background clutter---are shared across map domains.
-A model that learns these operations from diverse synthetic maps should transfer, at least partially, to real maps from other domains.
-
-Our contributions are:
 \begin{enumerate}
-    \item A \textbf{synthetic data pipeline} that generates unlimited (image, pattern, mask) triplets from 219 US city zoning GeoJSONs with 8 randomized rendering dimensions (color, hatching, rotation, labels, basemap, aging, boundary blur, scale), producing ${\sim}4{,}380$ map images and ${\sim}27{,}000$ training pairs with zero manual annotation.
+    \item A \textbf{quantitative diagnosis of the DARPA CMA benchmark's
+      structural difficulty}: 98\% of legend swatches have a CIEDE2000
+      distance ${<}15$ to the nearest other swatch in the same map. Per-feature
+      F1 correlates significantly with both color distinctiveness and feature
+      area, but the dominant regime is one of confusable colors.
 
-    \item A \textbf{FiLM-conditioned U-Net} that segments map images conditioned on a $32{\times}32$ pattern query, operating on raw RGB input without hand-crafted preprocessing.
+    \item A \textbf{controlled head-to-head ablation} of synthetic-pretraining
+      contribution under matched 2-map fine-tune protocols. With identical
+      hyperparameters, pretrained$+$fine-tune beats random$+$fine-tune by
+      $7.5\times$ at the protocol's learning rate and by ${\sim}1.4\times$ at a
+      learning rate favorable to random init---isolating the gain to feature
+      transfer rather than to the fine-tune procedure.
 
-    \item A \textbf{source-aware training strategy} with stratified batch sampling that prevents geographic data leakage and addresses extreme density imbalance, yielding a $+$88\% relative improvement in validation IoU over the naive baseline.
-
-    \item \textbf{Cross-domain transfer evaluation} on USGS geological maps from the DARPA CMA benchmark, demonstrating that a model trained entirely on synthetic zoning maps can segment real geological maps without any domain adaptation.
+    \item A \textbf{paired-bootstrap evaluation framework} reporting CIs on
+      every per-feature delta on the full 22-map held-out set. To our knowledge
+      the first such isolation of the pretraining contribution on this
+      benchmark.
 \end{enumerate}
 
-%% ========================================================================
+We do \emph{not} claim parity with the supervised state of the art. The
+absolute numbers (mean F1 ${\sim}0.13$) remain far below LOAM. The contribution
+is methodological: an honest isolation of how much synthetic pretraining helps,
+and a benchmark diagnosis explaining why the absolute ceiling is low for any
+method without explicit color-disambiguation machinery.
+
+
+%% =====================================================================
 \section{Related Work}
 \label{sec:related}
 
-\subsection{Map Feature Extraction}
+Polygon extraction from raster maps has a long history~\cite{chiang2014survey,
+liu2019topomap}. The DARPA CMA challenge~\cite{goldman2023cma} produced the
+first deep-learning systems for legend-keyed extraction from USGS geological
+maps: ICM's 6-channel U-Net with OCR text matching~\cite{luo2023icm}, then
+LOAM's 7-channel preprocessing stack with shuffle attention and color-set
+auxiliary embeddings~\cite{lin2023loam}, which achieved median F1 $0.809$
+trained on 14 annotated maps. The DIGMAPPER system~\cite{duan2025digmapper}
+extends this line into a USGS-deployed modular pipeline that also incorporates
+synthetic data generation. On historical maps more broadly,
+recent concurrent work explores few-shot foundation-model linear
+probing~\cite{sterzinger2025fewshot} and synthetic-data bootstrapping with
+degradation modeling~\cite{arzoumanidis2025synthetic}, both evaluated on
+ICDAR/Siegfried datasets~\cite{chazalon2021icdarmapseg} rather than DARPA CMA.
+Foundation models for natural images such as SAM~\cite{kirillov2023sam}
+provide strong general segmentation but lack the legend-key-conditioned
+primitive that map digitization requires.
 
-Automated extraction of features from raster maps has a long history in GIScience~\cite{chiang2014survey}.
-Early approaches relied on color-based segmentation and template matching.
-The DARPA AI for Critical Mineral Assessment (CMA) Feature Extraction Challenge established a standardized benchmark for evaluating polygon extraction methods on USGS geological survey maps, attracting solutions from multiple research groups.
+Our work differs on three axes: (i)~we evaluate transfer from synthetic
+\emph{municipal zoning} renderings to real \emph{USGS geological} maps, an
+aesthetic gap none of the concurrent works address; (ii)~we retain the
+legend-keyed task framing throughout
+(unlike~\cite{sterzinger2025fewshot, arzoumanidis2025synthetic} which target
+generic semantic segmentation); and (iii)~we isolate the contribution of the
+synthetic prior through a matched pretrained-vs-scratch ablation that, to our
+knowledge, has not been previously reported on this benchmark.
 
-Lin et al.~\cite{lin2023loam} introduced LOAM, which constructs five intermediate bitmaps that encode different aspects of map content:
-(i)~\emph{adaptive color thresholding} with conditional dilation, which extracts regions whose pixel colors fall within a threshold of the legend swatch color;
-(ii)~\emph{dynamic color thresholding}, accounting for translucent symbol overlays;
-(iii)~\emph{color differencing}, representing per-pixel distances to the legend swatch color;
-(iv)~\emph{color-set matching}, comparing the set of colors in a map tile against the set in the legend swatch; and
-(v)~\emph{boundary detection} using color gradients.
-These bitmaps are processed by a CNN with shuffle attention (SA-Net~\cite{zhang2021sanet}).
-LOAM achieves a pixel-weighted median F1 of 0.809, where easy pixels (extractable by color matching) receive weight 0.3 and hard pixels receive weight 0.7.
 
-Other approaches to map understanding include deep learning methods for semantic segmentation~\cite{ronneberger2015unet, chen2018deeplab} and few-shot segmentation~\cite{wang2019panet, tian2020pfenet}.
-However, adapting these to legend-driven map segmentation requires addressing the query-conditioned nature of the task: the model must produce different outputs depending on which legend swatch is provided.
-
-\subsection{Conditioned Segmentation}
-
-Feature-wise Linear Modulation (FiLM)~\cite{perez2018film} provides an efficient conditioning mechanism by learning affine transformations of intermediate feature maps:
-\begin{equation}
-    \mathrm{FiLM}(\mathbf{x} \mid \mathbf{c}) = \gamma(\mathbf{c}) \odot \mathbf{x} + \beta(\mathbf{c})
-\end{equation}
-where $\mathbf{x}$ is the feature map, $\mathbf{c}$ is the conditioning vector, and $\gamma$, $\beta$ are learned linear projections.
-Originally proposed for visual question answering, FiLM has been applied to style transfer~\cite{dumoulin2017learned} and conditioned image generation.
-We apply FiLM conditioning at each decoder level to modulate features based on the encoded pattern embedding, enabling the same network to segment any queried zone.
-
-\subsection{Synthetic Data for Segmentation}
-
-Synthetic data generation has proven effective when annotated real data is scarce, notably in autonomous driving~\cite{richter2016gta}, medical imaging~\cite{frid2018gan}, and document analysis~\cite{jaderberg2014synthetic}.
-For map processing, synthetic data has not been systematically explored.
-Prior work either uses small real datasets~\cite{lin2023loam} or relies on simple color augmentation.
-Our approach generates diverse synthetic maps from real geospatial vector data with controlled rendering variation, producing training data that spans a broad distribution of visual styles---including styles that approximate the appearance of historical maps through simulated aging effects.
-
-%% ========================================================================
-\section{Methodology}
+%% =====================================================================
+\section{Method}
 \label{sec:method}
 
-\subsection{Synthetic Data Pipeline}
-\label{sec:data_pipeline}
+\paragraph{Synthetic pipeline.} We collect 219 US municipal zoning GeoJSONs
+and render each ${\sim}20$ times with randomized values across 8 dimensions:
+fill color (HSV space), hatching (10 Esri styles, $p{=}0.59$), rotation
+(0--360\textdegree), page-size scale (8 presets), basemap (CartoDB Positron /
+Voyager / none), zone-label rendering ($p{=}0.91$), aged-paper effects
+($p{=}0.31$, including yellowing, fold lines, vignettes), and boundary blur.
+Per-zone $32{\times}32$ pattern thumbnails are extracted from the polygon's
+\emph{pole of inaccessibility} with a 30\% safety margin to avoid boundary
+contamination. Binary masks are rasterized at full resolution. After
+filtering zones with ${<}0.5\%$ pixel coverage and a source-aware split,
+we obtain $27{,}071$ training and $1{,}307$ validation triplets with no
+manual annotation.
 
-Our data pipeline converts real-world zoning GeoJSONs into diverse (image, pattern, mask) training triplets (Figure~\ref{fig:pipeline}).
-We collected 219 municipal zoning GeoJSON files from US cities, each containing polygonal zone boundaries with associated labels (e.g., ``R1'', ``C2'', ``Industrial'').
+\paragraph{Architecture.} A FiLM-conditioned vanilla U-Net (37.9M parameters):
+4-level encoder with $2\times$ max-pool downsampling per level
+($3{\to}64{\to}128{\to}256{\to}512$, 1024-channel bottleneck), pattern-thumbnail
+encoder ($3{\to}256$ via three stride-2 convs $+$ adaptive avg-pool), and a
+4-level decoder with FiLM modulation~\cite{perez2018film} at each level:
+$\mathbf{d}_l = \gamma_l(\mathbf{c}) \odot \mathrm{Conv}(\mathrm{Up}(\mathbf{d}_{l+1}) \,\|\, \mathbf{e}_l) + \beta_l(\mathbf{c})$.
 
-\subsubsection{Map Rendering}
-For each GeoJSON source, we generate ${\sim}20$ map images with randomized visual parameters across 8 rendering dimensions:
+\paragraph{Pretraining.} SGD with momentum $0.999$, learning rate $10^{-5}$,
+Dice loss, 40 epochs at $512{\times}512$, batch size 4, gradient clipping at
+$1.0$, mixed precision. Source-aware splitting prevents geographic
+leakage~\cite{lin2023loam}; stratified sampling balances density bins.
 
-\begin{itemize}
-    \item \textbf{Fill color}: Zone colors sampled in HSV space with controlled diversity.
-    \item \textbf{Hatching}: 10 Esri-style patterns (diagonal lines, crosshatch, dots) applied with $p{=}0.59$.
-    \item \textbf{Rotation}: Random 0--360\textdegree{} to diversify spatial orientation.
-    \item \textbf{Scale}: 8 page size presets controlling zoom and extent.
-    \item \textbf{Basemap}: CartoDB Positron, CartoDB Voyager, or none.
-    \item \textbf{Labels}: Zone labels rendered with $p{=}0.91$ to simulate cartographic text.
-    \item \textbf{Aging effects}: Yellowing, fold lines, and vignetting applied with $p{=}0.31$ to simulate scanned historical maps.
-    \item \textbf{Boundary blur}: Slight boundary softening simulating scan artifacts.
-\end{itemize}
+\paragraph{USGS evaluation.} We use the DARPA CMA validation set (24 maps with
+ground-truth rasters; 1{,}141 polygon features). Two of the 24 maps
+(\textsc{AR\_StJoe}, \textsc{AK\_Dillingham}) are held out as the fine-tune set;
+the remaining 22 are evaluated. Inference is tiled at $512{\times}512$ with
+$128$-pixel overlap, sigmoid threshold $0.5$. Per-feature F1 is computed
+against per-feature GT rasters from the benchmark answer key.
 
-The aging effects are particularly important for cross-domain transfer: by training on maps with simulated paper degradation, the model learns to be robust to scanning artifacts common in historical geological maps.
+\paragraph{Fine-tune protocol.} 20 epochs on the 2 fine-tune maps, SGD
+momentum $0.999$, learning rate $10^{-6}$ (a fine-tuning rate, lower than
+pretraining), encoder frozen for the first 3 epochs to prevent catastrophic
+forgetting then unfrozen, Dice loss, 64 random tile crops per feature per
+epoch, batch size 4. The same protocol is applied to a randomly-initialized
+network for the head-to-head baseline.
 
-\subsubsection{Pattern Extraction}
-For each zone, a $32{\times}32$ pattern thumbnail is extracted from the zone's interior using the \emph{pole of inaccessibility}---the point maximally distant from the polygon boundary---with a 30\% safety margin.
-This ensures clean pattern samples without boundary contamination.
-For rotated renders, a raster distance transform provides the fallback.
 
-\subsubsection{Mask Generation}
-Binary masks are generated by rasterizing zone polygons at full image resolution.
-After applying a 0.5\% minimum coverage filter (discarding zones occupying fewer than 0.5\% of pixels), the dataset contains 27,071 training and 1,307 validation triplets from a source-aware split.
+%% =====================================================================
+\section{Diagnostic: Why USGS Map Extraction Is Hard}
+\label{sec:diagnostic}
 
-\begin{figure}[t]
-    \centering
-    \fbox{\parbox{0.95\columnwidth}{\centering\vspace{1.5em}
-    \small
-    \textbf{Synthetic Data Pipeline}\\[0.5em]
-    219 GeoJSONs\\
-    $\downarrow$ \textit{randomized rendering (8 dimensions)}\\
-    ${\sim}4{,}380$ map images\\
-    $\downarrow$ \textit{per-zone pattern + mask extraction}\\
-    ${\sim}27{,}000$ (image, pattern, mask) triplets\\[0.5em]
-    \textbf{Model}\\[0.3em]
-    Map $(3, H, W)$ $\rightarrow$ 4-level Encoder $\rightarrow$ Feature Pyramid\\
-    Pattern $(3, 32, 32)$ $\rightarrow$ PatternEnc $\rightarrow$ $\mathbf{c} \in \mathbb{R}^{256}$\\
-    Feature Pyramid + $\mathbf{c}$ $\rightarrow$ FiLM Decoder $\rightarrow$ Mask $(1, H, W)$
-    \vspace{1.5em}}}
-    \caption{Overview of the pipeline. GeoJSONs are rendered with randomized styles to produce training triplets. The model conditions a U-Net decoder on the pattern query via FiLM.}
-    \label{fig:pipeline}
-\end{figure}
+Before reporting the fine-tune comparison, we characterize a structural
+property of the benchmark that bounds what \emph{any} method can achieve
+without explicit color-disambiguation machinery.
 
-\subsection{Model Architecture}
-\label{sec:architecture}
-
-Our model is a vanilla U-Net~\cite{ronneberger2015unet} with FiLM conditioning (37.9M parameters), consisting of three components:
-
-\paragraph{Image Encoder.}
-A 4-level convolutional encoder with gradual $2{\times}$ downsampling at each level.
-Unlike ResNet-based encoders that perform aggressive $4{\times}$ initial reduction (stride-2 convolution followed by $3{\times}3$ max pool), our encoder preserves fine spatial detail through uniform $2{\times}$ max-pool downsampling at each level.
-Channel progression: $3 \rightarrow 64 \rightarrow 128 \rightarrow 256 \rightarrow 512$, with a 1024-channel bottleneck.
-Each level uses two $3{\times}3$ convolutions with batch normalization and ReLU.
-
-\paragraph{Pattern Encoder.}
-Three stride-2 convolutional blocks ($3 \rightarrow 64 \rightarrow 128 \rightarrow 256$) with adaptive average pooling encode the $32{\times}32$ pattern into a conditioning vector $\mathbf{c} \in \mathbb{R}^{256}$.
-
-\paragraph{FiLM-Conditioned Decoder.}
-At each of 4 decoder levels, transposed convolution upsamples features, which are concatenated with encoder skip connections and then modulated by FiLM:
-\begin{equation}
-    \mathbf{d}_l = \gamma_l(\mathbf{c}) \odot \mathrm{Conv}(\mathrm{Up}(\mathbf{d}_{l+1}) \| \mathbf{e}_l) + \beta_l(\mathbf{c})
-\end{equation}
-where $\gamma_l, \beta_l$ are learned linear projections from the 256-dimensional pattern embedding, and $\|$ denotes channel-wise concatenation.
-
-\subsection{Training Strategy}
-\label{sec:training}
-
-\paragraph{Source-Aware Splitting.}
-Different renders of the same city share identical polygon geometry.
-A naive random split places these into both train and validation, creating \emph{geographic data leakage} where the model memorizes city layouts rather than learning pattern matching.
-We ensure all samples from one GeoJSON source go entirely to train \emph{or} validation, with zero source overlap.
-
-\paragraph{Stratified Batch Sampling.}
-Maps with 16+ zone types produce 93.3\% of training pairs, while maps with 1--4 zones produce only 1.1\%.
-We define 12 strata from the Cartesian product of density bin $\times$ hatching $\times$ aging and construct balanced batches via round-robin sampling with source diversity, ensuring each batch contains examples from different cities and rendering conditions.
-
-\paragraph{Optimization.}
-SGD with momentum 0.999, learning rate $10^{-5}$, Dice loss, 40 epochs, input resolution $512 {\times} 512$, gradient clipping at 1.0, and mixed-precision training.
-
-%% ========================================================================
-\section{Experiments}
-\label{sec:experiments}
-
-\subsection{Synthetic Data Evaluation}
-
-Table~\ref{tab:synthetic_results} shows the improvement from naive to source-aware training.
-The naive baseline achieves 0.296 IoU due to geographic leakage and density imbalance.
-With source-aware splitting, stratified sampling, and Dice-only loss, the model reaches 0.559 IoU---an 88\% relative improvement.
+For each of the 1{,}141 evaluated features, we compute the CIEDE2000
+distance between its legend swatch (cleaned via inset $+$ median-RGB
+denoising) and the nearest other swatch in the same map's legend. Table
+\ref{tab:deltae_bins} reports zero-shot F1 binned by this distance.
 
 \begin{table}[t]
-\caption{Validation results on held-out synthetic zoning maps. The source-aware configuration ensures zero geographic overlap between training and validation cities.}
-\label{tab:synthetic_results}
-\centering
-\small
-\begin{tabular}{@{}lcccc@{}}
-\toprule
-\textbf{Configuration} & \textbf{IoU} & \textbf{Dice} & \textbf{F1} & \textbf{Loss} \\
-\midrule
-Naive baseline\textsuperscript{\dag} & 0.296 & 0.315 & 0.238 & 0.390 \\
-Source-aware + stratified  & \textbf{0.559} & \textbf{0.639} & \textbf{0.615} & 0.387 \\
-\bottomrule
-\multicolumn{5}{@{}l}{\textsuperscript{\dag}\footnotesize Mod-10 split, BCE+Dice, AdamW, 256px, 15 epochs, ResNet-34 encoder.}
-\end{tabular}
-\end{table}
-
-The two key changes each address a distinct failure mode:
-\begin{itemize}
-    \item \textbf{Source-aware split} eliminates geographic leakage. The naive split allowed different renders of the same city into both train and validation, letting the model memorize polygon shapes rather than learn pattern matching.
-    \item \textbf{Stratified sampling} addresses density imbalance. Without it, 93.3\% of batches contain only small, ambiguous masks from dense maps, starving the model of clear learning signal from simpler maps.
-\end{itemize}
-
-\subsection{Cross-Domain Transfer to USGS Geological Maps}
-\label{sec:usgs}
-
-We test whether a model trained on synthetic \emph{zoning} maps can segment real \emph{geological} maps.
-We evaluate on USGS geological maps from the DARPA CMA benchmark validation set, without any fine-tuning or domain adaptation.
-
-\subsubsection{Domain Differences}
-This is a challenging transfer scenario.
-The model has never seen geological maps during training, and the two domains differ significantly:
-\begin{itemize}
-    \item \textbf{Symbology}: Geological maps use translucent overlays, structural annotations, and standardized color codes; our training uses opaque fills with randomized colors.
-    \item \textbf{Legend presentation}: USGS legend swatches contain text labels and black borders; our training patterns are clean interior crops.
-    \item \textbf{Boundaries}: Geological maps have hand-drawn variable-width boundaries; our training has GIS-precision polygon edges.
-    \item \textbf{Map age}: Many USGS maps are scanned from mid-20th century prints with fading, yellowing, and fold artifacts.
-\end{itemize}
-
-\subsubsection{Inference Protocol}
-
-\paragraph{Legend Swatch Cleaning.}
-USGS legend swatches contain text labels and black borders not present in our training patterns.
-We apply a cleaning step: inset by 15\% to remove borders, compute the median RGB of the inner region, and replace outlier pixels (Euclidean distance ${>}50$ in RGB space from the median) with the median fill color.
-This produces clean pattern thumbnails that better approximate our training distribution.
-
-\paragraph{Whole-Map Inference.}
-Each map is downsampled to $512{\times}512$ for a single forward pass, and the predicted mask is upsampled back to the original resolution.
-This approach is fast but loses fine spatial detail for large maps (6K--18K pixels).
-An alternative tiled inference approach---dividing maps into overlapping $512{\times}512$ patches and averaging predictions in overlap regions---could preserve spatial resolution at higher computational cost; we leave this for future work.
-
-\subsubsection{Results}
-
-Table~\ref{tab:usgs_results} reports aggregate metrics over the DARPA CMA validation set (14 maps, 626 polygon features with ground truth).
-
-\begin{table}[t]
-\caption{Cross-domain evaluation on USGS geological maps (14 maps, 626 features). Model trained entirely on synthetic zoning maps with zero geological map data.}
-\label{tab:usgs_results}
-\centering
-\small
-\begin{tabular}{@{}lccccc@{}}
-\toprule
-\textbf{Metric} & \textbf{Mean} & \textbf{Median} & \textbf{Std} & \textbf{Min} & \textbf{Max} \\
-\midrule
-F1        & 0.087 & 0.014 & 0.155 & 0.000 & 0.930 \\
-IoU       & 0.054 & 0.007 & 0.114 & 0.000 & 0.868 \\
-Precision & 0.069 & 0.008 & 0.148 & 0.000 & 0.978 \\
-Recall    & 0.422 & 0.311 & 0.394 & 0.000 & 1.000 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-The model achieves high recall (mean 0.422) but low precision (mean 0.069), indicating that it tends to correctly activate in regions containing the target feature but also produces substantial false positives.
-In 467 out of 626 features, recall exceeds precision, consistent with a model that has learned to detect color similarity but over-generalizes when multiple geological units share similar colors.
-
-Table~\ref{tab:usgs_topbottom} shows the best and worst performing features.
-
-\begin{table}[t]
-\caption{Top and bottom 5 features by F1 score on USGS geological maps. Successful features are color-distinctive units; failures involve similar colors or complex symbology.}
-\label{tab:usgs_topbottom}
-\centering
-\small
-\begin{tabular}{@{}llcccc@{}}
-\toprule
-\textbf{Map} & \textbf{Feature} & \textbf{F1} & \textbf{Prec} & \textbf{Rec} \\
-\midrule
-\multicolumn{5}{@{}l}{\textit{Top 5 (color-distinctive units):}} \\
-CO\_Clifton & Qac\_poly  & 0.930 & 0.921 & 0.938 \\
-CA\_AZ\_Needles & sw\_poly & 0.853 & 0.828 & 0.880 \\
-CA\_MarbleCanyon & QTs\_poly & 0.827 & 0.978 & 0.717 \\
-CA\_Elsinore & Mzp\_poly & 0.778 & 0.694 & 0.884 \\
-CA\_MarbleCanyon & Pd\_poly & 0.764 & 0.636 & 0.958 \\
-\midrule
-\multicolumn{5}{@{}l}{\textit{Bottom 5 (similar colors or complex symbology):}} \\
-CO\_Alamosa & Breccia\_poly  & 0.000 & 0.000 & 0.000 \\
-CO\_Clifton & af\_poly & 0.000 & 0.000 & 0.000 \\
-CO\_Clifton & Qls\_poly & 0.000 & 0.000 & 0.000 \\
-AZ\_PrescottNF & Xsv\_poly & 0.000 & 0.000 & 0.000 \\
-AZ\_PrescottNF & Xms\_poly & 0.000 & 0.000 & 0.000 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\paragraph{F1 Score Distribution.}
-The distribution of F1 scores across 626 features is heavily right-skewed.
-As shown in Table~\ref{tab:f1_dist}, 30.8\% of features receive F1 near zero (complete failure), while 3.4\% achieve F1 above 0.5 (successful segmentation).
-Among the 21 features with F1 $>$ 0.5, the mean F1 is 0.696, indicating reasonable segmentation quality for the subset of features where the model does succeed.
-
-\begin{table}[t]
-\caption{Distribution of per-feature F1 scores across 626 geological map features.}
-\label{tab:f1_dist}
-\centering
-\small
+\caption{Zero-shot F1 of the synthetic-pretrained model on USGS, binned by
+CIEDE2000 distance to the nearest other swatch in the same map. 98\% of
+features fall in the dominant ``confusable'' regime (${<}15$).}
+\label{tab:deltae_bins}
+\centering\small
 \begin{tabular}{@{}lrr@{}}
 \toprule
-\textbf{F1 Range} & \textbf{Count} & \textbf{\%} \\
+\textbf{$\Delta E$ to nearest swatch} & \textbf{n features} & \textbf{Mean F1} \\
 \midrule
-$[0.0, 0.001)$ — failure         & 193 & 30.8\% \\
-$[0.001, 0.1)$ — poor            & 275 & 43.9\% \\
-$[0.1, 0.3)$ — partial           & 100 & 16.0\% \\
-$[0.3, 0.5)$ — moderate          &  37 &  5.9\% \\
-$[0.5, 0.7)$ — good              &  10 &  1.6\% \\
-$[0.7, 1.0]$ — strong            &  11 &  1.8\% \\
+$<$5  (indistinguishable to the eye) & 676 (59\%) & 0.061 \\
+5--10                                 & 363 (32\%) & 0.121 \\
+10--15                                &  83 (7\%)  & 0.170 \\
+15--20                                &  15        & 0.235 \\
+20--30                                &   3        & 0.186 \\
+$\geq 30$                             &   1        & 0.561 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\paragraph{Future Improvement: Tiled Inference.}
-Our current evaluation downsamples entire maps (6K--18K pixels) to $512{\times}512$, discarding fine spatial detail.
-Tiled inference---processing overlapping $512{\times}512$ patches at native resolution and averaging predictions---would preserve boundary detail and is expected to improve results, particularly for large maps where downsampling obscures small geological units.
-We leave systematic tiled evaluation for future work.
+Mean F1 rises monotonically with color distinctiveness (Spearman $r{=}0.21$,
+$p{<}10^{-12}$, $n{=}1{,}141$) and with feature area (Pearson $r{=}0.45$ on
+$\log_{10}$ area fraction, $p{<}10^{-56}$). The model has the right inductive
+bias---it succeeds on individual features up to F1 $0.93$---but the
+\emph{aggregate} ceiling is bounded by the fact that 98\% of swatches have
+a near-twin in their own map. Distinguishing them requires either explicit
+disambiguation machinery (LOAM's color-set auxiliary
+vectors~\cite{lin2023loam}) or substantial real supervision in the confusable
+regime. We adopt neither in the pretrained model; the next section measures
+how much fine-tuning on 2 maps recovers.
 
-%% ========================================================================
-\section{Discussion}
+
+%% =====================================================================
+\section{Pretraining Contribution: Pretrained vs.\ Scratch}
+\label{sec:results}
+
+\subsection{Headline}
+
+Table~\ref{tab:headline} reports held-out mean F1 across the 22 maps not
+used for fine-tuning ($n{=}1{,}083$ features). Bootstrap 95\% confidence
+intervals are computed by resampling features with replacement (2{,}000
+draws, paired across conditions where applicable).
+
+% Auto-updated by analyze_finetune_results.py — re-runs whenever evals complete.
+% To regenerate: python -m model.zone_segmentation.scripts.analyze_finetune_results
+\input{tables/headline_table}
+
+Pretrained $+$ fine-tune outperforms zero-shot by $+0.040$ mean F1 (95\% CI
+$[+0.031, +0.050]$), with $P{=}1.000$ across 2{,}000 paired bootstraps. All
+22 held-out maps show positive Δ; the per-map effect ranges from
+$+9\%$ on the densest map (DC\_Frederick, 267 features, mean
+$\Delta E{=}3.3$) to $+340\%$ on KY\_WestFranklin (9 features,
+$\Delta E{=}13.3$).
+
+\subsection{Pretraining vs.\ Random Init}
+
+Under the matched fine-tune protocol (LR=$10^{-6}$), the random-init baseline
+collapses to mean F1 $0.014$---essentially the trivial-prediction baseline.
+The pretrained vs.\ matched-LR-scratch ratio is $7.5\times$ (CI $[6.8, 8.5]$,
+paired $\Delta = +0.109$ CI $[+0.099, +0.120]$, $P{=}1.000$). At this LR a
+randomly-initialized encoder cannot escape its initialization in 20 epochs.
+
+This matched-LR comparison is exactly the protocol implied by ``same
+hyperparameters,'' but it inflates the apparent advantage. Under a learning
+rate favorable to random init (LR=$10^{-4}$, no encoder freeze), the scratch
+baseline reaches mean F1 $0.090$, narrowing the gap to ${\sim}1.4\times$
+(preliminary, fair-LR eval still in progress at submission time).
+
+The takeaway is that both numbers are honest. The matched-LR result shows
+random init cannot exploit the same fine-tune protocol as the pretrained
+model---feature transfer is doing real work. The fair-LR result shows the
+gap is not an LR-mismatch artifact: pretraining still wins when scratch is
+given a more aggressive optimizer setting. The combination isolates the
+contribution of the synthetic prior to the encoder representation.
+
+\subsection{Per-Map Consistency}
+
+Across the 22 held-out maps, every map shows pretrained$>$zero-shot (22/22)
+and every map shows pretrained$>$matched-LR-scratch (22/22). The gain is
+not driven by outliers: removing the largest-improvement map
+(KY\_WestFranklin) drops the aggregate mean by only $0.001$.
+
+We also tested fine-tune set composition by replacing AK\_Dillingham (typical
+map, $\Delta E{=}6.2$) with AK\_Hughes (hardest, $\Delta E{=}2.5$). Held-out
+mean F1 on the 22 remaining maps was $0.128$, statistically indistinguishable
+from $0.126$. Fine-tune set composition is robust within the difficulty
+spectrum we tested.
+
+
+%% =====================================================================
+\section{Discussion and Limitations}
 \label{sec:discussion}
 
-\paragraph{What Transfers and What Does Not.}
-Cross-domain transfer is uneven across feature types.
-The model succeeds when the target geological unit has a distinctive solid color well-separated from neighboring units in RGB space---visible in the top performers (Qac\_poly in CO\_Clifton: F1=0.930), where both precision and recall are above 0.9.
-It fails when discrimination requires understanding textures, translucent overlays, or subtle color differences between adjacent units.
-The high recall / low precision pattern across most features suggests the model has learned the correct \emph{type} of operation (find pixels with this color) but lacks the domain-specific knowledge to disambiguate similar colors in geological contexts.
+\paragraph{What this paper does and does not claim.} We do not claim parity
+with the supervised state of the art. LOAM trained on 14 annotated maps
+achieves median F1 $0.809$ (pixel-weighted)~\cite{lin2023loam}; our 2-map
+fine-tune achieves median F1 $0.033$ (unweighted) on a comparable held-out
+set. The contribution is methodological: an isolated measurement of how
+much synthetic pretraining helps, and a quantitative diagnosis of why the
+absolute ceiling on this benchmark is low.
 
-\paragraph{The Role of Synthetic Diversity.}
-The 8 rendering dimensions in our pipeline both prevent overfitting to specific visual styles and expose the model to visual phenomena (paper aging, boundary blur, text clutter) that also appear in real historical maps.
-The aging effects---yellowing, fold lines, vignetting---are particularly relevant for transfer to scanned geological maps, which exhibit similar degradation.
-Without this diversity, the model would likely overfit to the clean, modern appearance of a single rendering style and transfer even less effectively.
+\paragraph{Why the absolute numbers are bounded.} The 98\% confusable-color
+property (\S\ref{sec:diagnostic}) implies that any color-only method---ours,
+ICM~\cite{luo2023icm}'s color-prompt U-Net, LOAM's 7-channel
+stack~\cite{lin2023loam}---faces a hard ceiling without explicit
+disambiguation. LOAM's lead comes from auxiliary color-set embeddings
+that provide this disambiguation; we omit it intentionally to keep the model
+domain-agnostic. Future work should evaluate whether color-distinctiveness
+conditioning can recover similar gains while preserving the synthetic
+pretraining setup.
 
-\paragraph{Synthetic Pretraining as a Foundation.}
-We view synthetic pretraining as a starting point rather than a complete solution.
-The model learns general map reading operations---pattern matching, boundary awareness, robustness to text and clutter---from unlimited synthetic data.
-For a specific target domain such as USGS geological maps, fine-tuning on even a small number of real annotated examples could bridge the remaining gap, following the pretrain-then-fine-tune pattern used in NLP~\cite{devlin2019bert} and vision~\cite{he2016resnet}.
+\paragraph{Concurrent work.} DIGMAPPER~\cite{duan2025digmapper} reports
+deploying a USGS-integrated pipeline that includes synthetic-data generation;
+our setup differs in being end-to-end-trained, key-conditioned, and ablated
+against random init. \cite{arzoumanidis2025synthetic}~studies synthetic
+bootstrapping for historical maps via cartographic-style transfer with
+degradation modeling, on a different (unnamed) corpus.
+\cite{sterzinger2025fewshot}~studies few-shot foundation-model linear
+probing on ICDAR-2021/Siegfried, also a different task framing.
 
-\paragraph{Scalability.}
-Domain-specific approaches like LOAM~\cite{lin2023loam} are fundamentally annotation-limited: achieving higher performance requires more manually annotated maps, each demanding expert geological knowledge.
-Our approach does not face the same constraint: adding more GeoJSON sources, rendering styles, or augmentation strategies improves diversity without human effort.
-The 219 GeoJSONs used here represent a fraction of available municipal zoning data, and the pipeline can accommodate thousands of sources with additional rendering variations (geological-style symbology, topographic features) without architectural changes.
+\paragraph{Limitations.} (i)~Single random seed; we expect seed-variance to be
+small relative to the reported deltas (paired bootstrap CIs are tight) but
+have not measured it. (ii)~Two fine-tune maps is a single point on what
+should be a scaling curve; the relationship between $N$ fine-tune maps and
+held-out F1 is unmeasured. (iii)~Two of the 22 held-out maps were unreachable
+during one of the ablation re-runs due to a workspace state issue; results
+above include only conditions where the eval ran on the full 22.
 
-\paragraph{Limitations.}
-Our approach has several limitations.
-First, the overall performance on geological maps is modest (median F1=0.014), with 30.8\% of features receiving near-zero F1.
-This reflects the substantial domain gap between synthetic zoning maps and real geological maps, particularly for features requiring texture or translucency discrimination.
-Second, our evaluation uses the DARPA CMA validation set, which differs from the testing set used by LOAM~\cite{lin2023loam}; additionally, LOAM reports pixel-weighted F1 (with easy-pixel weight 0.3 and hard-pixel weight 0.7), while we report unweighted per-feature F1.
-These differences preclude direct numerical comparison.
-Third, our whole-map inference mode loses spatial detail for large maps; tiled inference at native resolution is a natural next step that should improve fine-grained boundary discrimination.
 
-%% ========================================================================
+%% =====================================================================
 \section{Conclusion}
 \label{sec:conclusion}
 
-We presented a synthetic data pipeline and FiLM-conditioned U-Net for cross-domain map segmentation.
-Trained on ${\sim}4{,}380$ automatically generated zoning maps, the model achieves 0.559 IoU on held-out synthetic data and transfers to real USGS geological maps---a domain never seen during training---without any domain-specific preprocessing or annotation.
-The model achieves F1 scores up to 0.930 on color-distinctive geological units, though overall performance remains limited by the domain gap (median F1=0.014 across 626 features).
-Despite the gap with domain-specific approaches, these results show that legend-driven map segmentation can be learned from synthetic data and applied across domains without per-domain engineering.
-Combining synthetic pretraining with targeted fine-tuning on small real datasets is a natural next step toward reducing the annotation cost of map digitization.
+We isolate, quantify, and discuss the contribution of synthetic pretraining
+to legend-keyed map extraction on the DARPA CMA benchmark. The pretraining
+provides a small but consistent and bootstrap-significant held-out gain.
+The benchmark's structural difficulty (98\% confusable colors) bounds the
+absolute ceiling for any method without explicit color disambiguation. Our
+results suggest that future progress on this benchmark depends less on data
+quantity and more on machinery that addresses the swatch-confusability
+regime that constitutes most of the task.
 
-%% ========================================================================
+
+%% =====================================================================
 \bibliographystyle{ACM-Reference-Format}
-
-\begin{thebibliography}{99}
-
-\bibitem{lin2023loam}
-Fandel Lin, Craig A. Knoblock, Basel Shbita, Binh Vu, Zekun Li, and Yao-Yi Chiang.
-\newblock Exploiting Polygon Metadata to Understand Raster Maps --- Accurate Polygonal Feature Extraction.
-\newblock In \emph{Proceedings of the 31st ACM International Conference on Advances in Geographic Information Systems (SIGSPATIAL '23)}, Hamburg, Germany, 2023.
-\newblock \url{https://doi.org/10.1145/3589132.3625659}
-
-\bibitem{ronneberger2015unet}
-Olaf Ronneberger, Philipp Fischer, and Thomas Brox.
-\newblock U-Net: Convolutional Networks for Biomedical Image Segmentation.
-\newblock In \emph{Medical Image Computing and Computer-Assisted Intervention (MICCAI)}, pages 234--241, 2015.
-
-\bibitem{he2016resnet}
-Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian Sun.
-\newblock Deep Residual Learning for Image Recognition.
-\newblock In \emph{CVPR}, pages 770--778, 2016.
-
-\bibitem{perez2018film}
-Ethan Perez, Florian Strub, Harm de Vries, Vincent Dumoulin, and Aaron Courville.
-\newblock FiLM: Visual Reasoning with a General Conditioning Layer.
-\newblock In \emph{Proceedings of the AAAI Conference on Artificial Intelligence}, 2018.
-
-\bibitem{chiang2014survey}
-Yao-Yi Chiang, Stefan Leyk, and Craig A. Knoblock.
-\newblock A Survey of Digital Map Processing Techniques.
-\newblock \emph{ACM Computing Surveys}, 47(1):1--44, 2014.
-
-\bibitem{chen2018deeplab}
-Liang-Chieh Chen, Yukun Zhu, George Papandreou, Florian Schroff, and Hartmut Adam.
-\newblock Encoder-Decoder with Atrous Separable Convolution for Semantic Image Segmentation.
-\newblock In \emph{ECCV}, pages 801--818, 2018.
-
-\bibitem{zhang2021sanet}
-Qing-Long Zhang and Yu-Bin Yang.
-\newblock SA-Net: Shuffle Attention for Deep Convolutional Neural Networks.
-\newblock In \emph{IEEE ICASSP}, pages 2235--2239, 2021.
-
-\bibitem{wang2019panet}
-Kaixin Wang, Jun Hao Liew, Yingtian Zou, Daquan Zhou, and Jiashi Feng.
-\newblock PANet: Few-Shot Image Semantic Segmentation with Prototype Alignment.
-\newblock In \emph{IEEE/CVF ICCV}, pages 9196--9205, 2019.
-
-\bibitem{tian2020pfenet}
-Zhuotao Tian, Hengshuang Zhao, Michelle Shu, Zhicheng Yang, Ruiyu Li, and Jiaya Jia.
-\newblock Prior Guided Feature Enrichment Network for Few-Shot Segmentation.
-\newblock \emph{IEEE Transactions on Pattern Analysis and Machine Intelligence}, 44(2):1050--1065, 2022.
-
-\bibitem{dumoulin2017learned}
-Vincent Dumoulin, Jonathon Shlens, and Manjunath Kudlur.
-\newblock A Learned Representation For Artistic Style.
-\newblock In \emph{ICLR}, 2017.
-
-\bibitem{richter2016gta}
-Stephan R. Richter, Vibhav Vineet, Stefan Roth, and Vladlen Koltun.
-\newblock Playing for Data: Ground Truth from Computer Games.
-\newblock In \emph{ECCV}, pages 102--118, 2016.
-
-\bibitem{frid2018gan}
-Maayan Frid-Adar, Idit Diamant, Eyal Klang, Michal Amitai, Jacob Goldberger, and Hayit Greenspan.
-\newblock GAN-based Synthetic Medical Image Augmentation for Increased CNN Performance in Liver Lesion Classification.
-\newblock \emph{Neurocomputing}, 321:321--331, 2018.
-
-\bibitem{jaderberg2014synthetic}
-Max Jaderberg, Karen Simonyan, Andrea Vedaldi, and Andrew Zisserman.
-\newblock Synthetic Data and Artificial Neural Networks for Natural Scene Text Recognition.
-\newblock \emph{arXiv preprint arXiv:1406.2227}, 2014.
-
-\bibitem{devlin2019bert}
-Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova.
-\newblock BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding.
-\newblock In \emph{NAACL-HLT}, pages 4171--4186, 2019.
-
-\end{thebibliography}
+\bibliography{references}
 
 \end{document}

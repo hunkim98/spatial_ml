@@ -1,0 +1,209 @@
+% =========================================================================
+%  references.bib for SIGSPATIAL 2026 short paper
+%  Auto-collected by claude on 2026-05-12 via paper PDF + arXiv lookups.
+%  Each block includes:
+%    - Clean BibTeX entry (paste with \cite{...})
+%    - Open-access URL (arXiv preprint or publisher open page)
+%    - One-line summary of relevance to OUR paper
+% =========================================================================
+
+
+% -------------------------------------------------------------------------
+% 1. DIRECT BASELINES — methods on the SAME (DARPA CMA / USGS) benchmark
+% -------------------------------------------------------------------------
+
+% LOAM — our primary supervised baseline. Median F1 = 0.809.
+% PDF locally at usgs/polygon_metadata_oldmaps.pdf
+% Relevance: cite as "the prior supervised SOTA on this benchmark"
+@inproceedings{lin2023loam,
+  author    = {Lin, Fandel and Knoblock, Craig A. and Shbita, Basel and Vu, Binh and Li, Zekun and Chiang, Yao-Yi},
+  title     = {Exploiting Polygon Metadata to Understand Raster Maps: Accurate Polygonal Feature Extraction},
+  booktitle = {Proceedings of the 31st ACM International Conference on Advances in Geographic Information Systems (SIGSPATIAL '23)},
+  year      = {2023},
+  articleno = {109},
+  numpages  = {12},
+  doi       = {10.1145/3589132.3625659},
+  url       = {https://doi.org/10.1145/3589132.3625659},
+  note      = {Code: https://github.com/Fandel-Lin/LOAM}
+}
+
+% ICM team — actual 1st-place winner of DARPA CMA polygon extraction.
+% LOAM's direct predecessor; LOAM cites this as their key comparison.
+% Relevance: cite alongside LOAM as the original competition winner.
+@article{luo2023icm,
+  author  = {Luo, Shirui and Saxton, Aaron and Bode, Albert and Mazumdar, Priyam and Kindratenko, Volodymyr},
+  title   = {Critical Minerals Map Feature Extraction Using Deep Learning},
+  journal = {IEEE Geoscience and Remote Sensing Letters},
+  year    = {2023},
+  volume  = {20},
+  pages   = {1--5},
+  doi     = {10.1109/LGRS.2023.3310915},
+  url     = {https://ieeexplore.ieee.org/document/10236599}
+}
+
+% DIGMAPPER — newest USC/UMN work, post-LOAM. Modular pipeline INCLUDING
+% synthetic data generation. Concurrent with our work — be careful in
+% positioning; cite as "concurrent work that also leverages synthetic data."
+@inproceedings{duan2025digmapper,
+  author    = {Duan, Weiwei and Gerlek, Michael P. and Minton, Steven N. and Knoblock, Craig A. and Lin, Fandel and Chen, Theresa and Jang, Leeje and Kirsanova, Sofia and Li, Zekun and Lin, Yijun and Chiang, Yao-Yi},
+  title     = {{DIGMAPPER}: A Modular System for Automated Geologic Map Digitization},
+  booktitle = {Proceedings of the 33rd ACM International Conference on Advances in Geographic Information Systems (SIGSPATIAL '25)},
+  year      = {2025},
+  doi       = {10.1145/3748636.3764602},
+  url       = {https://arxiv.org/abs/2506.16006},
+  archivePrefix = {arXiv},
+  eprint        = {2506.16006}
+}
+
+% DARPA / USGS dataset — must cite for our data section.
+@misc{goldman2023cma,
+  author    = {Goldman, M. A. and Rosera, J. M. and Lederer, G. W. and Graham, G. E. and Mishra, A. and Yepremyan, A.},
+  title     = {Training and Validation Data from the {AI} for Critical Mineral Assessment Competition},
+  year      = {2023},
+  publisher = {U.S. Geological Survey data release},
+  doi       = {10.5066/P9FXSPT1},
+  url       = {https://www.sciencebase.gov/catalog/item/63a100d6d34e0de3a1f2794f}
+}
+
+
+% -------------------------------------------------------------------------
+% 2. CONCURRENT WORK ON HISTORICAL MAP SEGMENTATION (must acknowledge)
+% -------------------------------------------------------------------------
+
+% Few-shot historical map seg via foundation models. Different dataset
+% (ICDAR/Siegfried, NOT DARPA CMA), but same "few-shot for maps" problem.
+% Relevance: closest concurrent work testing the few-shot hypothesis.
+@inproceedings{sterzinger2025fewshot,
+  author    = {Sterzinger, Rafael and Peer, Marco and Sablatnig, Robert},
+  title     = {Few-Shot Segmentation of Historical Maps via Linear Probing of Vision Foundation Models},
+  booktitle = {Proceedings of ICDAR 2025},
+  year      = {2025},
+  archivePrefix = {arXiv},
+  eprint    = {2506.21826},
+  url       = {https://arxiv.org/abs/2506.21826}
+}
+
+% Synthetic data + style transfer for historical map segmentation.
+% Different dataset (un-named in abstract), but SAME idea space as ours.
+% Relevance: directly concurrent — must cite + differentiate. Their angle
+% is uncertainty-aware degradation; ours is rendering-style augmentation
+% with legend-driven supervision.
+@article{arzoumanidis2025synthetic,
+  author  = {Arzoumanidis, Lukas and Knechtel, Julius and Haunert, Jan-Henrik and Dehbi, Youness},
+  title   = {Automatic Uncertainty-Aware Synthetic Data Bootstrapping for Historical Map Segmentation},
+  journal = {arXiv preprint arXiv:2511.15875},
+  year    = {2025},
+  url     = {https://arxiv.org/abs/2511.15875}
+}
+
+% FCN-Boosted — minimal training data for historical map segmentation
+% (Paris atlases / ICDAR 2021 dataset). Closest "limited annotation"
+% prior, though on different data.
+@inproceedings{baloun2023fcnboosted,
+  author    = {Baloun, Josef and Lenc, Ladislav and Kr{\'a}l, Pavel},
+  title     = {{FCN-Boosted} Historical Map Segmentation with Little Training Data},
+  booktitle = {Document Analysis and Recognition - ICDAR 2023},
+  year      = {2023},
+  publisher = {Springer},
+  doi       = {10.1007/978-3-031-41676-7_30},
+  url       = {https://doi.org/10.1007/978-3-031-41676-7_30}
+}
+
+% ICDAR 2021 Historical Map Segmentation overview / competition paper.
+% Different dataset (Paris atlases), different tasks (building blocks /
+% map content / intersection points). Cite as context.
+@inproceedings{chazalon2021icdarmapseg,
+  author    = {Chazalon, Joseph and Carlinet, Edwin and G{\'e}raud, Thierry and Aymeric, Adrien and others},
+  title     = {{ICDAR} 2021 Competition on Historical Map Segmentation},
+  booktitle = {Document Analysis and Recognition - ICDAR 2021},
+  year      = {2021},
+  publisher = {Springer},
+  doi       = {10.1007/978-3-030-86337-1_46},
+  url       = {https://icdar21-mapseg.github.io/}
+}
+
+
+% -------------------------------------------------------------------------
+% 3. SURVEYS / REVIEWS (for the intro/related-work framing)
+% -------------------------------------------------------------------------
+
+% The canonical digital-map-processing survey. Pre-deep-learning era but
+% still the standard reference for "this is the problem space."
+@article{chiang2014survey,
+  author  = {Chiang, Yao-Yi and Leyk, Stefan and Knoblock, Craig A.},
+  title   = {A Survey of Digital Map Processing Techniques},
+  journal = {ACM Computing Surveys},
+  volume  = {47},
+  number  = {1},
+  pages   = {1--44},
+  year    = {2014},
+  doi     = {10.1145/2557423},
+  url     = {https://usc-isi-i2.github.io/papers/chiang14-acm.pdf}
+}
+
+% More recent review (covers the early deep-learning era).
+@article{liu2019topomap,
+  author  = {Liu, Tiange and Miao, Qiguang and Xu, Pengfei and Tong, Yutian and Song, Jianfeng and Xia, Ge-Si and Liu, Yun},
+  title   = {A Review of Recent Advances in Scanned Topographic Map Processing},
+  journal = {Neurocomputing},
+  volume  = {328},
+  pages   = {75--87},
+  year    = {2019},
+  doi     = {10.1016/j.neucom.2018.02.102}
+}
+
+
+% -------------------------------------------------------------------------
+% 4. METHODS WE BUILD ON (architectural references)
+% -------------------------------------------------------------------------
+
+% U-Net — our base architecture.
+@inproceedings{ronneberger2015unet,
+  author    = {Ronneberger, Olaf and Fischer, Philipp and Brox, Thomas},
+  title     = {{U-Net}: Convolutional Networks for Biomedical Image Segmentation},
+  booktitle = {Medical Image Computing and Computer-Assisted Intervention (MICCAI)},
+  year      = {2015},
+  pages     = {234--241},
+  publisher = {Springer},
+  doi       = {10.1007/978-3-319-24574-4_28},
+  archivePrefix = {arXiv},
+  eprint    = {1505.04597}
+}
+
+% FiLM — our pattern conditioning mechanism.
+@inproceedings{perez2018film,
+  author    = {Perez, Ethan and Strub, Florian and de Vries, Harm and Dumoulin, Vincent and Courville, Aaron},
+  title     = {{FiLM}: Visual Reasoning with a General Conditioning Layer},
+  booktitle = {AAAI},
+  year      = {2018},
+  archivePrefix = {arXiv},
+  eprint    = {1709.07871},
+  url       = {https://arxiv.org/abs/1709.07871}
+}
+
+
+% -------------------------------------------------------------------------
+% 5. FOUNDATION-MODEL ALTERNATIVES (must acknowledge but argue past)
+% -------------------------------------------------------------------------
+
+% SAM — the obvious "why not just use SAM?" reviewer question. Address briefly.
+@inproceedings{kirillov2023sam,
+  author    = {Kirillov, Alexander and Mintun, Eric and Ravi, Nikhila and Mao, Hanzi and Rolland, Chloe and Gustafson, Laura and Xiao, Tete and Whitehead, Spencer and Berg, Alexander C. and Lo, Wan-Yen and Doll{\'a}r, Piotr and Girshick, Ross},
+  title     = {Segment Anything},
+  booktitle = {Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)},
+  year      = {2023},
+  archivePrefix = {arXiv},
+  eprint    = {2304.02643},
+  url       = {https://arxiv.org/abs/2304.02643}
+}
+
+% DINOv2 — future-work pointer if we mention foundation-model encoders.
+@article{oquab2024dinov2,
+  author  = {Oquab, Maxime and Darcet, Timoth{\'e}e and Moutakanni, Th{\'e}o and Vo, Huy V. and others},
+  title   = {{DINOv2}: Learning Robust Visual Features Without Supervision},
+  journal = {Transactions on Machine Learning Research (TMLR)},
+  year    = {2024},
+  archivePrefix = {arXiv},
+  eprint  = {2304.07193},
+  url     = {https://arxiv.org/abs/2304.07193}
+}
