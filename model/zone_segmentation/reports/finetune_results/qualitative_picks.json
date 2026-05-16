@@ -1,0 +1,82 @@
+[
+  {
+    "map": "MN",
+    "label": "Mbv_poly",
+    "f1_zs": 0.36296421725493205,
+    "f1_pre": 0.9030816848338042,
+    "f1_sc": 0.030880243292259784,
+    "delta_e": 7.116553422318564,
+    "viz_pretrained": "results/finetune_eval_pretrained_e20/viz/MN/Mbv_poly.png",
+    "viz_scratch": "results/finetune_eval_scratch_e20/viz/MN/Mbv_poly.png"
+  },
+  {
+    "map": "MN",
+    "label": "Psq_poly",
+    "f1_zs": 0.9050341986437176,
+    "f1_pre": 0.86741696810928,
+    "f1_sc": 0.034622324541051144,
+    "delta_e": 4.905130708578906,
+    "viz_pretrained": "results/finetune_eval_pretrained_e20/viz/MN/Psq_poly.png",
+    "viz_scratch": "results/finetune_eval_scratch_e20/viz/MN/Psq_poly.png"
+  },
+  {
+    "map": "KY_WestFranklin",
+    "label": "Qlt_poly",
+    "f1_zs": 0.0074984468928031055,
+    "f1_pre": 0.8522825454903807,
+    "f1_sc": 0.02553735644171974,
+    "delta_e": 8.167311477980261,
+    "viz_pretrained": "results/finetune_eval_pretrained_e20/viz/KY_WestFranklin/Qlt_poly.png",
+    "viz_scratch": "results/finetune_eval_scratch_e20/viz/KY_WestFranklin/Qlt_poly.png"
+  },
+  {
+    "map": "AZ_PipeSpring",
+    "label": "TRms_poly",
+    "f1_zs": 0.6129489784045172,
+    "f1_pre": 0.8287070978220413,
+    "f1_sc": 0.023299308327070663,
+    "delta_e": 7.760654976548346,
+    "viz_pretrained": "results/finetune_eval_pretrained_e20/viz/AZ_PipeSpring/TRms_poly.png",
+    "viz_scratch": "results/finetune_eval_scratch_e20/viz/AZ_PipeSpring/TRms_poly.png"
+  },
+  {
+    "map": "NH_Hartland",
+    "label": "DSwhg_poly",
+    "f1_zs": 0.7329121417270291,
+    "f1_pre": 0.7909463746865453,
+    "f1_sc": 0.013244358916691512,
+    "delta_e": 6.3720809581313,
+    "viz_pretrained": "results/finetune_eval_pretrained_e20/viz/NH_Hartland/DSwhg_poly.png",
+    "viz_scratch": "results/finetune_eval_scratch_e20/viz/NH_Hartland/DSwhg_poly.png"
+  },
+  {
+    "map": "CA_NV_DeathValley",
+    "label": "QTm_poly",
+    "f1_zs": 0.0359764858254251,
+    "f1_pre": 0.7999268764597814,
+    "f1_sc": 0.028355794563874697,
+    "delta_e": 14.311916946598592,
+    "viz_pretrained": "results/finetune_eval_pretrained_e20/viz/CA_NV_DeathValley/QTm_poly.png",
+    "viz_scratch": "results/finetune_eval_scratch_e20/viz/CA_NV_DeathValley/QTm_poly.png"
+  },
+  {
+    "map": "CA_MarbleCanyon",
+    "label": "Po_poly",
+    "f1_zs": 0.3669890095946434,
+    "f1_pre": 0.7799916879062015,
+    "f1_sc": 0.01279062437523118,
+    "delta_e": 12.303203335147568,
+    "viz_pretrained": "results/finetune_eval_pretrained_e20/viz/CA_MarbleCanyon/Po_poly.png",
+    "viz_scratch": "results/finetune_eval_scratch_e20/viz/CA_MarbleCanyon/Po_poly.png"
+  },
+  {
+    "map": "AK_Kechumstuk",
+    "label": "Jt_poly",
+    "f1_zs": 0.23788178909859964,
+    "f1_pre": 0.7687213074406664,
+    "f1_sc": 0.003484476940156164,
+    "delta_e": 13.765135841648808,
+    "viz_pretrained": "results/finetune_eval_pretrained_e20/viz/AK_Kechumstuk/Jt_poly.png",
+    "viz_scratch": "results/finetune_eval_scratch_e20/viz/AK_Kechumstuk/Jt_poly.png"
+  }
+]

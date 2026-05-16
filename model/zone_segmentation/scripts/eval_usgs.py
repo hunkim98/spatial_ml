@@ -21,6 +21,7 @@ Usage:
 import argparse
 import json
 import logging
+import os
 import shutil
 import tarfile
 import zipfile
@@ -790,6 +791,13 @@ def main():
                         help="Max maps to process (0 = all)")
     parser.add_argument("--batch-size", type=int, default=4,
                         help="Tile inference batch size (default: 4; lower = less VRAM)")
+    parser.add_argument("--exclude-maps", nargs="+", default=[],
+                        help="Map stems to skip (used for fine-tune held-out eval)")
+    parser.add_argument("--no-wandb", action="store_true",
+                        help="Disable W&B even if WANDB_API_KEY is set")
+    parser.add_argument("--wandb-project", default="spatially-zone-segmentation")
+    parser.add_argument("--wandb-run-name", default=None,
+                        help="W&B run name (auto-generated from checkpoint+output-dir if omitted)")
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -802,6 +810,48 @@ def main():
     work_dir = Path(args.work_dir)
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    # 0. Optional W&B init — captures config + per-map metrics + final summary
+    wandb_run = None
+    has_key = bool(os.environ.get("WANDB_API_KEY"))
+    use_wandb = (not args.no_wandb) and has_key
+    if use_wandb:
+        try:
+            import wandb
+            from datetime import datetime as _dt
+            run_name = args.wandb_run_name or (
+                f"eval-{Path(args.checkpoint).parent.name}-{Path(args.checkpoint).stem}-"
+                f"{_dt.now().strftime('%Y%m%d-%H%M%S')}"
+            )
+            wandb_run = wandb.init(
+                project=args.wandb_project,
+                name=run_name,
+                config={
+                    "task": "eval_usgs",
+                    "checkpoint": str(args.checkpoint),
+                    "dataset": args.dataset,
+                    "tile_size": args.tile_size,
+                    "tile_overlap": args.tile_overlap,
+                    "threshold": args.threshold,
+                    "model_type": args.model_type,
+                    "no_tile": args.no_tile,
+                    "no_clean_pattern": args.no_clean_pattern,
+                    "skip_no_gt": args.skip_no_gt,
+                    "exclude_maps": list(args.exclude_maps),
+                    "max_maps": args.max_maps,
+                    "batch_size": args.batch_size,
+                    "output_dir": str(args.output_dir),
+                },
+            )
+            logger.info("W&B run: %s (project=%s)", wandb_run.name, args.wandb_project)
+        except ImportError:
+            logger.warning("wandb not installed — file-only logging")
+        except Exception as exc:
+            logger.warning("wandb init failed (%s) — file-only logging", exc)
+    elif args.no_wandb:
+        logger.info("W&B disabled by --no-wandb")
+    elif not has_key:
+        logger.info("WANDB_API_KEY not set — file-only logging")
 
     # 1. Extract data
     logger.info("Extracting dataset '%s' ...", args.dataset)
@@ -823,6 +873,13 @@ def main():
     # 3. Discover maps with JSON annotations
     json_files = sorted(json_dir.glob("*.json"))
     logger.info("Found %d JSON annotation files", len(json_files))
+
+    if args.exclude_maps:
+        excluded = set(args.exclude_maps)
+        before = len(json_files)
+        json_files = [j for j in json_files if j.stem not in excluded]
+        logger.info("Excluded %d maps (%s) — %d remain",
+                    before - len(json_files), ", ".join(sorted(excluded)), len(json_files))
 
     if args.max_maps > 0:
         json_files = json_files[:args.max_maps]
@@ -906,6 +963,27 @@ def main():
             json.dump({"summary": agg, "per_feature": all_results}, f, indent=2)
         logger.info("Saved incremental results (%d features so far)", len(all_results))
 
+        # Log per-map summary to wandb (incremental, so progress is visible live)
+        if wandb_run is not None:
+            try:
+                f1s = [r["f1"] for r in results if r.get("f1") is not None]
+                if f1s:
+                    wandb_run.log({
+                        f"per_map/{map_stem}/mean_f1": float(np.mean(f1s)),
+                        f"per_map/{map_stem}/median_f1": float(np.median(f1s)),
+                        f"per_map/{map_stem}/n_features": len(f1s),
+                        "running/maps_completed": len({r["map"] for r in all_results}),
+                        "running/features_total": len(all_results),
+                        "running/mean_f1": float(np.mean(
+                            [r["f1"] for r in all_results if r.get("f1") is not None]
+                        )),
+                        "running/median_f1": float(np.median(
+                            [r["f1"] for r in all_results if r.get("f1") is not None]
+                        )),
+                    })
+            except Exception as exc:
+                logger.warning("wandb per-map log failed: %s", exc)
+
     # 5. Final aggregate and save
     agg = aggregate_results(all_results)
     summary_text = format_summary(agg, all_results)
@@ -921,6 +999,33 @@ def main():
     with open(summary_path, "w") as f:
         f.write(summary_text)
     logger.info("Summary saved to %s", summary_path)
+
+    # 6. Final wandb summary + artifact upload (durable cloud-side record)
+    if wandb_run is not None:
+        try:
+            metrics = agg.get("metrics", {})
+            wandb_run.summary["total_features"] = agg.get("total_features", 0)
+            wandb_run.summary["features_with_gt"] = agg.get("features_with_gt", 0)
+            wandb_run.summary["unique_maps"] = agg.get("unique_maps", 0)
+            for metric_name in ("f1", "iou", "dice", "precision", "recall"):
+                stats = metrics.get(metric_name, {})
+                for stat in ("mean", "median", "std", "min", "max"):
+                    if stat in stats and stats[stat] is not None:
+                        wandb_run.summary[f"{metric_name}_{stat}"] = stats[stat]
+
+            import wandb as _wb
+            artifact = _wb.Artifact(
+                name=f"eval-results-{Path(args.output_dir).name}",
+                type="evaluation",
+                description=f"USGS eval of {args.checkpoint} (excluded={args.exclude_maps})",
+            )
+            artifact.add_file(str(results_path))
+            artifact.add_file(str(summary_path))
+            wandb_run.log_artifact(artifact)
+            logger.info("Logged eval artifact to W&B")
+            wandb_run.finish()
+        except Exception as exc:
+            logger.warning("wandb final upload failed: %s", exc)
 
 
 if __name__ == "__main__":
