@@ -1,0 +1,34 @@
+======================================================================
+USGS AI4CMA Evaluation Results
+======================================================================
+Total features evaluated:  1083
+Features with ground truth: 1083
+Unique maps:               22
+
+Metric           Mean   Median      Std      Min      Max
+------------------------------------------------------------
+f1             0.0827   0.0160   0.1580   0.0000   0.9471
+iou            0.0528   0.0081   0.1194   0.0000   0.8994
+dice           0.0827   0.0160   0.1580   0.0000   0.9471
+precision      0.0601   0.0089   0.1368   0.0000   0.9631
+recall         0.5922   0.7570   0.3795   0.0000   1.0000
+
+Comparison: LOAM (SIGSPATIAL '23) median F1 = 0.809
+            Ours                  median F1 = 0.016
+
+Note: LOAM uses pixel-weighted F1 (easy/hard); we report unweighted F1.
+======================================================================
+
+Top 5 features by F1:
+  MN/Mau_poly: F1=0.9471 IoU=0.8994
+  NM_Sunshine/Qao3_poly: F1=0.9317 IoU=0.8721
+  CA_MarbleCanyon/QTs_poly: F1=0.9286 IoU=0.8668
+  CA_AZ_Needles/Qc2fp_poly: F1=0.9139 IoU=0.8415
+  NV_HiddenHills/Qay_poly: F1=0.8948 IoU=0.8097
+
+Bottom 5 features by F1:
+  AK_Kechumstuk/Qc_poly: F1=0.0000 IoU=0.0000
+  AK_Kechumstuk/sz_poly: F1=0.0000 IoU=0.0000
+  AK_Kechumstuk/Tb_poly: F1=0.0000 IoU=0.0000
+  CA_AZ_Needles/c_poly: F1=0.0000 IoU=0.0000
+  CA_AZ_Needles/Qc1ch_poly: F1=0.0000 IoU=0.0000
