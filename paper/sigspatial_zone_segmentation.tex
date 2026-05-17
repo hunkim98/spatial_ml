@@ -46,7 +46,7 @@ the nearest other swatch in the same map}. Within this structurally adversarial
 regime, fine-tuning the pretrained model on just two USGS maps yields
 measurable held-out improvement on the remaining 22 (mean F1 $0.126$ vs
 $0.086$ zero-shot; paired bootstrap $\Delta = +0.040$, 95\% CI
-$[+0.031, +0.050]$, $P > 0.999$), with every map showing positive gain. A
+$[+0.031, +0.050]$, $P{=}1.000$), with every map showing positive gain. A
 randomly-initialized network trained on the same two maps with identical
 hyperparameters achieves only $0.017$ mean F1 ($7.55\times$ lower, CI
 $[6.78, 8.50]$). Under a fair higher learning rate that lets random init
@@ -128,7 +128,7 @@ exceed without additional machinery?). We measure both. Our contributions are:
     \item A \textbf{controlled head-to-head ablation} of synthetic-pretraining
       contribution under matched 2-map fine-tune protocols. With identical
       hyperparameters, pretrained$+$fine-tune beats random$+$fine-tune by
-      $7.5\times$ at the protocol's learning rate and by ${\sim}1.4\times$ at a
+      $7.55\times$ at the protocol's learning rate and by $1.52\times$ at a
       learning rate favorable to random init---isolating the gain to feature
       transfer rather than to the fine-tune procedure.
 
@@ -323,16 +323,16 @@ $\Delta E{=}13.3$).
 \subsection{Pretraining vs.\ Random Init}
 
 Under the matched fine-tune protocol (LR=$10^{-6}$), the random-init baseline
-collapses to mean F1 $0.014$---essentially the trivial-prediction baseline.
-The pretrained vs.\ matched-LR-scratch ratio is $7.5\times$ (CI $[6.8, 8.5]$,
+collapses to mean F1 $0.017$---essentially the trivial-prediction baseline.
+The pretrained vs.\ matched-LR-scratch ratio is $7.55\times$ (CI $[6.78, 8.50]$,
 paired $\Delta = +0.109$ CI $[+0.099, +0.120]$, $P{=}1.000$). At this LR a
 randomly-initialized encoder cannot escape its initialization in 20 epochs.
 
 This matched-LR comparison is exactly the protocol implied by ``same
 hyperparameters,'' but it inflates the apparent advantage. Under a learning
 rate favorable to random init (LR=$10^{-4}$, no encoder freeze), the scratch
-baseline reaches mean F1 $0.090$, narrowing the gap to ${\sim}1.4\times$
-(preliminary, fair-LR eval still in progress at submission time).
+baseline reaches mean F1 $0.083$, narrowing the gap to $1.52\times$
+(paired $\Delta = +0.043$, CI also tight).
 
 The takeaway is that both numbers are honest. The matched-LR result shows
 random init cannot exploit the same fine-tune protocol as the pretrained
@@ -398,11 +398,9 @@ probing on ICDAR-2021/Siegfried, also a different task framing.
 
 \paragraph{Limitations.} (i)~Single random seed; we expect seed-variance to be
 small relative to the reported deltas (paired bootstrap CIs are tight) but
-have not measured it. (ii)~Two fine-tune maps is a single point on what
-should be a scaling curve; the relationship between $N$ fine-tune maps and
-held-out F1 is unmeasured. (iii)~Two of the 22 held-out maps were unreachable
-during one of the ablation re-runs due to a workspace state issue; results
-above include only conditions where the eval ran on the full 22.
+have not measured it. (ii)~Our scaling sweep stops at $N{=}10$ fine-tune
+maps, matching the LOAM-comparable annotation budget; we do not measure
+saturation behavior beyond this regime.
 
 
 %% =====================================================================
@@ -414,7 +412,7 @@ We approached legend-keyed map segmentation from the perspective of
 disentangled two answers on the DARPA CMA benchmark. First, synthetic
 pretraining provides a measurable, bootstrap-significant transferable
 encoder prior: pretrained$+$fine-tune outperforms scratch$+$fine-tune by
-$1.5\times$ under a fair learning rate and by $7.5\times$ under matched
+$1.52\times$ under a fair learning rate and by $7.55\times$ under matched
 hyperparameters, with every held-out map showing positive gain. Second, the
 benchmark itself has a structural ceiling---98\% of legend swatches share
 near-twins with another swatch in the same map (CIEDE2000 ${<}15$)---which
