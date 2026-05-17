@@ -366,6 +366,50 @@ $\Delta E{=}2.5$). Held-out mean F1 across the 22 remaining maps
 $0.126$ ($n{=}1{,}083$). Fine-tune set composition is robust within the
 difficulty spectrum we tested.
 
+\subsection{Does Fine-Tuning Escape the Confusability Ceiling?}
+\label{sec:posthoc}
+
+We repeated the diagnostic of \S\ref{sec:diagnostic} on the
+pretrained$+$fine-tune model to test whether fine-tuning attenuates the
+swatch-confusability correlation or merely lifts the absolute floor. On
+the 1{,}083 held-out features, F1 still correlates significantly with
+both color distinctiveness (Spearman $r{=}0.29$, $p{<}10^{-21}$) and
+feature area (Pearson $r{=}0.61$ on $\log_{10}$ area fraction,
+$p{<}10^{-100}$)---both correlations comparable to or stronger than the
+zero-shot model's ($r{=}0.21$ and $r{=}0.45$ respectively). Mean F1 on
+the confusable bin ($\Delta E{<}15$) rises from $0.088$ to $0.126$.
+Fine-tuning lifts the floor on the structurally hard features but does
+not erase the gradient: the prior helps \emph{within} the confusable
+regime, not by escaping it---consistent with the framing in
+\S\ref{sec:intro}.
+
+\subsection{Annotation-Efficiency Curve}
+\label{sec:scaling}
+
+To bound how the prior's contribution scales with annotation budget, we
+fine-tune the same synthetic-pretrained checkpoint on
+$N \in \{1, 2, 5, 10\}$ USGS maps (stratified by mean $\Delta E$ to cover
+easy/typical/hard regimes) and evaluate each on the corresponding
+$24{-}N$ held-out maps. Figure~\ref{fig:scaling} and
+Table~\ref{tab:scaling} report mean held-out F1 with bootstrap 95\% CIs.
+Each $N$ uses a disjoint held-out set, so absolute comparisons across $N$
+should be read in conjunction with the per-row $n$ feature counts.
+% PROSE-HOLD: refine the qualitative claim ("monotonic", "diminishing", etc.)
+% once the chain has delivered all of N=1, 5, 10. The figure and table
+% auto-update as scripts/run_scaling_curve.ps1 commits each result.
+
+\input{tables/scaling_table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/scaling_curve.png}
+\caption{Annotation-efficiency curve on DARPA CMA validation. Pretrained
+$+$ fine-tune at increasing $N$. Error bars are bootstrap 95\% CIs over
+per-feature F1. Each $N$ value uses a different held-out set of
+$24{-}N$ maps; sizes shown in Table~\ref{tab:scaling}.}
+\label{fig:scaling}
+\end{figure}
+
 
 %% =====================================================================
 \section{Discussion and Limitations}
