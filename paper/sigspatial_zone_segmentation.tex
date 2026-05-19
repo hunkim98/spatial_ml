@@ -26,43 +26,26 @@ A Diagnostic and Ablation of Synthetic Pretraining on USGS Maps}
 \email{donghunkim@mde.harvard.edu}
 
 \begin{abstract}
-What makes a raster-map segmentation task transferable from one domain to
-another by a fine-tunable model, and what bounds its success? We study this
-on legend-keyed polygon extraction---finding all pixels in a map matching a
-queried legend swatch---on the DARPA Critical Mineral Assessment (CMA)
-benchmark, the standard evaluation set for this task. Prior supervised
-methods on this benchmark typically require 14+ hand-annotated USGS maps.
-We ask whether a generic synthetic prior can substitute for most of that
-annotation, and characterize which properties of the benchmark itself bound
-any color-based method's success.
-Our pipeline renders ${\sim}27{,}000$
-$(\textsc{image},\textsc{pattern},\textsc{mask})$ triplets from 219 US municipal
-zoning GeoJSONs with 8 randomized rendering dimensions, at zero annotation
-cost, and trains a FiLM-conditioned U-Net to perform legend-keyed segmentation.
-On the DARPA CMA validation set the zero-shot model achieves only median F1
-$0.016$, a gap we trace to a structural property of the benchmark:
-\textbf{98\% of USGS legend swatches have a CIEDE2000 distance below 15 to
-the nearest other swatch in the same map}. Within this structurally adversarial
-regime, fine-tuning the pretrained model on just two USGS maps yields
-measurable held-out improvement on the remaining 22 (mean F1 $0.126$ vs
-$0.086$ zero-shot; paired bootstrap $\Delta = +0.040$, 95\% CI
-$[+0.031, +0.050]$, $P{=}1.000$), with every map showing positive gain. A
-randomly-initialized network trained on the same two maps with identical
-hyperparameters achieves only $0.017$ mean F1 ($7.55\times$ lower, CI
-$[6.78, 8.50]$). Under a fair higher learning rate that lets random init
-actually learn, the scratch baseline reaches $0.083$; pretraining still wins
-by $1.52\times$ (paired $\Delta = +0.043$), isolating the contribution of the
-synthetic prior to the encoder representation.
-We further trace the prior's gain across $N{=}1, 2, 5, 10$ fine-tune maps,
-producing an annotation-efficiency curve that anchors the transferability
-claim empirically.
-Our absolute numbers remain below prior fully-supervised
-results~\cite{luo2023icm, lin2023loam} on this benchmark; we argue that
-map-segmentation transferability has two distinguishable components---a
-prior contribution we \emph{measure} and a benchmark ceiling we
-\emph{characterize}---and that progress depends on composing the prior with
-disambiguation machinery adequate for the swatch-confusability regime.
-Code and pipeline: \url{https://github.com/hunkim98/spatial_ml}.
+We measure how much a synthetic prior contributes to legend-keyed polygon
+extraction when only a few real maps are available for fine-tuning, on the
+DARPA Critical Mineral Assessment (CMA) benchmark. We render $27{,}071$
+$(\textsc{image}, \textsc{pattern}, \textsc{mask})$ triplets from 219 US
+municipal zoning GeoJSONs with 8 randomized rendering dimensions at zero
+annotation cost, train a FiLM-conditioned U-Net, and fine-tune on two USGS
+geological maps. The pretrained$+$fine-tune model outperforms zero-shot by
+mean F1 $+0.040$ across the remaining 22 held-out maps (paired bootstrap
+$95\%$ CI $[+0.031, +0.050]$, $P{=}1.000$), with every map showing positive
+gain. Under identical hyperparameters, a randomly-initialized network
+reaches only $0.017$ mean F1 ($7.55\times$ lower, CI $[6.78, 8.50]$); under
+a learning rate favorable to random init, the gap is $1.52\times$
+(paired $\Delta = +0.043$), isolating the contribution of the synthetic
+prior to the encoder representation. We additionally characterize a
+structural property of the benchmark: $98\%$ of legend swatches have
+CIEDE2000 distance ${<}15$ to the nearest other swatch in the same map,
+and held-out F1 correlates significantly with both color distinctiveness
+(Spearman $r{=}0.21$) and feature area (Pearson $r{=}0.45$ on $\log_{10}$
+area fraction). Code and pipeline:
+\url{https://github.com/hunkim98/spatial_ml}.
 \end{abstract}
 
 \begin{CCSXML}
@@ -138,16 +121,6 @@ exceed without additional machinery?). We measure both. Our contributions are:
       benchmark.
 \end{enumerate}
 
-We do \emph{not} claim parity with the supervised state of the art. The
-absolute numbers (mean F1 ${\sim}0.13$) remain far below LOAM. The takeaway
-is that transferability has two distinct components---a pretrained prior
-contribution we can measure (and is real) and a task-intrinsic ceiling we
-can characterize (and is dominated by swatch confusability). Future work on
-the prior contribution would need to compose with disambiguation machinery
-to push absolute numbers; future benchmark design that wants to reward
-transferable models should target maps whose hardness is not bounded by
-this single property.
-
 
 %% =====================================================================
 \section{Related Work}
@@ -170,14 +143,11 @@ Foundation models for natural images such as SAM~\cite{kirillov2023sam}
 provide strong general segmentation but lack the legend-key-conditioned
 primitive that map digitization requires.
 
-Our work differs on three axes: (i)~we evaluate transfer from synthetic
-\emph{municipal zoning} renderings to real \emph{USGS geological} maps, an
-aesthetic gap none of the concurrent works address; (ii)~we retain the
-legend-keyed task framing throughout
-(unlike~\cite{sterzinger2025fewshot, arzoumanidis2025synthetic} which target
-generic semantic segmentation); and (iii)~we isolate the contribution of the
-synthetic prior through a matched pretrained-vs-scratch ablation that, to our
-knowledge, has not been previously reported on this benchmark.
+Our work differs in evaluating cross-domain transfer (synthetic municipal
+zoning renderings to real USGS geological maps, an aesthetic gap none of the
+concurrent works address) and in isolating the synthetic prior's contribution
+via a matched pretrained-vs-scratch ablation that, to our knowledge, has not
+been previously reported on this benchmark.
 
 
 %% =====================================================================
@@ -212,8 +182,6 @@ The pretrained model achieves IoU $0.574$ / F1 $0.615$ on held-out synthetic
 validation maps (no city overlap with training; best checkpoint at epoch 36
 of 40), confirming that the synthetic task is learnable and that the resulting
 checkpoint is a competent base before USGS fine-tune.
-Figure~\ref{fig:training} shows training trajectories for both the base model
-on synthetic data (left) and the two-map USGS fine-tunes on top of it (right).
 
 \paragraph{USGS evaluation.} We use the DARPA CMA validation set (24 maps with
 ground-truth rasters; 1{,}141 polygon features). Two of the 24 maps
@@ -227,24 +195,12 @@ momentum $0.999$, learning rate $10^{-6}$ (a fine-tuning rate, lower than
 pretraining), encoder frozen for the first 3 epochs to prevent catastrophic
 forgetting then unfrozen, Dice loss, 64 random tile crops per feature per
 epoch, batch size 4. The same protocol is applied to a randomly-initialized
-network for the head-to-head baseline.
-
-\begin{figure*}[t]
-\centering
-\includegraphics[width=0.95\textwidth]{figures/training_curves.png}
-\caption{Training trajectories. (a) Base-model pretraining on synthetic
-zoning maps (40 epochs) — best checkpoint at epoch 36 with held-out
-synthetic val IoU $0.574$. (b) The three downstream USGS fine-tune runs
-that build on top of this base model (20 epochs, 2 fine-tune maps).
-Pretrained init (blue) starts immediately above the matched-LR scratch
-trajectory because of the transferable encoder representation. Fair-LR
-scratch (orange dashed) catches up partially but plateaus below pretrained.}
-\label{fig:training}
-\end{figure*}
-
+network for the head-to-head baseline. The choice of $N{=}2$ maps and their
+identity (\textsc{AR\_StJoe}, \textsc{AK\_Dillingham}) were fixed prior to any
+held-out evaluation.
 
 %% =====================================================================
-\section{Diagnostic: Why USGS Map Extraction Is Hard}
+\section{Benchmark Structure: Legend-Color Confusability}
 \label{sec:diagnostic}
 
 Before reporting the fine-tune comparison, we characterize a structural
@@ -366,70 +322,32 @@ $\Delta E{=}2.5$). Held-out mean F1 across the 22 remaining maps
 $0.126$ ($n{=}1{,}083$). Fine-tune set composition is robust within the
 difficulty spectrum we tested.
 
-\subsection{Does Fine-Tuning Escape the Confusability Ceiling?}
+\subsection{Confusability Gradient Under Fine-Tuning}
 \label{sec:posthoc}
 
-We repeated the diagnostic of \S\ref{sec:diagnostic} on the
-pretrained$+$fine-tune model to test whether fine-tuning attenuates the
-swatch-confusability correlation or merely lifts the absolute floor. On
-the 1{,}083 held-out features, F1 still correlates significantly with
-both color distinctiveness (Spearman $r{=}0.29$, $p{<}10^{-21}$) and
-feature area (Pearson $r{=}0.61$ on $\log_{10}$ area fraction,
-$p{<}10^{-100}$)---both correlations comparable to or stronger than the
-zero-shot model's ($r{=}0.21$ and $r{=}0.45$ respectively). Mean F1 on
-the confusable bin ($\Delta E{<}15$) rises from $0.088$ to $0.126$.
-Fine-tuning lifts the floor on the structurally hard features but does
-not erase the gradient: the prior helps \emph{within} the confusable
-regime, not by escaping it---consistent with the framing in
-\S\ref{sec:intro}.
-
-\subsection{Annotation-Efficiency Curve}
-\label{sec:scaling}
-
-To bound how the prior's contribution scales with annotation budget, we
-fine-tune the same synthetic-pretrained checkpoint on
-$N \in \{1, 2, 5, 10\}$ USGS maps (stratified by mean $\Delta E$ to cover
-easy/typical/hard regimes) and evaluate each on the corresponding
-$24{-}N$ held-out maps. Figure~\ref{fig:scaling} and
-Table~\ref{tab:scaling} report mean held-out F1 with bootstrap 95\% CIs.
-Each $N$ uses a disjoint held-out set, so absolute comparisons across $N$
-should be read in conjunction with the per-row $n$ feature counts.
-% PROSE-HOLD: refine the qualitative claim ("monotonic", "diminishing", etc.)
-% once the chain has delivered all of N=1, 5, 10. The figure and table
-% auto-update as scripts/run_scaling_curve.ps1 commits each result.
-
-\input{tables/scaling_table}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\columnwidth]{figures/scaling_curve.png}
-\caption{Annotation-efficiency curve on DARPA CMA validation. Pretrained
-$+$ fine-tune at increasing $N$. Error bars are bootstrap 95\% CIs over
-per-feature F1. Each $N$ value uses a different held-out set of
-$24{-}N$ maps; sizes shown in Table~\ref{tab:scaling}.}
-\label{fig:scaling}
-\end{figure}
-
+We repeat the diagnostic of \S\ref{sec:diagnostic} on the
+pretrained$+$fine-tune model. Mean F1 on the confusable bin
+($\Delta E{<}15$) rises from $0.088$ (zero-shot) to $0.126$, while the
+swatch-confusability gradient persists: on the 1{,}083 held-out features,
+F1 correlates significantly with both color distinctiveness (Spearman
+$r{=}0.29$, $p{<}10^{-21}$) and feature area (Pearson $r{=}0.61$ on
+$\log_{10}$ area fraction, $p{<}10^{-100}$)---both correlations comparable
+to or stronger than the zero-shot model's ($r{=}0.21$ and $r{=}0.45$).
+Fine-tuning lifts the floor within the confusable regime without erasing
+its structure.
 
 %% =====================================================================
 \section{Discussion and Limitations}
 \label{sec:discussion}
 
-\paragraph{What this paper does and does not claim.} We do not claim
-parity with prior fully-supervised methods on this benchmark. The
-contribution is methodological: an isolated measurement of how much
-synthetic pretraining helps, and a quantitative diagnosis of why the
-absolute ceiling on this benchmark is low for any color-only method.
-
-\paragraph{Why the absolute numbers are bounded.} The 98\% confusable-color
-property (\S\ref{sec:diagnostic}) implies that any color-only method faces
-a hard ceiling on this benchmark without explicit disambiguation machinery.
-The gap between our pretrained-and-fine-tuned model and prior
-fully-supervised approaches is consistent with this ceiling: methods that
-explicitly model legend-color sets~\cite{lin2023loam} or text
-labels~\cite{luo2023icm} can break the color-only bound, at the cost of
-domain-specific machinery. Future work should evaluate whether
-color-distinctiveness conditioning can be composed with our synthetic prior.
+\paragraph{Implications of the confusability gradient.} The $98\%$
+confusable-color property (\S\ref{sec:diagnostic}) and its persistence
+under fine-tuning (\S\ref{sec:posthoc}) imply that further progress on
+this benchmark depends on color-disambiguation machinery composed with
+the transferable prior, rather than on more annotated maps alone. Methods
+that explicitly model legend-color sets~\cite{lin2023loam} or text
+labels~\cite{luo2023icm} address this disambiguation; a natural next step
+is to compose color-distinctiveness conditioning with our synthetic prior.
 
 \paragraph{Concurrent work.} DIGMAPPER~\cite{duan2025digmapper} reports
 deploying a USGS-integrated pipeline that includes synthetic-data generation;
@@ -440,31 +358,24 @@ degradation modeling, on a different (unnamed) corpus.
 \cite{sterzinger2025fewshot}~studies few-shot foundation-model linear
 probing on ICDAR-2021/Siegfried, also a different task framing.
 
-\paragraph{Limitations.} (i)~Single random seed; we expect seed-variance to be
+\paragraph{Limitations.} Single random seed; we expect seed-variance to be
 small relative to the reported deltas (paired bootstrap CIs are tight) but
-have not measured it. (ii)~Our scaling sweep stops at $N{=}10$ fine-tune
-maps, matching the LOAM-comparable annotation budget; we do not measure
-saturation behavior beyond this regime.
+have not measured it.
 
 
 %% =====================================================================
 \section{Conclusion}
 \label{sec:conclusion}
 
-We approached legend-keyed map segmentation from the perspective of
-\emph{what makes a task transferable for a fine-tunable model}, and
-disentangled two answers on the DARPA CMA benchmark. First, synthetic
-pretraining provides a measurable, bootstrap-significant transferable
-encoder prior: pretrained$+$fine-tune outperforms scratch$+$fine-tune by
-$1.52\times$ under a fair learning rate and by $7.55\times$ under matched
-hyperparameters, with every held-out map showing positive gain. Second, the
-benchmark itself has a structural ceiling---98\% of legend swatches share
-near-twins with another swatch in the same map (CIEDE2000 ${<}15$)---which
-no color-only method can transcend without disambiguation machinery. The
-practical implication is that progress on map-segmentation transferability
-depends less on annotation volume and more on (i) composing a transferable
-prior with (ii) a mechanism that handles intrinsic task ambiguity.
-Benchmarks that conflate these two factors will reward neither.
+Synthetic pretraining provides a measurable transferable encoder prior on
+the DARPA CMA legend-keyed segmentation task: a 2-map fine-tune beats
+matched-protocol scratch by $7.55\times$, fair-LR scratch by $1.52\times$,
+and zero-shot by $+0.040$ mean F1, with every held-out map positive. The
+benchmark has a structural color-confusability property---$98\%$ of legend
+swatches have CIEDE2000 ${<}15$ to a near-twin in the same map---and the
+F1-vs-distinctiveness gradient persists after fine-tuning. The natural
+next step is to compose this transferable prior with explicit
+color-disambiguation machinery.
 
 
 %% =====================================================================
